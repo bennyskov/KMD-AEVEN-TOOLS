@@ -54,7 +54,9 @@
       register: script_tmp
     - name: Output list tmp
       debug:
-        var: script_tmp.stdout_lines    
+        var: script_tmp.stdout_lines   
+         
+    - meta: clear_host_errors
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # now working on {{ hostlist }} host
