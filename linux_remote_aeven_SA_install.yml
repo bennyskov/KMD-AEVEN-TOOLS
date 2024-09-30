@@ -1,6 +1,4 @@
 - name: Create OS groups
-  # hosts: "kmdapp1068"
-  # hosts: "kmdapp1128"
   hosts: "{{ hostlist }}"
   become: false
   gather_facts: false
@@ -14,7 +12,7 @@
       delegate_to: localhost
 
 - name: Socks tunnel setup
-  hosts: localhost
+  hosts: "{{ hostlist }}"
   gather_facts: false
   tasks:
     - include_role:
@@ -29,8 +27,7 @@
         trans_num: "{{ tower_job_id }}"
 
     - set_fact:
-        ansible_become_method: runas
-        ansible_become_user: system
+        ansible_become_user: root
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # working on LOCALHOST
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -71,11 +68,7 @@
   become: true
   gather_facts: true
   vars:
-    RepoUrl: "http://84.255.93.70:8080/repository/ITM/"
     tmpdir: "/tmp/opsware-agent/"
-    no_proxy: 84.255.93.70
-    account_code: "{{ hostvars['localhost']['org'] }}"
-    trans_num: "{{ tower_job_id }}"
   tasks:
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     # write global vars
@@ -83,27 +76,17 @@
     - name: "print debug vars {{ hostlist }}"
       debug:
         msg: |-
-          "RepoUrl = {{ RepoUrl }}"
-          "account_code = {{ account_code }}"
-          "trans_num = {{ trans_num }}"
           "tmpdir = {{ tmpdir }}"
           "ansible_facts = {{ ansible_facts }}"
       tags:
         - debug_vars
 
-    - name: "Get current machine"
-      run_once: true
-      raw: $ENV:PATH
-      register: path_out
-    - name: "Output result"
-      debug:
-        var: path_out.stdout_lines 
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     # Delete & create new scripttemp_dir directory
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: "Delete scripttemp_dir directory on {{ hostlist }}"
+    - name: "Delete {{ tmpdir }} directory on {{ hostlist }}"
       run_once: true
-      win_file:
+      file:
         path: "{{ tmpdir }}"
         state: absent 
 
