@@ -1,5 +1,4 @@
 - name: Create OS groups
-- name: Create OS groups
   # hosts: "kmdapp1068"
   # hosts: "kmdapp1128"
   hosts: "{{ hostlist }}"
