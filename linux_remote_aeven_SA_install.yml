@@ -67,18 +67,13 @@
 # Installation playbook of a ITM agent on Windows server
 #
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: "Installation playbook of a ITM agent on Windows server {{ hostlist }}"
+- name: "Installation playbook of SA Opsware agent for Aeven on server {{ hostlist }}"
   hosts: "{{ hostlist }}"
   become: true
   gather_facts: true
   vars:
-    PortablePythonZip: "PortablePython.zip"
-    PortablePythonDir: "PortablePython"
-    itmZip: "ITM_win_6307SP14-349-1KMD.zip"
     RepoUrl: "http://84.255.93.70:8080/repository/ITM/"
-    tmpdir: "C:/Temp/scripttemp_dir/"
-    debugfile: "ITMAgentInstall_windows_debugfile.log"
-    pingfile: "ITMAgentInstall_windows_pingfile.log"
+    tmpdir: "/tmp/scripttemp_dir/"
     no_proxy: 84.255.93.70
     account_code: "{{ hostvars['localhost']['org'] }}"
     trans_num: "{{ tower_job_id }}"
@@ -90,13 +85,9 @@
       debug:
         msg: |-
           "RepoUrl = {{ RepoUrl }}"
-          "PortablePythonZip = {{ PortablePythonZip }}"
-          "itmZip = {{ itmZip }}"
           "account_code = {{ account_code }}"
           "trans_num = {{ trans_num }}"
           "tmpdir = {{ tmpdir }}"
-          "debugfile = {{ debugfile }}"
-          "pingfile = {{ pingfile }}"
           "ansible_facts = {{ ansible_facts }}"
       tags:
         - debug_vars
@@ -111,16 +102,6 @@
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     # Delete & create new scripttemp_dir directory
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    # - name: "Get-Processes on  {{ hostlist }}"
-    #   run_once: true
-    #   win_shell: Get-Process -Name "*ITM*"
-    #   ignore_errors: yes
-    #   register: script_getprocess
-
-    # - name: Output list script_getprocess
-    #   debug:
-    #     var: script_getprocess.stdout_lines
-
     - name: "Delete scripttemp_dir directory on  {{ hostlist }}"
       run_once: true
       win_file:
