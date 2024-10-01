@@ -94,7 +94,7 @@
 
         - name: Create tmpdir directory
           file:
-            path: /tmp/opsware-agent/
+            path: "{{ tmpdir }}"
             state: directory
             mode: 0777
 
@@ -106,10 +106,10 @@
 
           loop:
             - src: scripts/
-              dest: /tmp/opsware-agent/
+              dest: "{{ tmpdir }}"
 
             - src: opsware-agent/
-              dest: /tmp/opsware-agent/
+              dest: "{{ tmpdir }}"
 
         - name: "List {{ tmpdir }}"
           shell: "ls -lrt {{ tmpdir }}"
@@ -117,3 +117,24 @@
         - name: Output list script_tmp_after
           debug:
             var: script_tmp_after.stdout_lines        
+        
+        - name: Run command
+          shell: sh sa_agent_install.sh
+          args:
+            chdir: "{{ tmpdir }}"
+          register: script_run
+
+        - name: Output list
+          debug:
+            var: script_run.stdout_lines            
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # send debugfiles to ansible stdout
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: "Read content from {{ debugfile }}"
+          run_once: true
+          shell: cat "/tmp/opsware-agent/sa_agent_install.log"
+          register: file_content_debug
+        - name: "Display content in debug output"
+          debug:
+            msg: |-
+              "file_content_debug: {{ file_content_debug.stdout }}"      
