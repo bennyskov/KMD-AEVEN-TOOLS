@@ -152,8 +152,13 @@ if [ -f /etc/opt/opsware/agent/mid ]; then
 fi
 
 #Install SA agent
-if [$AGENT_INSTALLER!=""]; then
+# if [$AGENT_INSTALLER!=""]; then
+if [ -f $AGENT_INSTALLER ]; then
+	echo "running install using bin=$AGENT_INSTALLER$INSTALL_PARAMETERS$OPSW_GW_ADDR"
 	$AGENT_INSTALLER$INSTALL_PARAMETERS$OPSW_GW_ADDR
+	exit 0
+else
+	echo " path to binary is not found $AGENT_INSTALLER"
 	exit 0
 fi
 
