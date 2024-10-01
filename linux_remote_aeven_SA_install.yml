@@ -116,7 +116,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: Run command
-          shell: sh {{ tmpdir }}/sa_agent_install.sh 2>&1
+          shell: sh {{ tmpdir }}/sa_agent_install.sh > {{ tmpdir }}/sa_agent_stdout.log 2>&1
           args:
             chdir: "{{ tmpdir }}"
           register: script_run_stdout_lines
@@ -146,4 +146,16 @@
         - name: "send content to ansible"
           debug:
             msg: |-
-              "sa_agent_install_log: {{ sa_agent_install_log.stdout }}"      
+              "sa_agent_install_log: {{ sa_agent_install_log.stdout }}"
+        
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # send sa_agent_install.log to ansible stdout
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: "Read content from sa_agent_stdout.log"
+          run_once: true
+          shell: cat "{{ tmpdir }}/sa_agent_stdout.log"
+          register: sa_agent_stdout_log
+        - name: "send content to ansible"
+          debug:
+            msg: |-
+              "sa_agent_stdout_log: {{ sa_agent_stdout_log.stdout }}"                          
