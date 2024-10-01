@@ -116,7 +116,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: Run command
-          shell: sh {{ tmpdir }}sa_agent_install.sh 2>&1
+          shell: sh {{ tmpdir }}/sa_agent_install.sh 2>&1
           args:
             chdir: "{{ tmpdir }}"
           register: script_run
