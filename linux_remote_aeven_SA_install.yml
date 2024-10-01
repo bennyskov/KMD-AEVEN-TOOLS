@@ -130,7 +130,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: "List {{ tmpdir }}"
-          shell: "ls -lrt {{ tmpdir }}"
+          shell: "ls -lrt {{ tmpdir }}/*"
           register: script_tmp_after
         - name: Output list script_tmp_after
           debug:
