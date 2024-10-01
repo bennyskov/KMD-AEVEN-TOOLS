@@ -96,7 +96,7 @@
 
         - name: "Copy the opsware-agent directory to {{ tmpdir }}"
           copy:
-            src: "opsware-agent/"
+            src: "/opsware-agent/"
             dest: "{{ tmpdir }}"
             remote_src: yes
             mode: 0775
