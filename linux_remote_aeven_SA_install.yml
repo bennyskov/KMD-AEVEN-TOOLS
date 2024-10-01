@@ -112,17 +112,6 @@
               dest: "{{ tmpdir }}"
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # list {{ tmpdir }}
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-        - name: "List {{ tmpdir }}"
-          shell: "ls -lrt {{ tmpdir }}/*"
-          register: script_tmp_after
-        - name: Output list script_tmp_after
-          debug:
-            var: script_tmp_after.stdout_lines        
-
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # run installer
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -130,11 +119,11 @@
           shell: sh {{ tmpdir }}/sa_agent_install.sh 2>&1
           args:
             chdir: "{{ tmpdir }}"
-          register: script_run
+          register: script_run_stdout_lines
 
-        - name: Output list
+        - name: "Read content from script_run_stdout_lines"
           debug:
-            var: script_run.stdout_lines      
+            var: script_run_stdout_lines.stdout_lines      
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # list {{ tmpdir }}
@@ -148,13 +137,13 @@
             var: script_tmp_after_run.stdout_lines        
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # send debugfiles to ansible stdout
+        # send sa_agent_install.log to ansible stdout
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: "Read content from {{ debugfile }}"
+        - name: "Read content from sa_agent_install.log"
           run_once: true
           shell: cat "{{ tmpdir }}/sa_agent_install.log"
-          register: file_content_debug
-        - name: "Display content in debug output"
+          register: sa_agent_install_log
+        - name: "send content to ansible"
           debug:
             msg: |-
-              "file_content_debug: {{ file_content_debug.stdout }}"      
+              "sa_agent_install_log: {{ sa_agent_install_log.stdout }}"      
