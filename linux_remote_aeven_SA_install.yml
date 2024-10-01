@@ -68,40 +68,42 @@
 - name: "Installation playbook of SA Opsware agent for Aeven on server {{ hostlist }}"
   hosts: "{{ hostlist }}"
   become: true
-  gather_facts: true
+  gather_facts: false
   vars:
-    tmpdir: "/tmp/opsware-agent"
+    tmpdir: "/tmp/opsware-agent/"
   tasks:
-    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    # write global vars
-    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: "print debug vars {{ hostlist }}"
-      debug:
-        msg: |-
-          "tmpdir = {{ tmpdir }}"
-          "ansible_facts = {{ ansible_facts }}"
-      tags:
-        - debug_vars
+    - name: Copy, create, fetch file
+      block:
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # write global vars
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: "print debug vars {{ hostlist }}"
+          debug:
+            msg: |-
+              "tmpdir = {{ tmpdir }}"
+              "ansible_facts = {{ ansible_facts }}"
+          tags:
+            - debug_vars
 
-    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    # Delete & create new scripttemp_dir directory
-    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: "Delete {{ tmpdir }} directory on {{ hostlist }}"
-      run_once: true
-      file:
-        path: "{{ tmpdir }}"
-        state: absent 
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # Delete & create new scripttemp_dir directory
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: "Delete {{ tmpdir }} directory on {{ hostlist }}"
+          run_once: true
+          file:
+            path: "{{ tmpdir }}"
+            state: absent 
 
-    - name: "Copy the opsware-agent directory to {{ tmpdir }}"
-      copy:
-        src: "opsware-agent"
-        dest: "{{ tmpdir }}"
-        remote_src: yes
-        mode: 0775
+        - name: "Copy the opsware-agent directory to {{ tmpdir }}"
+          copy:
+            src: "opsware-agent/"
+            dest: "{{ tmpdir }}"
+            remote_src: yes
+            mode: 0775
 
-    - name: "List {{ tmpdir }}"
-      shell: "ls -lrt {{ tmpdir }}"
-      register: script_tmp_after
-    - name: Output list script_tmp_after
-      debug:
-        var: script_tmp_after.stdout_lines        
+        - name: "List {{ tmpdir }}"
+          shell: "ls -lrt {{ tmpdir }}"
+          register: script_tmp_after
+        - name: Output list script_tmp_after
+          debug:
+            var: script_tmp_after.stdout_lines        
