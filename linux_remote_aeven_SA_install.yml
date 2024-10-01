@@ -92,11 +92,11 @@
             path: "{{ tmpdir }}"
             state: absent 
 
-        - name: Create tmpdir directory
-          file:
-            path: "{{ tmpdir }}"
-            state: directory
-            mode: 0777
+        # - name: Create tmpdir directory
+        #   file:
+        #     path: "{{ tmpdir }}"
+        #     state: directory
+        #     mode: 0777
 
         - name: copy multiple items
           copy: 
@@ -105,10 +105,10 @@
             mode: 0777
 
           loop:
-            - src: scripts/*
+            - src: scripts/
               dest: "{{ tmpdir }}"
 
-            - src: opsware-agent/*
+            - src: opsware-agent
               dest: "{{ tmpdir }}"
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
