@@ -70,7 +70,7 @@
   become: true
   gather_facts: false
   vars:
-    tmpdir: "/tmp/opsware-agent/"
+    tmpdir: "/tmp/opsware-agent"
   tasks:
     - name: Copy, create, exec file
       block:
@@ -112,6 +112,17 @@
               dest: "{{ tmpdir }}"
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # list {{ tmpdir }}
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+        - name: "List {{ tmpdir }}"
+          shell: "ls -lrt {{ tmpdir }}/*"
+          register: script_tmp_after
+        - name: Output list script_tmp_after
+          debug:
+            var: script_tmp_after.stdout_lines        
+
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # run installer
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -132,9 +143,9 @@
         - name: "List {{ tmpdir }}"
           shell: "ls -lrt {{ tmpdir }}/*"
           register: script_tmp_after
-        - name: Output list script_tmp_after
+        - name: Output list script_tmp_after_run
           debug:
-            var: script_tmp_after.stdout_lines        
+            var: script_tmp_after_run.stdout_lines        
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # send debugfiles to ansible stdout
