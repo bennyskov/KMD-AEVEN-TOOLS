@@ -141,7 +141,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: "Read content from {{ debugfile }}"
           run_once: true
-          shell: cat {{ tmpdir }}/sa_agent_install.log"
+          shell: cat "{{ tmpdir }}/sa_agent_install.log"
           register: file_content_debug
         - name: "Display content in debug output"
           debug:
