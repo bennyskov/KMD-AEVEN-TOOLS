@@ -30,8 +30,8 @@ set OPSW_GW_ADDR=84.255.75.1:3001,84.255.75.2:3001
 Rem ************************************************************
  
 
-set INSTALL_LOG=C:\Windows\Temp\opsware-agent\sa-agent_install.log
-set INSTALL_PATH=C:\Windows\Temp\opsware-agent
+set INSTALL_LOG=C:\Windows\Temp\opsware-agent-windows\sa-agent_install.log
+set INSTALL_PATH=C:\Windows\Temp\opsware-agent-windows
 set INSTALL_PARAMETERS= -f -r --force_new_device --force_full_hw_reg --crypto_dir %INSTALL_PATH% --logfile %INSTALL_LOG% --loglevel info --opsw_gw_addr 
 
 cls
