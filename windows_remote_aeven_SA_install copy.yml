@@ -1,0 +1,162 @@
+- name: Create OS groups
+  hosts: "{{ hostlist }}"
+  become: false
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: Create OS group
+      group_by:
+        key: "machine_{{ ostype }}"
+      changed_when: false
+      when: ostype is defined
+      delegate_to: localhost
+
+- name: Socks tunnel setup
+  hosts: "{{ hostlist }}"
+  gather_facts: false
+  tasks:
+    - include_role:
+        name: ansible-role-event-socks-tunnel
+        apply:
+          check_mode: false
+          run_once: true
+          delegate_to: localhost
+      vars:
+        acc_id: "{{ blueid_shortcode }}"
+        transaction_id: "{{ tower_job_id }}"
+        trans_num: "{{ tower_job_id }}"
+
+    - set_fact:
+        ansible_become_method: runas
+        ansible_become_user: system        
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# working on LOCALHOST
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+- name: gather_facts LOCALHOST
+  hosts: localhost
+  gather_facts: true
+  tasks:
+    - name: Debug facts 
+      debug:
+        msg: |-
+          "{{ ansible_facts }}"
+      tags:
+        - debug_facts
+
+    - name: "List homedir files"
+      shell: "ls -lrt"
+      register: script_homedir
+    - name: Output list homedir
+      debug:
+        var: script_homedir.stdout_lines
+
+    - name: "List /tmp/"
+      shell: "ls -lrt /tmp/"
+      register: script_tmp
+    - name: Output list tmp
+      debug:
+        var: script_tmp.stdout_lines   
+         
+    - meta: clear_host_errors
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# now working on {{ hostlist }} host
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+#
+# Installation playbook of Opsware agent on linux
+#
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+- name: "Installation playbook of SA Opsware agent for Aeven on server {{ hostlist }}"
+  hosts: "{{ hostlist }}"
+  become: true
+  gather_facts: false
+  vars:
+    tmpdir: "/tmp/opsware-agent-windows"
+  tasks:
+    - name: Copy, create, exec file
+      block:
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # write global vars
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: "print debug vars {{ hostlist }}"
+          debug:
+            msg: |-
+              "tmpdir = {{ tmpdir }}"
+          tags:
+            - debug_vars
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # Delete & create & copy files to dir /tmp/opsware-agent/ 
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: "Delete {{ tmpdir }} directory on {{ hostlist }}"
+          run_once: true
+          file:
+            path: "{{ tmpdir }}"
+            state: absent 
+
+        # - name: Create tmpdir directory
+        #   file:
+        #     path: "{{ tmpdir }}"
+        #     state: directory
+        #     mode: 0777
+
+        - name: copy multiple items
+          copy: 
+            src: "{{ item.src }}" 
+            dest: "{{ item.dest }}"
+            mode: 0777
+
+          loop:
+            - src: scripts/
+              dest: "{{ tmpdir }}"
+
+            - src: opsware-agent/
+              dest: "{{ tmpdir }}"
+
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # run installer
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+        - name: Run command
+          shell: sh {{ tmpdir }}/sa_agent_install.sh > {{ tmpdir }}/sa_agent_stdout.log 2>&1
+          args:
+            chdir: "{{ tmpdir }}"
+          register: script_run_stdout_lines
+
+        - name: "Read content from script_run_stdout_lines"
+          debug:
+            var: script_run_stdout_lines.stdout_lines      
+
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # list {{ tmpdir }}
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+        - name: "List {{ tmpdir }}"
+          shell: "ls -lrt {{ tmpdir }}/*"
+          register: script_tmp_after
+        - name: Output list script_tmp_after_run
+          debug:
+            var: script_tmp_after_run.stdout_lines        
+
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # send sa_agent_install.log to ansible stdout
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: "Read content from sa_agent_install.log"
+          run_once: true
+          shell: cat "{{ tmpdir }}/sa_agent_install.log"
+          register: sa_agent_install_log
+        - name: "send content to ansible"
+          debug:
+            msg: |-
+              "sa_agent_install_log: {{ sa_agent_install_log.stdout }}"
+        
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # send sa_agent_install.log to ansible stdout
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: "Read content from sa_agent_stdout.log"
+          run_once: true
+          shell: cat "{{ tmpdir }}/sa_agent_stdout.log"
+          register: sa_agent_stdout_log
+        - name: "send content to ansible"
+          debug:
+            msg: |-
+              "sa_agent_stdout_log: {{ sa_agent_stdout_log.stdout }}"                          

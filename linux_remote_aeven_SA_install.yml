@@ -70,7 +70,7 @@
   become: true
   gather_facts: false
   vars:
-    tmpdir: "/tmp/opsware-agent"
+    tmpdir: "/tmp/opsware-agent-linux"
   tasks:
     - name: Copy, create, exec file
       block:
@@ -84,7 +84,7 @@
           tags:
             - debug_vars
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # Delete & create & copy files to dir /tmp/opsware-agent/ 
+        # Delete & create & copy files to dir /tmp/opsware-agent-linux/ 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: "Delete {{ tmpdir }} directory on {{ hostlist }}"
           run_once: true
@@ -108,7 +108,7 @@
             - src: scripts/
               dest: "{{ tmpdir }}"
 
-            - src: opsware-agent/
+            - src: opsware-agent-linux/
               dest: "{{ tmpdir }}"
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
