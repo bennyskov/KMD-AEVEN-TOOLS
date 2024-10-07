@@ -42,7 +42,7 @@
   become: true
   gather_facts: false
   vars:
-    tmpdir: "C:/Windows/Temp/opsware-agent/"  
+    tmpdir: "C:/Windows/Temp/opsware-agent-windows/"  
     logfile: "sa-agent_install.log"  
     stdoutfile: "sa-agent_stdout.log"  
   tasks:
