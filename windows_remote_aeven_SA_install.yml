@@ -94,7 +94,7 @@
         # run installer
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: Run command
-          win_command: '{{ tmpdir }}/sa_agent_install.bat > {{ tmpdir }}/{{ stdoutfile }} 2>&1'
+          win_command: '{{ tmpdir }}sa_agent_install.bat > {{ tmpdir }}{{ stdoutfile }} 2>&1'
           args:
             chdir: "{{ tmpdir }}"
           register: script_run
