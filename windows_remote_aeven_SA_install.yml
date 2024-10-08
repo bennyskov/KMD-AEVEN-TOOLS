@@ -132,8 +132,9 @@
           debug:
             var: dir_of_tmpdir_end.stdout_lines 
 
-      # always:
-      #   - name: Delete temp opsware-agent directory
-      #     win_file:
-      #       path: "{{ tmpdir }}"
-      #       state: absent
+      always:
+        - name: Delete temp {{ tmpdir }} agent directory
+          win_file:
+            path: "{{ tmpdir }}"
+            state: absent
+            
