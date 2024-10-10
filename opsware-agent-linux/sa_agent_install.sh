@@ -152,8 +152,10 @@ if [ -f /etc/opt/opsware/agent/mid ]; then
 	exit 0
 fi
 
+
 #Install SA agent
 if [ -f $AGENT_INSTALLER ]; then
-	sh $AGENT_INSTALLER$INSTALL_PARAMETERS$OPSW_GW_ADDR
+	chmod +777 $AGENT_INSTALLER
+	./$AGENT_INSTALLER$INSTALL_PARAMETERS$OPSW_GW_ADDR
 	exit 0
 fi
