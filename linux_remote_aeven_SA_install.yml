@@ -116,16 +116,19 @@
               dest: "{{ tmpdir }}"
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # list {{ tmpdir }} and {{ agentdir }}
+        # list {{ tmpdir }}
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-        - name: "List {{ tmpdir }} BEFORE"
+        - name: "List {{ tmpdir }}"
           shell: "ls -lrt {{ tmpdir }}*"
-          register: script_tmp_before
-        - name: Output list script_tmp_before
+          register: script_tmpdir_before
+        - name: Output list script_tmpdir_before
           debug:
-            var: script_tmp_before.stdout_lines
+            var: script_tmpdir_before.stdout_lines
 
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # list {{ agentdir }}
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: "Check if the {{ agentdir }} exists"
           stat:
@@ -135,6 +138,8 @@
         - name: "List {{ agentdir }}"
           shell: "ls -lrt {{ agentdir }}"
           register: list_agentdir_out
+          when: file_stat_agentdir.stat.exists
+
         - name: list_agentdir Output
           debug:
             var: list_agentdir_out.stdout_lines
@@ -146,20 +151,20 @@
         - name: "Check if the agent_uninstall.sh exists"
           stat:
             path: "{{ agentdir }}agent_uninstall.sh"
-          register: file_stat_uninstall
-          when: file_stat_bin.stat.exists
+          register: file_stat_uninstall_sh
+          when: file_stat_agentdir.stat.exists
 
         - name: Run UNINSTALL
           shell: sh {{ agentdir }}agent_uninstall.sh --force > {{ tmpdir }}{{ uninstall_stdout }} 2>&1
           args:
             chdir: "{{ agentdir }}"
           register: script_uninstall_stdout_lines
-          when: file_stat_bin.stat.exists
+          when: file_stat_uninstall_sh.stat.exists
 
         - name: "Read content from stdout if not catched by pipe"
           debug:
             var: script_uninstall_stdout_lines.stdout_lines      
-          when: file_stat_bin.stat.exists
+          when: file_stat_uninstall_sh.stat.exists
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # send {{ uninstall_stdout }} to ansible stdout
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -205,6 +210,25 @@
         - name: Output list script_tmp_after_run
           debug:
             var: script_tmp_after_run.stdout_lines        
+        
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # list {{ agentdir }}
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+        - name: "Check if the {{ agentdir }} exists"
+          stat:
+            path: "{{ agentdir }}"
+          register: file_stat_agentdir2
+
+        - name: "List {{ agentdir }}"
+          shell: "ls -lrt {{ agentdir }}"
+          register: list_agentdir_out2
+          when: file_stat_agentdir2.stat.exists
+
+        - name: list_agentdir Output
+          debug:
+            var: list_agentdir_out2.stdout_lines
+          when: file_stat_agentdir2.stat.exists
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # send {{ stdoutfile }} to ansible stdout
@@ -212,19 +236,19 @@
         - name: "Check if the {{ stdoutfile }} exists"
           stat:
             path: "{{ tmpdir }}{{ stdoutfile }}"
-          register: file_stat_stdoutfile
+          register: file_stat_install_stdout
 
         - name: "Read content from {{ stdoutfile }}"
           run_once: true
           shell: cat "{{ tmpdir }}{{ stdoutfile }}"
-          register: sa_agent_stdout_log
-          when: file_stat_stdoutfile.stat.exists
+          register: sa_agent_install_stdout_log 
+          when: file_stat_install_stdout.stat.exists
 
         - name: "send content to ansible"
           debug:
             msg: |-
-              "sa_agent_stdout_log: {{ sa_agent_stdout_log.stdout }}"
-          when: file_stat_stdoutfile.stat.exists
+              "sa_agent_install_stdout_log: {{ sa_agent_install_stdout_log.stdout }}"
+          when: file_stat_install_stdout.stat.exists
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # send {{ logfile }} to ansible stdout
@@ -233,16 +257,16 @@
         - name: "Check if the {{ logfile }} exists"
           stat:
             path: "{{ tmpdir }}{{ logfile }}"
-          register: file_stat_logfile
+          register: file_stat_install_logfile
 
         - name: "Read content from {{ logfile }}"
           run_once: true
           shell: cat "{{ tmpdir }}{{ logfile }}"
-          register: sa_agent_logfile_log
-          when: file_stat_logfile.stat.exists
+          register: sa_agent_install_logfile_log
+          when: file_stat_install_logfile.stat.exists
 
         - name: "send content to ansible"
           debug:
             msg: |-
-              "sa_agent_logfile_log: {{ sa_agent_logfile_log.stdout }}"                          
-          when: file_stat_logfile.stat.exists
+              "sa_agent_install_logfile_log: {{ sa_agent_install_logfile_log.stdout }}"                          
+          when: file_stat_install_logfile.stat.exists
