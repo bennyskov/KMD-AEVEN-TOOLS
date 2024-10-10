@@ -108,9 +108,7 @@
             dest: "{{ item.dest }}"
             mode: 0777
             recurse: yes
-            force: yes
-
-
+            force: yes            
           loop:
             - src: scripts/
               dest: "{{ tmpdir }}"
@@ -121,6 +119,7 @@
         - name: Set permissions for a directory and its contents
           file:
             path: "{{ tmpdir }}"
+            state: directory
             mode: 0777
             recurse: yes
             force: yes
