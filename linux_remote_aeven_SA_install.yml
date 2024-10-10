@@ -118,7 +118,7 @@
         - name: Set permissions for a directory and its contents
           file:
             path: "{{ tmpdir }}"
-            mode: "0777"
+            mode: 0777
             recurse: yes
             force: yes
 
