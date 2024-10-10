@@ -138,11 +138,11 @@ esac
 ######################################################
 
 #Check if agent port is already in use
-# if lsof -Pi :1002 -sTCP:LISTEN -t >/dev/null ; then
-#     echo "Port 1002 is already in use, either SA agent is already installed or the port is used by some process."
-# 	echo "SA agent can't be installed."
-# 	exit 0
-# fi
+if lsof -Pi :1002 -sTCP:LISTEN -t >/dev/null ; then
+    echo "Port 1002 is already in use, either SA agent is already installed or the port is used by some process."
+	echo "SA agent can't be installed."
+	exit 0
+fi
 #Check if SA agent is already installed
 if [ -f /etc/opt/opsware/agent/mid ]; then
 	echo "SA agent is already installed, Fix agent's reachability or uninstall SA agent."
@@ -152,12 +152,8 @@ if [ -f /etc/opt/opsware/agent/mid ]; then
 fi
 
 #Install SA agent
-# if [$AGENT_INSTALLER!=""]; then
-if [ -f $AGENT_INSTALLER ]; then
-	echo "running install using bin=$AGENT_INSTALLER$INSTALL_PARAMETERS$OPSW_GW_ADDR"
+if [$AGENT_INSTALLER!=""]; then
 	$AGENT_INSTALLER$INSTALL_PARAMETERS$OPSW_GW_ADDR
 	exit 0
-else
-	echo " path to binary is not found $AGENT_INSTALLER"
-	exit 0
 fi
+# if [ -f $AGENT_INSTALLER ]; then
