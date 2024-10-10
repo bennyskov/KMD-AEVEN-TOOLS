@@ -126,12 +126,19 @@
           debug:
             var: script_tmp_before.stdout_lines
 
-        - name: "List {{ agentdir }} BEFORE"
-          shell: "ls -lrt {{ agentdir }}*"
-          register: script_agentdir_before
-        - name: Output list script_agentdir_before
+
+        - name: "Check if the {{ agentdir }} exists"
+          stat:
+            path: "{{ agentdir }}"
+          register: file_stat_agentdir
+
+        - name: "List {{ agentdir }}"
+          shell: "ls -lrt {{ agentdir }}"
+          register: list_agentdir_out
+        - name: list_agentdir Output
           debug:
-            var: script_agentdir_before.stdout_lines
+            var: list_agentdir_out.stdout_lines
+          when: file_stat_agentdir.stat.exists
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # run UNINSTALL
@@ -140,18 +147,19 @@
           stat:
             path: "{{ agentdir }}agent_uninstall.sh"
           register: file_stat_uninstall
+          when: file_stat_bin.stat.exists
 
         - name: Run UNINSTALL
           shell: sh {{ agentdir }}agent_uninstall.sh --force > {{ tmpdir }}{{ uninstall_stdout }} 2>&1
           args:
             chdir: "{{ agentdir }}"
           register: script_uninstall_stdout_lines
-          when: file_stat_uninstall.stat.exists
+          when: file_stat_bin.stat.exists
 
         - name: "Read content from stdout if not catched by pipe"
           debug:
             var: script_uninstall_stdout_lines.stdout_lines      
-          when: file_stat_uninstall.stat.exists
+          when: file_stat_bin.stat.exists
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # send {{ uninstall_stdout }} to ansible stdout
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
