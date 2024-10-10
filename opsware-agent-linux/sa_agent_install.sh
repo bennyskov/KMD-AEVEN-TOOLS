@@ -32,8 +32,8 @@ current_datetime=$(date +"%Y-%m-%d %H:%M:%S")
 echo "DATETIME : $current_datetime"
 echo "USER: $(id -u -n)"
 echo "SCRIPT VERSION: $SCRIPT_VERSION"
-INSTALL_LOG="/tmp/opsware-agent/sa_agent_install.log"
-INSTALL_PATH="/tmp/opsware-agent/"
+INSTALL_LOG="/tmp/opsware-agent-linux/sa_agent_install.log"
+INSTALL_PATH="/tmp/opsware-agent-linux/"
 INSTALL_PARAMETERS=" -f -r --force_new_device --force_full_hw_reg --crypto_dir $INSTALL_PATH --logfile $INSTALL_LOG --loglevel info --opsw_gw_addr "
 AGENT_INSTALLER=""
 #Detect OS function
