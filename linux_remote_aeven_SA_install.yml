@@ -70,9 +70,11 @@
   become: true
   gather_facts: false
   vars:
+    agentdir: "/opt/opsware/agent/bin/"
     tmpdir: "/tmp/opsware-agent-linux/"
     logfile: "sa-agent_install.log"  
     stdoutfile: "sa-agent_stdout.log"      
+    uninstall_stdout: "sa-agent_uninstall_stdout.log"      
   tasks:
     - name: Copy, create, exec file
       block:
@@ -124,18 +126,58 @@
           debug:
             var: script_tmp_before.stdout_lines        
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # run installer
+        # run UNINSTALL
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: "Check if the agent_uninstall.sh exists"
+          stat:
+            path: "{{ agentdir }}agent_uninstall.sh"
+          register: file_stat_uninstall
+
+        - name: Run UNINSTALL
+          shell: sh {{ agentdir }}agent_uninstall.sh --force > {{ tmpdir }}{{ uninstall_stdout }} 2>&1
+          args:
+            chdir: "{{ agentdir }}"
+          register: script_uninstall_stdout_lines
+          when: file_stat_uninstall.stat.exists
+
+        - name: "Read content from stdout if not catched by pipe"
+          debug:
+            var: script_uninstall_stdout_lines.stdout_lines      
+          when: file_stat_uninstall.stat.exists
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # send {{ uninstall_stdout }} to ansible stdout
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-        - name: Run command
+        - name: "Check if the {{ uninstall_stdout }} exists"
+          stat:
+            path: "{{ tmpdir }}{{ uninstall_stdout }}"
+          register: file_stat_uninstall_stdoutfile
+
+        - name: "Read content from {{ uninstall_stdout }}"
+          run_once: true
+          shell: cat "{{ tmpdir }}{{ uninstall_stdout }}"
+          register: sa_agent_uninstall_stdout_log
+          when: file_stat_uninstall_stdoutfile.stat.exists
+
+        - name: "send content to ansible"
+          debug:
+            msg: |-
+              "sa_agent_uninstall_stdout_log: {{ sa_agent_uninstall_stdout_log.stdout }}"
+          when: file_stat_uninstall_stdoutfile.stat.exists
+
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # run INSTALL
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+        - name: Run INSTALL
           shell: sh {{ tmpdir }}sa_agent_install.sh > {{ tmpdir }}{{ stdoutfile }} 2>&1
           args:
             chdir: "{{ tmpdir }}"
-          register: script_run_stdout_lines
+          register: script_install_stdout_lines
 
-        - name: "Read content from script_run_stdout_lines"
+        - name: "Read content from script_install_stdout_lines"
           debug:
-            var: script_run_stdout_lines.stdout_lines      
+            var: script_install_stdout_lines.stdout_lines      
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # list {{ tmpdir }}
