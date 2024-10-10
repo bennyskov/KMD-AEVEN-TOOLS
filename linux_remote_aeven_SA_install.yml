@@ -152,7 +152,6 @@
           stat:
             path: "{{ agentdir }}agent_uninstall.sh"
           register: file_stat_uninstall_sh
-          when: file_stat_agentdir.stat.exists
 
         - name: Run UNINSTALL
           shell: sh {{ agentdir }}agent_uninstall.sh --force > {{ tmpdir }}{{ uninstall_stdout }} 2>&1
