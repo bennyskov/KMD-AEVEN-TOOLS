@@ -1,3 +1,4 @@
+#!/bin/bash
 #   Name: sa_agent_install.sh
 #   Author: XHMA
 #   Date: 2024-09-04
@@ -8,9 +9,9 @@
 #   Date        By      Review          Vers.   Change
 #   ==========  ====    ======          =====   ==================================================
 #   2024-09-10  XHMA    XXXX            1.0     Intial for SA agent installation
+#   2024-10-10  XBESK   XXX             1.1     moved to the top. appended -linux to opsware-agent. added sh in front of the start of binary exec. changed the test to if [ -f $AGENT_INSTALLER ]; then
 #
-#/bin/bash
-SCRIPT_VERSION="1.0"
+SCRIPT_VERSION="1.1"
 # UID check of script
 ID=`id -u`
 [ $ID -eq 0 ] || { echo "$0 needs root(or sudo to root) permissions to run" ; exit 1 ; }
@@ -152,8 +153,7 @@ if [ -f /etc/opt/opsware/agent/mid ]; then
 fi
 
 #Install SA agent
-if [$AGENT_INSTALLER!=""]; then
-	$AGENT_INSTALLER$INSTALL_PARAMETERS$OPSW_GW_ADDR
+if [ -f $AGENT_INSTALLER ]; then
+	sh $AGENT_INSTALLER$INSTALL_PARAMETERS$OPSW_GW_ADDR
 	exit 0
 fi
-# if [ -f $AGENT_INSTALLER ]; then
