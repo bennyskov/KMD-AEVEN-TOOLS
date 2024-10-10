@@ -107,8 +107,6 @@
             src: "{{ item.src }}" 
             dest: "{{ item.dest }}"
             mode: 0777
-            recurse: yes
-            force: yes            
           loop:
             - src: scripts/
               dest: "{{ tmpdir }}"
