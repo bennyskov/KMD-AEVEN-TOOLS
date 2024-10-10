@@ -1,0 +1,141 @@
+- name: Create OS groups
+  hosts: "{{ hostlist }}"
+  become: false
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: Create OS group
+      group_by:
+        key: "machine_{{ ostype }}"
+      changed_when: false
+      when: ostype is defined
+      delegate_to: localhost
+
+- name: Socks tunnel setup
+  hosts: 'machine_windows'
+  gather_facts: false
+  tasks:
+    - include_role:
+        name: ansible-role-event-socks-tunnel
+        apply:
+          check_mode: false
+          run_once: true
+          delegate_to: localhost
+      vars:
+        acc_id: "{{ blueid_shortcode }}"
+        transaction_id: "{{ tower_job_id }}"
+        trans_num: "{{ tower_job_id }}"
+
+    - set_fact:
+        ansible_become_method: runas
+        ansible_become_user: system
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# now working on {{ hostlist }} host
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+#
+# Installation playbook of Opsware agent on windows
+#
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+- name: "Installation playbook of SA Opsware agent for Aeven on server {{ hostlist }}"
+  hosts: "{{ hostlist }}"
+  become: true
+  gather_facts: false
+  vars:
+    opsdir: "C:/Program Files/Opsware/agent/pylibs3/cog/uninstall/"  
+    tmpdir: "C:/Windows/Temp/opsware-agent-windows/"  
+    logfile: "sa-agent_install.log"  
+    stdoutfile: "sa-agent_stdout.log"  
+  tasks:
+    - name: Copy, create, exec, fetch output
+      # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+      # Delete & create & copy files to dir {{ tmpdir }}
+      # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+      block:
+        - name: "Get PATH for machine"
+          run_once: true
+          raw: $ENV:PATH
+          register: path_out
+
+        - name: "Output result"
+          debug:
+            var: path_out.stdout_lines    
+    
+        - name: "Delete {{ tmpdir }} directory on {{ hostlist }}"
+          run_once: true
+          win_file:
+            path: "{{ tmpdir }}"
+            state: absent
+
+        - name: Create {{ tmpdir }} directory on {{ hostlist }}"
+          win_file:
+            path: "{{ tmpdir }}"
+            state: directory
+
+        - name: copy multiple items
+          win_copy: 
+            src: "{{ item.src }}" 
+            dest: "{{ item.dest }}"
+
+          loop:
+            - src: scripts/
+              dest: "{{ tmpdir }}"
+
+            - src: opsware-agent-windows/
+              dest: "{{ tmpdir }}" 
+
+        - name: "List {{ tmpdir }} BEFORE"
+          run_once: true
+          win_shell: Get-ChildItem -Path {{ tmpdir }}
+          register: dir_of_tmpdir_before
+        - name: "list dir of {{ tmpdir }} at the BEFORE"
+          debug:
+            var: dir_of_tmpdir_before.stdout_lines 
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # run installer
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: Run command
+          win_command: '{{ tmpdir }}sa_agent_install.bat > {{ tmpdir }}{{ stdoutfile }} 2>&1'
+          args:
+            chdir: "{{ tmpdir }}"
+          register: script_run
+
+        - name: Output list
+          debug:
+            var: script_run.stdout_lines
+
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # send stdoutfiles to ansible stdout
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: "Read content from {{ logfile }}"
+          run_once: true
+          win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ logfile }}"
+          register: file_content_logfile
+        - name: "Display content in stdout"
+          debug:
+            msg: |-
+              "file_content_logfile {{ file_content_logfile.stdout }}"      
+
+        - name: "Read content from {{ stdoutfile }}"
+          run_once: true
+          win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ stdoutfile }}"
+          register: file_content_stdout
+        - name: "Display content in stdout"
+          debug:
+            msg: |-
+              "file_content_stdout {{ file_content_stdout.stdout }}"      
+
+        - name: "List {{ tmpdir }} at the end"
+          run_once: true
+          win_shell: Get-ChildItem -Path {{ tmpdir }}
+          register: dir_of_tmpdir_end
+        - name: "list dir of {{ tmpdir }} at the end"
+          debug:
+            var: dir_of_tmpdir_end.stdout_lines 
+
+      always:
+        - name: Delete temp {{ tmpdir }} agent directory
+          win_file:
+            path: "{{ tmpdir }}"
+            state: absent
+            

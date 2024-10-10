@@ -70,7 +70,9 @@
   become: true
   gather_facts: false
   vars:
-    tmpdir: "/tmp/opsware-agent-linux"
+    tmpdir: "/tmp/opsware-agent-linux/"
+    logfile: "sa-agent_install.log"  
+    stdoutfile: "sa-agent_stdout.log"      
   tasks:
     - name: Copy, create, exec file
       block:
@@ -112,11 +114,21 @@
               dest: "{{ tmpdir }}"
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # list {{ tmpdir }}
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+        - name: "List {{ tmpdir }} BEFORE"
+          shell: "ls -lrt {{ tmpdir }}*"
+          register: script_tmp_before
+        - name: Output list script_tmp_before
+          debug:
+            var: script_tmp_before.stdout_lines        
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # run installer
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: Run command
-          shell: sh {{ tmpdir }}/sa_agent_install.sh > {{ tmpdir }}/sa_agent_stdout.log 2>&1
+          shell: sh {{ tmpdir }}/sa_agent_install.sh > {{ tmpdir }}{{ stdoutfile }} 2>&1
           args:
             chdir: "{{ tmpdir }}"
           register: script_run_stdout_lines
@@ -130,32 +142,32 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: "List {{ tmpdir }}"
-          shell: "ls -lrt {{ tmpdir }}/*"
+          shell: "ls -lrt {{ tmpdir }}*"
           register: script_tmp_after
         - name: Output list script_tmp_after_run
           debug:
             var: script_tmp_after_run.stdout_lines        
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # send sa_agent_install.log to ansible stdout
+        # send {{ stdoutfile }} to ansible stdout
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: "Read content from sa_agent_install.log"
+        - name: "Read content from {{ stdoutfile }}"
           run_once: true
-          shell: cat "{{ tmpdir }}/sa_agent_install.log"
-          register: sa_agent_install_log
-        - name: "send content to ansible"
-          debug:
-            msg: |-
-              "sa_agent_install_log: {{ sa_agent_install_log.stdout }}"
-        
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # send sa_agent_install.log to ansible stdout
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: "Read content from sa_agent_stdout.log"
-          run_once: true
-          shell: cat "{{ tmpdir }}/sa_agent_stdout.log"
+          shell: cat "{{ tmpdir }}{{ stdoutfile }}"
           register: sa_agent_stdout_log
         - name: "send content to ansible"
           debug:
             msg: |-
-              "sa_agent_stdout_log: {{ sa_agent_stdout_log.stdout }}"                          
+              "sa_agent_stdout_log: {{ sa_agent_stdout_log.stdout }}"
+        
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # send {{ logfile }} to ansible stdout
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: "Read content from {{ logfile }}"
+          run_once: true
+          shell: cat "{{ tmpdir }}{{ logfile }}"
+          register: sa_agent_logfile_log
+        - name: "send content to ansible"
+          debug:
+            msg: |-
+              "sa_agent_logfile_log: {{ sa_agent_logfile_log.stdout }}"                          
