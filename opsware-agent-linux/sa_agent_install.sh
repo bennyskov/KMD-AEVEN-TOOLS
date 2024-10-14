@@ -67,7 +67,7 @@ case "$OS" in
 		if [ "$MAJOR_VERSION" = "9" ]; then
 			export AGENT_INSTALLER=$INSTALL_PATH"RHEL9/opsware-agent-90.0.96031.0-linux-RHEL9-X86_64"
 		elif [ "$MAJOR_VERSION" = "8" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"RHEL8/opsware-agent-90.0.95025.0-linux-RHEL8-X86_64"
+			export AGENT_INSTALLER=$INSTALL_PATH"RHEL8/opsware-agent-90.0.96031.0-linux-RHEL8-X86_64"
 		elif [ "$MAJOR_VERSION" = "7" ]; then
 			export AGENT_INSTALLER=$INSTALL_PATH"RHEL7/opsware-agent-90.0.96031.0-linux-7SERVER-X86_64"
 		elif [ "$MAJOR_VERSION" = "6" ]; then
@@ -158,6 +158,7 @@ fi
 #Install SA agent
 if [ -f $AGENT_INSTALLER ]; then
 	chmod +777 $AGENT_INSTALLER
+	echo "$AGENT_INSTALLER$INSTALL_PARAMETERS$OPSW_GW_ADDR"
 	$AGENT_INSTALLER$INSTALL_PARAMETERS$OPSW_GW_ADDR
 	exit 0
 fi
