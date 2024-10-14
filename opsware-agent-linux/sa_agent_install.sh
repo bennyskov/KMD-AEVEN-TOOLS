@@ -33,8 +33,8 @@ current_datetime=$(date +"%Y-%m-%d %H:%M:%S")
 echo "DATETIME : $current_datetime"
 echo "USER: $(id -u -n)"
 echo "SCRIPT VERSION: $SCRIPT_VERSION"
-INSTALL_LOG="/tmp/opsware-agent-linux/sa_agent_install.log"
-INSTALL_PATH="/tmp/opsware-agent-linux/"
+INSTALL_LOG="/var/opsware-agent-linux/sa_agent_install.log"
+INSTALL_PATH="/var/opsware-agent-linux/"
 INSTALL_PARAMETERS=" -f -r --force_new_device --force_full_hw_reg --crypto_dir $INSTALL_PATH --logfile $INSTALL_LOG --loglevel info --opsw_gw_addr "
 AGENT_INSTALLER=""
 #Detect OS function
@@ -65,7 +65,7 @@ case "$OS" in
 		if [ "$MAJOR_VERSION" = "9" ]; then
 			export AGENT_INSTALLER=$INSTALL_PATH"RHEL9/opsware-agent-90.0.96031.0-linux-RHEL9-X86_64"
 		elif [ "$MAJOR_VERSION" = "8" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"RHEL8/opsware-agent-90.0.96031.0-linux-RHEL8-X86_64"
+			export AGENT_INSTALLER=$INSTALL_PATH"RHEL8/opsware-agent-90.0.95025.0-linux-RHEL8-X86_64"
 		elif [ "$MAJOR_VERSION" = "7" ]; then
 			export AGENT_INSTALLER=$INSTALL_PATH"RHEL7/opsware-agent-90.0.96031.0-linux-7SERVER-X86_64"
 		elif [ "$MAJOR_VERSION" = "6" ]; then

@@ -49,8 +49,8 @@
       debug:
         var: script_homedir.stdout_lines
 
-    - name: "List /tmp/"
-      shell: "ls -lrt /tmp/"
+    - name: "List /var/"
+      shell: "ls -lrt /var/"
       register: script_tmp
     - name: Output list tmp
       debug:
@@ -71,7 +71,7 @@
   gather_facts: false
   vars:
     agentdir: "/opt/opsware/agent/bin/"
-    tmpdir: "/tmp/opsware-agent-linux/"
+    tmpdir: "/var/opsware-agent-linux/"
     logfile: "sa-agent_install.log"  
     stdoutfile: "sa-agent_stdout.log"      
     uninstall_stdout: "sa-agent_uninstall_stdout.log"      
@@ -88,7 +88,7 @@
           tags:
             - debug_vars
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # Delete & create & copy files to dir /tmp/opsware-agent-linux/ 
+        # Delete & create & copy files to dir /var/opsware-agent-linux/ 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: "Delete {{ tmpdir }} directory on {{ hostlist }}"
           run_once: true
