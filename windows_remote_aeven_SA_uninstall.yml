@@ -83,3 +83,9 @@
         - name: "list dir of C:/Program Files/*"
           debug:
             var: dir_of_tmpdir_end.stdout_lines
+
+      always:
+        - name: Delete temp C:/Program Files/Opsware/ agent directory
+          win_file:
+            path: "C:/Program Files/Opsware/"
+            state: absent            
