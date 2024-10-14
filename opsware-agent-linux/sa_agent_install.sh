@@ -11,24 +11,19 @@
 #   2024-09-10  XHMA    XXXX            1.0     Intial for SA agent installation
 #   2024-10-10  XBESK   XXX             1.1     moved to the top. appended -linux to opsware-agent. added sh in front of the start of binary exec. changed the test to if [ -f $AGENT_INSTALLER ]; then
 #
-SCRIPT_VERSION="1.1"
+SCRIPT_VERSION="1.2"
 # UID check of script
 ID=`id -u`
 [ $ID -eq 0 ] || { echo "$0 needs root(or sudo to root) permissions to run" ; exit 1 ; }
 #OS=$(uname -s | tr A-Z a-z)
+# ************************************************************
 # Variables
-# ************************************************************
-# for Shared customer_id enabel below 
-# ************************************************************
-#OPSW_GW_ADDR=152.73.224.35:3001,152.73.224.36:3001 
-# ************************************************************
-#
 # ************************************************************
 # for KMD use below gateway and cusomer 
 # ************************************************************
 OPSW_GW_ADDR=84.255.75.1:3001,84.255.75.2:3001
-# ************************************************************
 echo "HOSTNAME: $HOSTNAME"
+echo "OPSW_GW_ADDR: $OPSW_GW_ADDR"
 current_datetime=$(date +"%Y-%m-%d %H:%M:%S")
 echo "DATETIME : $current_datetime"
 echo "USER: $(id -u -n)"
@@ -36,7 +31,7 @@ echo "SCRIPT VERSION: $SCRIPT_VERSION"
 INSTALL_LOG="/tmp/opsware-agent-linux/sa_agent_install.log"
 INSTALL_PATH="/tmp/opsware-agent-linux/"
 INSTALL_WORK="/var"
-INSTALL_PARAMETERS=" -f -r --force_new_device --force_full_hw_reg --crypto_dir $INSTALL_PATH --logfile $INSTALL_LOG --loglevel info --opsw_gw_addr --workdir $INSTALL_WORK"
+INSTALL_PARAMETERS=" -f -r --force_new_device --force_full_hw_reg --crypto_dir $INSTALL_PATH --logfile $INSTALL_LOG --loglevel info --opsw_gw_addr $OPSW_GW_ADDR --workdir $INSTALL_WORK "
 # ./opsware-agent-90.0.96031.0-linux-RHEL8-X86_64 -f -r --force_new_device --force_full_hw_reg --crypto_dir /tmp/opsware-agent-linux --logfile /tmp/opsware-agent-linux/sa_agent_install.log --loglevel info --opsw_gw_addr 84.255.75.1:3001,84.255.75.2:3001 --workdir /var
 AGENT_INSTALLER=""
 #Detect OS function
@@ -158,7 +153,7 @@ fi
 #Install SA agent
 if [ -f $AGENT_INSTALLER ]; then
 	chmod +777 $AGENT_INSTALLER
-	echo "$AGENT_INSTALLER$INSTALL_PARAMETERS$OPSW_GW_ADDR"
-	$AGENT_INSTALLER$INSTALL_PARAMETERS$OPSW_GW_ADDR
+	echo "$AGENT_INSTALLER$INSTALL_PARAMETERS"
+	$AGENT_INSTALLER$INSTALL_PARAMETERS
 	exit 0
 fi
