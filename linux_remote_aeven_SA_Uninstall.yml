@@ -132,16 +132,16 @@
         - name: "Check if the {{ uninstall_stdout }} exists"
           stat:
             path: "{{ tmpdir }}{{ uninstall_stdout }}"
-          register: file_stat_uninstall_stdoutfile
+          register: file_content_uninstall_stdout
 
         - name: "Read content from {{ uninstall_stdout }}"
           run_once: true
           shell: cat "{{ tmpdir }}{{ uninstall_stdout }}"
           register: sa_agent_uninstall_stdout_log
-          when: file_stat_uninstall_stdoutfile.stat.exists
+          when: file_content_uninstall_stdout.stat.exists
 
         - name: "send content to ansible"
           debug:
             msg: |-
-              "sa_agent_uninstall_stdout_log: {{ sa_agent_uninstall_stdout_log.stdout }}"
-          when: file_stat_uninstall_stdoutfile.stat.exists
+              "file_content_uninstall_stdout: {{ file_content_uninstall_stdout.stdout }}"
+          when: file_content_uninstall_stdout.stat.exists
