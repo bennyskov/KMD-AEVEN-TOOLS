@@ -57,7 +57,7 @@
         - name: Run command
           win_command: '"{{ agentdir }}agent_uninstall.bat" --force > {{ tmpdir }}{{ stdoutfile }} 2>&1'
           args:
-            chdir: "{{ tmpdir }}"
+            chdir: "{{ agentdir }}"
           register: script_run
 
         - name: Output list
@@ -70,11 +70,11 @@
         - name: "Read content from {{ stdoutfile }}"
           run_once: true
           win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ stdoutfile }}"
-          register: file_content_stdout
+          register: file_content_uninstall_stdout
         - name: "Display content in stdout"
           debug:
             msg: |-
-              "file_content_stdout {{ file_content_stdout.stdout }}"      
+              "file_content_uninstall_stdout {{ file_content_uninstall_stdout.stdout }}"      
 
         - name: "List {{ tmpdir }} at the end"
           run_once: true
