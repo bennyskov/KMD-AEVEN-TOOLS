@@ -71,7 +71,7 @@
   gather_facts: false
   vars:
     agentdir: "/opt/opsware/agent/bin/"
-    tmpdir: "/tmp/opsware-agent-linux/"
+    vardir: "/var/opsware-agent-linux/"
     logfile: "sa-agent_install.log"  
     stdoutfile: "sa-agent_stdout.log"      
     uninstall_stdout: "sa-agent_uninstall_stdout.log"      
@@ -84,21 +84,21 @@
         - name: "print debug vars {{ hostlist }}"
           debug:
             msg: |-
-              "tmpdir = {{ tmpdir }}"
+              "vardir = {{ vardir }}"
           tags:
             - debug_vars
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # Delete & create & copy files to dir /tmp/opsware-agent-linux/ 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: "Delete {{ tmpdir }} directory on {{ hostlist }}"
+        - name: "Delete {{ vardir }} directory on {{ hostlist }}"
           run_once: true
           file:
-            path: "{{ tmpdir }}"
+            path: "{{ vardir }}"
             state: absent 
 
-        # - name: Create tmpdir directory
+        # - name: Create vardir directory
         #   file:
-        #     path: "{{ tmpdir }}"
+        #     path: "{{ vardir }}"
         #     state: directory
         #     mode: 0777
 
@@ -109,29 +109,29 @@
             mode: 0777
           loop:
             - src: scripts/
-              dest: "{{ tmpdir }}"
+              dest: "{{ vardir }}"
 
             - src: opsware-agent-linux/
-              dest: "{{ tmpdir }}"
+              dest: "{{ vardir }}"
 
         - name: Set permissions for a directory and its contents
           file:
-            path: "{{ tmpdir }}"
+            path: "{{ vardir }}"
             state: directory
             mode: 0777
             recurse: yes
             force: yes
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # list {{ tmpdir }}
+        # list {{ vardir }}
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-        - name: "List {{ tmpdir }}"
-          shell: "ls -lrt {{ tmpdir }}*"
-          register: script_tmpdir_before
-        - name: Output list script_tmpdir_before
+        - name: "List {{ vardir }}"
+          shell: "ls -lrt {{ vardir }}*"
+          register: script_vardir_before
+        - name: Output list script_vardir_before
           debug:
-            var: script_tmpdir_before.stdout_lines
+            var: script_vardir_before.stdout_lines
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # list {{ agentdir }}
@@ -161,7 +161,7 @@
           register: file_stat_uninstall_sh
 
         - name: Run UNINSTALL
-          shell: sh {{ agentdir }}agent_uninstall.sh --force > {{ tmpdir }}{{ uninstall_stdout }} 2>&1
+          shell: sh {{ agentdir }}agent_uninstall.sh --force > {{ vardir }}{{ uninstall_stdout }} 2>&1
           args:
             chdir: "{{ agentdir }}"
           register: script_uninstall_stdout_lines
@@ -177,12 +177,12 @@
 
         - name: "Check if the {{ uninstall_stdout }} exists"
           stat:
-            path: "{{ tmpdir }}{{ uninstall_stdout }}"
+            path: "{{ vardir }}{{ uninstall_stdout }}"
           register: file_stat_uninstall_stdoutfile
 
         - name: "Read content from {{ uninstall_stdout }}"
           run_once: true
-          shell: cat "{{ tmpdir }}{{ uninstall_stdout }}"
+          shell: cat "{{ vardir }}{{ uninstall_stdout }}"
           register: sa_agent_uninstall_stdout_log
           when: file_stat_uninstall_stdoutfile.stat.exists
 
@@ -197,9 +197,9 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: Run INSTALL
-          shell: sh {{ tmpdir }}sa_agent_install.sh > {{ tmpdir }}{{ stdoutfile }} 2>&1
+          shell: sh {{ vardir }}sa_agent_install.sh > {{ vardir }}{{ stdoutfile }} 2>&1
           args:
-            chdir: "{{ tmpdir }}"
+            chdir: "{{ vardir }}"
           register: script_install_stdout_lines
 
         - name: "Read content from script_install_stdout_lines"
@@ -207,11 +207,11 @@
             var: script_install_stdout_lines.stdout_lines      
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # list {{ tmpdir }}
+        # list {{ vardir }}
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-        - name: "List {{ tmpdir }}"
-          shell: "ls -lrt {{ tmpdir }}*"
+        - name: "List {{ vardir }}"
+          shell: "ls -lrt {{ vardir }}*"
           register: script_tmp_after_run
         - name: Output list script_tmp_after_run
           debug:
@@ -241,12 +241,12 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: "Check if the {{ stdoutfile }} exists"
           stat:
-            path: "{{ tmpdir }}{{ stdoutfile }}"
+            path: "{{ vardir }}{{ stdoutfile }}"
           register: file_stat_install_stdout
 
         - name: "Read content from {{ stdoutfile }}"
           run_once: true
-          shell: cat "{{ tmpdir }}{{ stdoutfile }}"
+          shell: cat "{{ vardir }}{{ stdoutfile }}"
           register: sa_agent_install_stdout_log 
           when: file_stat_install_stdout.stat.exists
 
@@ -262,12 +262,12 @@
         
         - name: "Check if the {{ logfile }} exists"
           stat:
-            path: "{{ tmpdir }}{{ logfile }}"
+            path: "{{ vardir }}{{ logfile }}"
           register: file_stat_install_logfile
 
         - name: "Read content from {{ logfile }}"
           run_once: true
-          shell: cat "{{ tmpdir }}{{ logfile }}"
+          shell: cat "{{ vardir }}{{ logfile }}"
           register: sa_agent_install_logfile_log
           when: file_stat_install_logfile.stat.exists
 
