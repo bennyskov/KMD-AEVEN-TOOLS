@@ -143,5 +143,5 @@
         - name: "send content to ansible"
           debug:
             msg: |-
-              "file_content_uninstall_stdout: {{ file_content_uninstall_stdout.stdout }}"
+              "sa_agent_stdout_log: {{ file_content_uninstall_stdout.stdout }}"
           when: file_content_uninstall_stdout.stat.exists

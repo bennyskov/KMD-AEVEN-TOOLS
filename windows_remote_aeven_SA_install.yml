@@ -122,7 +122,7 @@
         - name: "Display content in stdout"
           debug:
             msg: |-
-              "file_content_stdout {{ file_content_stdout.stdout }}"      
+              "sa_agent_stdout_log {{ file_content_stdout.stdout }}"      
 
         - name: "List {{ tmpdir }} at the end"
           run_once: true
