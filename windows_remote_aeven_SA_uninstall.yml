@@ -55,7 +55,7 @@
         # run installer
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: Run command
-          win_command: '"{{ agentdir }}agent_uninstall.bat" > {{ tmpdir }}{{ stdoutfile }} 2>&1'
+          win_command: '"{{ agentdir }}agent_uninstall.bat" --force > {{ tmpdir }}{{ stdoutfile }} 2>&1'
           args:
             chdir: "{{ tmpdir }}"
           register: script_run
