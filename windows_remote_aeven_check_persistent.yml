@@ -41,14 +41,14 @@
   tasks:
   - name: Check for any persistent routes using PowerShell
     win_shell: Get-NetRoute | Where-Object { $_.Persistent -eq $true }
-    register: route_output
+    register: sa_agent_stdout_log
 
   - name: Display persistent routes if any exist
     debug:
-      msg: "{{ route_output.stdout_lines }}"
-    when: route_output.stdout_lines | length > 0
+      msg: "{{ sa_agent_stdout_log.stdout_lines }}"
+    when: sa_agent_stdout_log.stdout_lines | length > 0
 
   - name: No persistent routes found
     debug:
       msg: "No persistent routes found"
-    when: route_output.stdout_lines | length == 0
+    when: sa_agent_stdout_log.stdout_lines | length == 0
