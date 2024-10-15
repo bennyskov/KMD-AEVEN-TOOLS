@@ -1,0 +1,54 @@
+- name: Create OS groups
+  hosts: "{{ hostlist }}"
+  become: false
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: Create OS group
+      group_by:
+        key: "machine_{{ ostype }}"
+      changed_when: false
+      when: ostype is defined
+      delegate_to: localhost
+
+- name: Socks tunnel setup
+  hosts: 'machine_windows'
+  gather_facts: false
+  tasks:
+    - include_role:
+        name: ansible-role-event-socks-tunnel
+        apply:
+          check_mode: false
+          run_once: true
+          delegate_to: localhost
+      vars:
+        acc_id: "{{ blueid_shortcode }}"
+        transaction_id: "{{ tower_job_id }}"
+        trans_num: "{{ tower_job_id }}"
+
+    - set_fact:
+        ansible_become_method: runas
+        ansible_become_user: system
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+#
+# check if a persistant rout is on server
+#
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+- name: "check if a persistant rout is on server {{ hostlist }}"
+  hosts: "{{ hostlist }}"
+  become: true
+  gather_facts: false
+  tasks:
+  - name: Check for any persistent routes using PowerShell
+    win_shell: Get-NetRoute | Where-Object { $_.Persistent -eq $true }
+    register: route_output
+
+  - name: Display persistent routes if any exist
+    debug:
+      msg: "{{ route_output.stdout_lines }}"
+    when: route_output.stdout_lines | length > 0
+
+  - name: No persistent routes found
+    debug:
+      msg: "No persistent routes found"
+    when: route_output.stdout_lines | length == 0
