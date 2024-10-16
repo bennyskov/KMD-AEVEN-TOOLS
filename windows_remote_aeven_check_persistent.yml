@@ -29,26 +29,44 @@
     - set_fact:
         ansible_become_method: runas
         ansible_become_user: system
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-#
-# check if a persistant rout is on server
-#
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: "check if a persistant rout is on server {{ hostlist }}"
-  hosts: "{{ hostlist }}"
+        
+- name: Get script result on windows nodes
+  hosts: 'machine_windows'
   become: true
   gather_facts: false
   tasks:
-  - name: Check for any persistent routes using PowerShell
-    win_shell: Get-NetRoute | Where-Object { $_.Persistent -eq $true }
-    register: sa_agent_stdout_log
+    - name: "Get current machine"
+      run_once: true
+      raw: $ENV:PATH
+      register: path_out
+    - name: "Output result"
+      debug:
+        var: path_out.stdout_lines
+             
+    - name: Copy, create, fetch file
+      block:
+        - name: Create temp_dir directory
+          win_file:
+            path: "C:/Temp/scripttemp_dir"
+            state: directory
 
-  - name: Display persistent routes if any exist
-    debug:
-      msg: "{{ sa_agent_stdout_log.stdout_lines }}"
-    when: sa_agent_stdout_log.stdout_lines | length > 0
+        - name: Copy file to temp directory
+          win_copy:
+            src: "scripts/check_for_persistent_route.ps1"
+            dest: "C:/Temp/scripttemp_dir/check_for_persistent_route.ps1"
 
-  - name: No persistent routes found
-    debug:
-      msg: "No persistent routes found"
-    when: sa_agent_stdout_log.stdout_lines | length == 0
+        - name: Run powershell
+          win_shell: "{{ tmpdir }}check_for_persistent_route.ps1 > {{ tmpdir }}{{ stdoutfile }} 2>&1"
+          args:
+            chdir: "C:/Temp/scripttemp_dir"
+          register: script_run_persistent
+
+        - name: Output list
+          debug:
+            var: script_run_persistent.stdout_lines
+
+      always:
+        - name: Delete scripttemp_dir directory
+          win_file:
+            path: "C:/Temp/scripttemp_dir"
+            state: absent
