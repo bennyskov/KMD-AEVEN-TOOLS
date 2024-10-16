@@ -35,7 +35,8 @@
   become: true
   gather_facts: false
   vars:
-      tmpdir: "C:/Windows/Temp/"    
+      tmpdir: "C:/Windows/Temp/"
+      stdoutfile: "check_for_persistent_stdout.log"  
   tasks:
     - name: "Get current machine"
       run_once: true
