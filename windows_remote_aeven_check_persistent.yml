@@ -34,6 +34,8 @@
   hosts: 'machine_windows'
   become: true
   gather_facts: false
+  vars:
+      tmpdir: "C:/Windows/Temp/"    
   tasks:
     - name: "Get current machine"
       run_once: true
@@ -47,26 +49,26 @@
       block:
         - name: Create temp_dir directory
           win_file:
-            path: "C:/Temp/scripttemp_dir"
+            path: "{{ tmpdir }}"
             state: directory
 
         - name: Copy file to temp directory
           win_copy:
             src: "scripts/check_for_persistent_route.ps1"
-            dest: "C:/Temp/scripttemp_dir/check_for_persistent_route.ps1"
+            dest: "{{ tmpdir }}check_for_persistent_route.ps1"
 
         - name: Run powershell
           win_shell: "{{ tmpdir }}check_for_persistent_route.ps1 > {{ tmpdir }}{{ stdoutfile }} 2>&1"
           args:
-            chdir: "C:/Temp/scripttemp_dir"
+            chdir: "{{ tmpdir }}"
           register: script_run_persistent
 
         - name: Output list
           debug:
             var: script_run_persistent.stdout_lines
 
-      always:
-        - name: Delete scripttemp_dir directory
-          win_file:
-            path: "C:/Temp/scripttemp_dir"
-            state: absent
+      # always:
+      #   - name: Delete scripttemp_dir directory
+      #     win_file:
+      #       path: "{{ tmpdir }}"
+      #       state: absent
