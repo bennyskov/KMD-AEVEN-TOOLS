@@ -135,10 +135,10 @@ $hostIp             = Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Fi
 [int]$psvers        = $PSVersionTable.PSVersion | select-object -ExpandProperty major
 $hostname           = hostname
 $hostname           = $hostname.ToLower()
-$windir             = $env:WINDIR
+# $windir             = $env:WINDIR
 $systemroot         = $env:SystemRoot
-$volume             = get-WmiObject Win32_Volume -ErrorAction SilentlyContinue | Where-Object { $_.drivetype -eq '3' -and $_.driveletter } | Select-Object driveletter,@{Name='freespace';Expression={[math]::round($_.freespace/1GB, 2)}},@{Name='capacity';Expression={[math]::round($_.capacity/1GB, 2)}}
-$volume             = $volume | ConvertTo-Json -Compress
+$diskspace          = get-WmiObject Win32_Volume -ErrorAction SilentlyContinue | Where-Object { $_.drivetype -eq '3' -and $_.driveletter } | Select-Object driveletter,@{Name='freespace';Expression={[math]::round($_.freespace/1GB, 2)}},@{Name='capacity';Expression={[math]::round($_.capacity/1GB, 2)}}
+$diskspace          = $diskspace | ConvertTo-Json -Compress
 $OperatingSystem    = Get-CimInstance -ClassName Win32_OperatingSystem
 $OperatingSystem    = $OperatingSystem.caption + " " + $OperatingSystem.OSArchitecture + " SP " + $OperatingSystem.ServicePackMajorVersion
 $lastBootTime       = (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime
@@ -158,21 +158,21 @@ $iparray = @(
 "84.255.75.1",
 "84.255.75.2"
 )
-"------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
-"date:               : $begin"
-"hostname:           : $hostname"
-"is it x64:          : $x64"
-"hostIp:             : $hostIp"
-"Powershell ver:     : $psvers"
-"windir:             : $windir"
-"Systemroot:         : $Systemroot"
-"OperatingSystem:    : $OperatingSystem"
-"lastBootTime:       : $lastBootTime"
-"PendingReboot:      : $PendingReboot"
-"diskspace: (json)   : $volume"
-"Persistent:         : $Persistent"
-"persistentRoutes:   : $persistentRoutes"
-"------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+# "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+# "date:               : $now"
+# "hostname:           : $hostname"
+# "is it x64:          : $x64"
+# "hostIp:             : $hostIp"
+# "Powershell ver:     : $psvers"
+# "windir:             : $windir"
+# "Systemroot:         : $Systemroot"
+# "OperatingSystem:    : $OperatingSystem"
+# "lastBootTime:       : $lastBootTime"
+# "PendingReboot:      : $PendingReboot"
+# "diskspace: (json)   : $diskspace"
+# "Persistent:         : $Persistent"
+# "persistentRoutes:   : $persistentRoutes"
+# "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
 $iparray | foreach-object {
     $remoteIP= "$_"
     $port = 3001
@@ -184,6 +184,6 @@ $iparray | foreach-object {
     } else {
         $status = "closed"
     }
-    $text= "localhost=${hostname}, hostIP=${hostIp}, port=${port}, remoteIP=${remoteIP}, status=${status}, ${result}, testtime=${now}, OperatingSystem=${OperatingSystem}, lastBootTime=${lastBootTime}, PendingReboot=${PendingReboot}, volume=${volume}, Persistentt=${Persistent} "
+    $text= "localhost=${hostname}, hostIP=${hostIp}, port=${port}, remoteIP=${remoteIP}, status=${status}, ${result}, testtime=${now}, OperatingSystem=${OperatingSystem}, x64=${x64}, psvers=${psvers}, Systemroot=${Systemroot}, lastBootTime=${lastBootTime}, PendingReboot=${PendingReboot}, diskspace=${diskspace}, Persistent=${Persistent}, persistentRoutes=${persistentRoutes}"
     $text
 }
