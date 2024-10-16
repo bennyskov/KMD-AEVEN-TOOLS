@@ -71,7 +71,7 @@
       debug:
         msg: |-
           "sa_agent_stdout_log {{ file_content_stdout.stdout }}"      
-  always:
+
     - name: Delete scripttemp_dir directory
       win_file:
         path: "{{ tmpdir }}"
