@@ -169,7 +169,8 @@ $iparray = @(
 "84.255.75.2"
 )
 $text= "localhost;Persistent;hostIP;port;remoteIP;status;result;testtime;OperatingSystem;x64;psvers;Systemroot;lastBootTime;PendingReboot;diskspace;CPUMaxSpeed;CPUcount;CPUCores;TotalMem;TotalAvailMemory;PhysicalMemory"
-$text
+$cleanString = $text -replace "`r`n", "" -replace "`n", "" -replace "`r", ""
+$cleanString
 $iparray | foreach-object {
     $remoteIP= "$_"
     $port = 3001
