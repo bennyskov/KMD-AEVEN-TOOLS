@@ -168,7 +168,7 @@ $iparray = @(
 "84.255.75.1",
 "84.255.75.2"
 )
-$text= "localhost;hostIP;port;remoteIP;status;result;testtime;OperatingSystem;x64;psvers;Systemroot;lastBootTime;PendingReboot;diskspace;Persistent;CPUMaxSpeed;CPUcount;CPUCores;TotalMem;TotalAvailMemory;PhysicalMemory"
+$text= "localhost;Persistent;hostIP;port;remoteIP;status;result;testtime;OperatingSystem;x64;psvers;Systemroot;lastBootTime;PendingReboot;diskspace;CPUMaxSpeed;CPUcount;CPUCores;TotalMem;TotalAvailMemory;PhysicalMemory"
 $text
 $iparray | foreach-object {
     $remoteIP= "$_"
@@ -181,6 +181,6 @@ $iparray | foreach-object {
     } else {
         $status = "closed"
     }
-    $text= "${hostname};${hostIp};${port};${remoteIP};${status};${result};${now};${OperatingSystem};${x64};${psvers};${Systemroot};${lastBootTime};${PendingReboot};${diskspace};${Persistent};${CPUMaxSpeed};${CPUcount};${CPUCores};${TotalMem};${TotalAvailMemory};${PhysicalMemory}"
+    $text= "${hostname};${Persistent};${hostIp};${port};${remoteIP};${status};${result};${now};${OperatingSystem};${x64};${psvers};${Systemroot};${lastBootTime};${PendingReboot};${diskspace};${CPUMaxSpeed};${CPUcount};${CPUCores};${TotalMem};${TotalAvailMemory};${PhysicalMemory}"
     $text
 }
