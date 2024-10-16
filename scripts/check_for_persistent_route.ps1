@@ -135,7 +135,17 @@ $hostIp             = Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Fi
 [int]$psvers        = $PSVersionTable.PSVersion | select-object -ExpandProperty major
 $hostname           = hostname
 $hostname           = $hostname.ToLower()
-# $windir             = $env:WINDIR
+$CPU                = Get-CimInstance -Class Win32_Processor
+$CPUInfo            = $CPU.Name
+$CPUMaxSpeed        = ($CPU[0].MaxClockSpeed/1000).tostring()
+$CPUcount           = (Get-CimInstance -ClassName Win32_Processor | Measure-Object -Property NumberOfCores -Sum).Sum.ToString()
+$CPUCores           = (Get-CimInstance -ClassName Win32_Processor | Measure-Object -Property NumberOfLogicalProcessors -Sum).Sum.ToString()
+$PhysicalMemory     = (Get-CimInstance -class Win32_PhysicalMemory | Measure-Object -Property capacity -Sum).Sum
+$TotalAvailMemory   = ([math]::round(($PhysicalMemory / 1GB),2))
+$TotalMem = "{0:N2}" -f $TotalAvailMemory
+[string]$TotalMem   = $TotalMem
+[string]$TotalAvailMemory = $TotalAvailMemory
+[string]$PhysicalMemory = $PhysicalMemory
 $systemroot         = $env:SystemRoot
 $diskspace          = get-WmiObject Win32_Volume -ErrorAction SilentlyContinue | Where-Object { $_.drivetype -eq '3' -and $_.driveletter } | Select-Object driveletter,@{Name='freespace';Expression={[math]::round($_.freespace/1GB, 2)}},@{Name='capacity';Expression={[math]::round($_.capacity/1GB, 2)}}
 $diskspace          = $diskspace | ConvertTo-Json -Compress
@@ -158,21 +168,8 @@ $iparray = @(
 "84.255.75.1",
 "84.255.75.2"
 )
-# "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
-# "date:               : $now"
-# "hostname:           : $hostname"
-# "is it x64:          : $x64"
-# "hostIp:             : $hostIp"
-# "Powershell ver:     : $psvers"
-# "windir:             : $windir"
-# "Systemroot:         : $Systemroot"
-# "OperatingSystem:    : $OperatingSystem"
-# "lastBootTime:       : $lastBootTime"
-# "PendingReboot:      : $PendingReboot"
-# "diskspace: (json)   : $diskspace"
-# "Persistent:         : $Persistent"
-# "persistentRoutes:   : $persistentRoutes"
-# "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+$text= "localhost,hostIP,port,remoteIP,status,result,testtime,OperatingSystem,x64,psvers,Systemroot,lastBootTime,PendingReboot,diskspace,Persistent,CPUMaxSpeed,CPUcount,CPUCores,TotalMem,TotalAvailMemory,PhysicalMemory"
+$text
 $iparray | foreach-object {
     $remoteIP= "$_"
     $port = 3001
@@ -184,6 +181,6 @@ $iparray | foreach-object {
     } else {
         $status = "closed"
     }
-    $text= "localhost=${hostname}, hostIP=${hostIp}, port=${port}, remoteIP=${remoteIP}, status=${status}, ${result}, testtime=${now}, OperatingSystem=${OperatingSystem}, x64=${x64}, psvers=${psvers}, Systemroot=${Systemroot}, lastBootTime=${lastBootTime}, PendingReboot=${PendingReboot}, diskspace=${diskspace}, Persistent=${Persistent}, persistentRoutes=${persistentRoutes}"
+    $text= "${hostname},${hostIp},${port},${remoteIP},${status},${result},${now},${OperatingSystem},${x64},${psvers},${Systemroot},${lastBootTime},${PendingReboot},${diskspace},${Persistent},${CPUMaxSpeed},${CPUcount},${CPUCores},${TotalMem},${TotalAvailMemory},${PhysicalMemory}"
     $text
 }
