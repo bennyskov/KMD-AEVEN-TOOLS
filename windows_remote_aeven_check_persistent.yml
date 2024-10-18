@@ -58,6 +58,7 @@
         chdir: "{{ tmpdir }}"
       register: script_run_persistent
 
+
     - name: Output list
       debug:
         var: script_run_persistent.stdout_lines
@@ -72,8 +73,19 @@
         msg: |-
           "sa_agent_stdout_log {{ file_content_stdout.stdout }}"      
 
-    - name: Delete scripttemp_dir directory
-      become: true
-      win_file:
-        path: "{{ tmpdir }}"
-        state: absent
+    - name: Run powershell remove-item
+      win_shell: "Remove-Item -Path '{{ tmpdir }}' -Recurse -Force -ErrorAction SilentlyContinue"
+      args:
+        chdir: "C:/Windows/Temp/"
+      register: script_run_remove
+
+    - name: "Display content in script_run_remove"
+      debug:
+        msg: |-
+          "sa_agent_stdout_log {{ script_run_remove.stdout }}"      
+
+    # - name: Delete scripttemp_dir directory
+    #   become: true
+    #   win_file:
+    #     path: "{{ tmpdir }}"
+    #     state: absent
