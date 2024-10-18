@@ -31,7 +31,7 @@
         ansible_become_user: system
         
 - name: Get script result on windows nodes
-  hosts: 'machine_windows'
+  hosts: "{{ hostlist }}"
   become: true
   gather_facts: false
   vars:
@@ -73,6 +73,7 @@
           "sa_agent_stdout_log {{ file_content_stdout.stdout }}"      
 
     - name: Delete scripttemp_dir directory
+      become: true
       win_file:
         path: "{{ tmpdir }}"
         state: absent
