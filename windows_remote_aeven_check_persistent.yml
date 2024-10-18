@@ -31,23 +31,17 @@
         ansible_become_user: system
         
 - name: Get script result on windows nodes
-  hosts: "{{ hostlist }}"
+  hosts: 'machine_windows'
   become: true
   gather_facts: false
   vars:
       tmpdir: "C:/Windows/Temp/persistent_check/"
       stdoutfile: "check_for_persistent_stdout.log"  
   tasks:
-    - name: Run powershell remove-item
-      win_shell: "Remove-Item -Path '{{ tmpdir }}' -Recurse -Force -ErrorAction SilentlyContinue"
-      args:
-        chdir: "C:/Windows/Temp/"
-      register: script_run_remove1
-
-    - name: "Display content in script_run_remove1"
-      debug:
-        msg: |-
-          "sa_agent_stdout_log {{ script_run_remove1.stdout }}"      
+    - name: Delete scripttemp_dir directory
+      win_file:
+        path: "{{ tmpdir }}"
+        state: absent
 
     - name: copy multiple items
       win_copy: 
@@ -64,7 +58,6 @@
         chdir: "{{ tmpdir }}"
       register: script_run_persistent
 
-
     - name: Output list
       debug:
         var: script_run_persistent.stdout_lines
@@ -79,19 +72,18 @@
         msg: |-
           "sa_agent_stdout_log {{ file_content_stdout.stdout }}"      
 
-    - name: Run powershell remove-item
-      win_shell: "Remove-Item -Path '{{ tmpdir }}' -Recurse -Force -ErrorAction SilentlyContinue"
-      args:
-        chdir: "C:/Windows/Temp/"
-      register: script_run_remove
+    - name: Delete scripttemp_dir directory
+      win_file:
+        path: "{{ tmpdir }}"
+        state: absent
 
-    - name: "Display content in script_run_remove"
-      debug:
-        msg: |-
-          "sa_agent_stdout_log {{ script_run_remove.stdout }}"      
+# - name: Run powershell remove-item
+#   win_shell: "Remove-Item -Path '{{ tmpdir }}' -Recurse -Force -ErrorAction SilentlyContinue"
+#   args:
+#     chdir: "C:/Windows/Temp/"
+#   register: script_run_remove
 
-    # - name: Delete scripttemp_dir directory
-    #   become: true
-    #   win_file:
-    #     path: "{{ tmpdir }}"
-    #     state: absent
+# - name: "Display content in script_run_remove"
+#   debug:
+#     msg: |-
+#       "sa_agent_stdout_log {{ script_run_remove.stdout }}"      
