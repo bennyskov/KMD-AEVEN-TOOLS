@@ -38,10 +38,10 @@
       tmpdir: "C:/Windows/Temp/persistent_check/"
       stdoutfile: "check_for_persistent_stdout.log"  
   tasks:
-    - name: Delete scripttemp_dir directory
-      win_file:
-        path: "{{ tmpdir }}"
-        state: absent
+    # - name: Delete scripttemp_dir directory
+    #   win_file:
+    #     path: "{{ tmpdir }}"
+    #     state: absent
 
     - name: copy multiple items
       win_copy: 
@@ -72,10 +72,10 @@
         msg: |-
           "sa_agent_stdout_log {{ file_content_stdout.stdout }}"      
 
-    - name: Delete scripttemp_dir directory
-      win_file:
-        path: "{{ tmpdir }}"
-        state: absent
+    # - name: Delete scripttemp_dir directory
+    #   win_file:
+    #     path: "{{ tmpdir }}"
+    #     state: absent
 
 # - name: Run powershell remove-item
 #   win_shell: "Remove-Item -Path '{{ tmpdir }}' -Recurse -Force -ErrorAction SilentlyContinue"
