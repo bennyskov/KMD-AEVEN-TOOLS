@@ -73,7 +73,7 @@
           dest: "{{ tmpdir }}"
 
     - name: Run powershell
-      win_shell: {{ tmpdir }}check_for_persistent_route.ps1 > {{ tmpdir }}{{ stdoutfile }} 2>&1
+      win_shell: "{{ tmpdir }}check_for_persistent_route.ps1 > {{ tmpdir }}{{ stdoutfile }} 2>&1"
       args:
         chdir: "{{ tmpdir }}"
       register: script_run_persistent
