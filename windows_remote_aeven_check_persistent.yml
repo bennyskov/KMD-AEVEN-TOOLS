@@ -38,21 +38,30 @@
       tmpdir: "C:/Windows/Temp/persistent_check/"
       stdoutfile: "check_for_persistent_stdout.log"  
   tasks:
+    - name: "Check if the agent_uninstall.sh exists"
+      stat:
+        path: "{{ tmpdir }}"
+      register: file_stat_tmpdir
+
     - name: "List {{ tmpdir }} at the end"
       run_once: true
-      win_shell: Get-ChildItem -Path {{ tmpdir }}
+      win_shell: Get-ChildItem -Path {{ tmpdir }} -ErrorAction SilentlyContinue
       register: dir_of_tmpdir_end
       ignore_errors: yes      
+      when: file_stat_tmpdir.stat.exists
+
     - name: "list dir of {{ tmpdir }} at the end"
       ignore_errors: yes      
       debug:
         var: dir_of_tmpdir_end.stdout_lines
+      when: file_stat_tmpdir.stat.exists
 
     - name: Delete scripttemp_dir directory
       win_file:
         path: "{{ tmpdir }}"
         state: absent
       ignore_errors: yes      
+      when: file_stat_tmpdir.stat.exists
 
     - name: copy multiple items
       win_copy: 
@@ -64,10 +73,11 @@
           dest: "{{ tmpdir }}"
 
     - name: Run powershell
-      win_shell: "{{ tmpdir }}check_for_persistent_route.ps1 > {{ tmpdir }}{{ stdoutfile }} 2>&1"
+      win_shell: {{ tmpdir }}check_for_persistent_route.ps1 > {{ tmpdir }}{{ stdoutfile }} 2>&1
       args:
         chdir: "{{ tmpdir }}"
       register: script_run_persistent
+      ignore_errors: yes      
 
     - name: Output list
       debug:
@@ -75,7 +85,7 @@
         
     - name: "Read content from {{ stdoutfile }}"
       run_once: true
-      win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ stdoutfile }}"
+      win_shell: Get-Content -LiteralPath {{ tmpdir }}{{ stdoutfile }} -ErrorAction SilentlyContinue
       register: file_content_stdout
 
     - name: "Display content in stdout"
@@ -88,14 +98,16 @@
         path: "{{ tmpdir }}"
         state: absent
       ignore_errors: yes
-      
-# - name: Run powershell remove-item
-#   win_shell: "Remove-Item -Path '{{ tmpdir }}' -Recurse -Force -ErrorAction SilentlyContinue"
-#   args:
-#     chdir: "C:/Windows/Temp/"
-#   register: script_run_remove
 
-# - name: "Display content in script_run_remove"
-#   debug:
-#     msg: |-
-#       "sa_agent_stdout_log {{ script_run_remove.stdout }}"      
+    - name: Run powershell remove-item
+      win_shell: Remove-Item -Path {{ tmpdir }} -Recurse -Force -ErrorAction SilentlyContinue
+      args:
+        chdir: "C:/Windows/Temp/"
+      register: script_run_remove
+      ignore_errors: yes      
+
+    - name: "Display content in script_run_remove"
+      debug:
+        msg: |-
+          "sa_agent_stdout_log {{ script_run_remove.stdout }}"      
+      when: script_run_remove.stat.exists
