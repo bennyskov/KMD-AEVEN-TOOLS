@@ -36,25 +36,13 @@
   gather_facts: false
   vars:
       tmpdir: "C:/Windows/Temp/persistent_check/"
-      stdoutfile: "check_for_persistent_stdout.log"  
+      cmdexec: "check_for_persistent_route.ps1"  
+      stdoutfile: "check_for_persistent_route.log"  
   tasks:
-    - name: "Check if the agent_uninstall.sh exists"
+    - name: "Check if the {{ tmpdir }} exists"
       stat:
         path: "{{ tmpdir }}"
       register: file_stat_tmpdir
-
-    - name: "List {{ tmpdir }} at the end"
-      run_once: true
-      win_shell: Get-ChildItem -Path {{ tmpdir }} -ErrorAction SilentlyContinue
-      register: dir_of_tmpdir_end
-      ignore_errors: yes      
-      when: file_stat_tmpdir.stat.exists
-
-    - name: "list dir of {{ tmpdir }} at the end"
-      ignore_errors: yes      
-      debug:
-        var: dir_of_tmpdir_end.stdout_lines
-      when: file_stat_tmpdir.stat.exists
 
     - name: Delete scripttemp_dir directory
       win_file:
@@ -63,14 +51,23 @@
       ignore_errors: yes      
       when: file_stat_tmpdir.stat.exists
 
-    - name: copy multiple items
+    - name: copy from scripts
       win_copy: 
-        src: "{{ item.src }}" 
-        dest: "{{ item.dest }}"
+        src: scripts/check_for_persistent_route.ps1
+        dest: "{{ tmpdir }}check_for_persistent_route.ps1"
+      ignore_errors: yes      
 
-      loop:
-        - src: scripts/
-          dest: "{{ tmpdir }}"
+    - name: "List {{ tmpdir }} beginning"
+      run_once: true
+      win_shell: "Get-ChildItem -Path {{ tmpdir }} -ErrorAction SilentlyContinue"
+      register: dir_of_tmpdir_beginning
+      ignore_errors: yes      
+      when: file_stat_tmpdir.stat.exists
+
+    - name: "Check if the {{ tmpdir }} has the ps1 file"
+      stat:
+        path: "{{ tmpdir }}"
+      register: file_stat_tmpdir
 
     - name: Run powershell
       win_shell: "{{ tmpdir }}check_for_persistent_route.ps1 > {{ tmpdir }}{{ stdoutfile }} 2>&1"
