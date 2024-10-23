@@ -39,17 +39,23 @@
       cmdexec: "check_for_persistent_route.ps1"  
       stdoutfile: "check_for_persistent_route.log"  
   tasks:
-    - name: "Check if the {{ tmpdir }} exists"
-      stat:
-        path: "{{ tmpdir }}"
-      register: file_stat_tmpdir
+    # - name: "Check if the {{ tmpdir }} exists"
+    #   stat:
+    #     path: "{{ tmpdir }}"
+    #   register: file_stat_tmpdir
 
-    - name: Delete scripttemp_dir directory
-      win_file:
-        path: "{{ tmpdir }}"
-        state: absent
+    # - name: Delete scripttemp_dir directory
+    #   win_file:
+    #     path: "{{ tmpdir }}"
+    #     state: absent
+    #   ignore_errors: yes      
+    #   when: file_stat_tmpdir.stat.exists
+    - name: Run powershell remove-item beginning
+      win_shell: Remove-Item -Path {{ tmpdir }} -Recurse -Force -ErrorAction SilentlyContinue
+      args:
+        chdir: "C:/Windows/Temp/"
+      register: script_run_remove_begin
       ignore_errors: yes      
-      when: file_stat_tmpdir.stat.exists
 
     - name: copy from scripts
       win_copy: 
@@ -64,10 +70,10 @@
       ignore_errors: yes      
       when: file_stat_tmpdir.stat.exists
 
-    - name: "Check if the {{ tmpdir }} has the ps1 file"
-      stat:
-        path: "{{ tmpdir }}"
-      register: file_stat_tmpdir
+    # - name: "Check if the {{ tmpdir }} has the ps1 file"
+    #   stat:
+    #     path: "{{ tmpdir }}"
+    #   register: file_stat_tmpdir
 
     - name: Run powershell
       win_shell: "{{ tmpdir }}check_for_persistent_route.ps1 > {{ tmpdir }}{{ stdoutfile }} 2>&1"
@@ -90,11 +96,11 @@
         msg: |-
           "sa_agent_stdout_log {{ file_content_stdout.stdout }}"      
 
-    - name: Delete scripttemp_dir directory
-      win_file:
-        path: "{{ tmpdir }}"
-        state: absent
-      ignore_errors: yes
+    # - name: Delete scripttemp_dir directory
+    #   win_file:
+    #     path: "{{ tmpdir }}"
+    #     state: absent
+    #   ignore_errors: yes
 
     - name: Run powershell remove-item
       win_shell: Remove-Item -Path {{ tmpdir }} -Recurse -Force -ErrorAction SilentlyContinue
