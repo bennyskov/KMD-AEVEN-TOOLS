@@ -51,16 +51,16 @@
     #   ignore_errors: yes      
     #   when: file_stat_tmpdir.stat.exists
     - name: Run powershell remove-item beginning
-      win_shell: Remove-Item -Path {{ tmpdir }} -Recurse -Force -ErrorAction SilentlyContinue
+      win_shell: "Remove-Item -Path {{ tmpdir }} -Recurse -Force -ErrorAction SilentlyContinue"
       args:
         chdir: "C:/Windows/Temp/"
-      register: script_run_remove_begin
-      ignore_errors: yes      
+      # register: script_run_remove_begin
+      # ignore_errors: yes      
 
     - name: copy from scripts
       win_copy: 
-        src: scripts/check_for_persistent_route.ps1
-        dest: "{{ tmpdir }}check_for_persistent_route.ps1"
+        src: scripts/
+        dest: "{{ tmpdir }}"
       ignore_errors: yes      
 
     - name: "List {{ tmpdir }} beginning"
@@ -68,7 +68,7 @@
       win_shell: "Get-ChildItem -Path {{ tmpdir }} -ErrorAction SilentlyContinue"
       register: dir_of_tmpdir_beginning
       ignore_errors: yes      
-      when: file_stat_tmpdir.stat.exists
+      # when: file_stat_tmpdir.stat.exists
 
     # - name: "Check if the {{ tmpdir }} has the ps1 file"
     #   stat:
@@ -88,7 +88,7 @@
         
     - name: "Read content from {{ stdoutfile }}"
       run_once: true
-      win_shell: Get-Content -LiteralPath {{ tmpdir }}{{ stdoutfile }} -ErrorAction SilentlyContinue
+      win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ stdoutfile }} -ErrorAction SilentlyContinue"
       register: file_content_stdout
 
     - name: "Display content in stdout"
@@ -102,15 +102,15 @@
     #     state: absent
     #   ignore_errors: yes
 
-    - name: Run powershell remove-item
-      win_shell: Remove-Item -Path {{ tmpdir }} -Recurse -Force -ErrorAction SilentlyContinue
-      args:
-        chdir: "C:/Windows/Temp/"
-      register: script_run_remove
-      ignore_errors: yes      
+    # - name: Run powershell remove-item
+    #   win_shell: Remove-Item -Path {{ tmpdir }} -Recurse -Force -ErrorAction SilentlyContinue
+    #   args:
+    #     chdir: "C:/Windows/Temp/"
+    #   register: script_run_remove
+    #   ignore_errors: yes      
 
-    - name: "Display content in script_run_remove"
-      debug:
-        msg: |-
-          "sa_agent_stdout_log {{ script_run_remove.stdout }}"      
-      when: script_run_remove.stat.exists
+    # - name: "Display content in script_run_remove"
+    #   debug:
+    #     msg: |-
+    #       "sa_agent_stdout_log {{ script_run_remove.stdout }}"      
+    #   when: script_run_remove.stat.exists
