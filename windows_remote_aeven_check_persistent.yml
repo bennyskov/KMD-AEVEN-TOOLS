@@ -39,7 +39,8 @@
   vars:
       tmpdir: "C:/Windows/Temp/persistent_check/"
       cmdexec: "check_for_persistent_route.ps1"  
-      stdoutfile: "check_for_persistent_route.log"  
+      logfile: "check_for_persistent_route.log"
+      stdoutfile: "check_for_persistent_stdout.log"
   tasks:
     - name: run check_for_persistent_route
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -57,7 +58,20 @@
             chdir: "{{ tmpdir }}"
           register: script_run_persistent
 
-        - name: "Display content of stdout"
+        - name: "Read content from stdoutfile"
+          run_once: true
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ stdoutfile }}"
+          register: file_content_stdout
+        - name: "Display content in stdout"
           debug:
             msg: |-
-              "sa_agent_stdout_log {{ script_run_persistent.stdout }}"
+              "aeven_stdout_log {{ file_content_stdout.stdout }}"
+
+        - name: "Read content from {{ logfile }}"
+          run_once: true
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ logfile }}"
+          register: file_content_logfile
+        - name: "Display content in stdout"
+          debug:
+            msg: |-
+              "aeven_logfile_log {{ file_content_logfile.stdout }}"      
