@@ -41,75 +41,23 @@
       cmdexec: "check_for_persistent_route.ps1"  
       stdoutfile: "check_for_persistent_route.log"  
   tasks:
-    - name: "Check if the {{ tmpdir }} exists"
-      stat:
-        path: "{{ tmpdir }}"
-      register: file_stat_tmpdir
+    - name: run check_for_persistent_route
+      # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+      # run check_for_persistent_route
+      # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+      block:
+        - name: copy scripts
+          win_copy: 
+            src: scripts/
+            dest: "{{ tmpdir }}"
 
-    - name: Delete scripttemp_dir directory
-      win_file:
-        path: "{{ tmpdir }}"
-        state: absent
-      when: file_stat_tmpdir.stat.exists
+        - name: Run powershell
+          win_shell: "{{ tmpdir }}check_for_persistent_route.ps1 > {{ tmpdir }}{{ stdoutfile }} 2>&1"
+          args:
+            chdir: "{{ tmpdir }}"
+          register: script_run_persistent
 
-    - name: copy scripts
-      win_copy: 
-        src: scripts/
-        dest: "{{ tmpdir }}"
-      when: file_stat_tmpdir.stat.exists
-
-    - name: "List using ps {{ tmpdir }} beginning"
-      win_shell: "Get-ChildItem -Path {{ tmpdir }} -ErrorAction SilentlyContinue"
-      register: dir_of_tmpdir_beginning
-      when: file_stat_tmpdir.stat.exists
-
-    - name: "Display content of stdout"
-      debug:
-        msg: |-
-          "sa_agent_stdout_log {{ dir_of_tmpdir_beginning.stdout }}"      
-
-    - name: Run powershell
-      win_shell: "{{ tmpdir }}check_for_persistent_route.ps1 > {{ tmpdir }}{{ stdoutfile }} 2>&1"
-      args:
-        chdir: "{{ tmpdir }}"
-      register: script_run_persistent
-
-    - name: "Display content of stdout"
-      debug:
-        msg: |-
-          "sa_agent_stdout_log {{ script_run_persistent.stdout }}"      
-        
-    - name: "Read content from {{ stdoutfile }}"
-      win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ stdoutfile }} -ErrorAction SilentlyContinue 2>&1"
-      register: file_content_stdout
-      args:
-        chdir: "{{ tmpdir }}"
-
-    - name: "Display content in stdout"
-      debug:
-        msg: |-
-          "sa_agent_stdout_log {{ file_content_stdout.stdout }}"      
-
-    - name: Delete scripttemp_dir directory
-      win_file:
-        path: "{{ tmpdir }}"
-        state: absent
-      args:
-        chdir: "C:/Windows/Temp/"        
-      register: delete_content_directory
-
-    - name: "Display content in stdout"
-      debug:
-        msg: |-
-          "sa_agent_stdout_log {{ delete_content_directory.stdout }}"      
-
-    - name: Run powershell remove-item
-      win_shell: "Remove-Item -Path {{ tmpdir }} -Recurse -Force -ErrorAction SilentlyContinue 2>&1"
-      args:
-        chdir: "C:/Windows/Temp/"
-      register: script_run_remove
-
-    - name: "Display content in script_run_remove"
-      debug:
-        msg: |-
-          "sa_agent_stdout_log {{ script_run_remove.stdout }}"
+        - name: "Display content of stdout"
+          debug:
+            msg: |-
+              "sa_agent_stdout_log {{ script_run_persistent.stdout }}"
