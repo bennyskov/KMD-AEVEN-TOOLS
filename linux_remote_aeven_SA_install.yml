@@ -278,7 +278,7 @@
           when: file_stat_install_logfile.stat.exists
       always:
         - name: Delete temp {{ vardir }} agent directory
-          win_file:
+          file:
             path: "{{ vardir }}"
             state: absent
 
