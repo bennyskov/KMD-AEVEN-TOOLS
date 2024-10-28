@@ -181,7 +181,7 @@ $Persistent,$persistentRoutes = Test-Persistent
 # Get-NetRoute -PolicyStore PersistentStore | Where-Object { $_.DestinationPrefix -eq '84.255.75.0/24' }
 
 if ($Persistent) {
-    $Persistent  = $persistentRoutes
+    $Persistent  = $Persistent = $persistentRoutes -join ","
 } else {
     $Persistent  = "No persistent routes found"
 }
