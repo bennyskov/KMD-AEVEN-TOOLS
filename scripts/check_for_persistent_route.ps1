@@ -40,23 +40,23 @@ Remove-Variable * -ErrorAction SilentlyContinue
 # ----------------------------------------------------------------------------------------------------------------------------
 function Test-Persistent {
 
+    # "84.225.67.128/25",
+    # "84.255.124.192/27",
+    # "84.255.126.32/27",
+    # "84.255.75.0/24"
     $routeAarray = @(
     "84.225.67.",
     "84.255.124",
     "84.255.126.",
     "84.255.75."
-    "84.225.67.128/25",
-    "84.255.124.192/27",
-    "84.255.126.32/27",
-    "84.255.75.0/24"
-    )
+     )
     $persistentRoutes = @()
     $Persistent = $False
     $routeAarray | foreach-object {
         $DestPrefix = "$_"
         if ( [bool](Get-NetRoute -PolicyStore PersistentStore | Where-Object { $_.DestinationPrefix -imatch $DestPrefix })) {
             $Persistent = $True
-            $persistentRoutes += $DestPrefix
+            $persistentRoutes += (Get-NetRoute -PolicyStore PersistentStore | Where-Object { $_.DestinationPrefix -imatch $DestPrefix }).DestinationPrefix
         }
     }
     # # Run the route print command and capture the output
