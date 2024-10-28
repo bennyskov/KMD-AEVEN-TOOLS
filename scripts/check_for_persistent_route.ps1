@@ -39,28 +39,44 @@ Remove-Variable * -ErrorAction SilentlyContinue
 # functions
 # ----------------------------------------------------------------------------------------------------------------------------
 function Test-Persistent {
-    # Run the route print command and capture the output
-    $routeOutput = route print
 
-    # Convert the output to a string and split it into an array of lines
-    $routeLines = $routeOutput -split "`n"
-
-    # Find the index of the "Persistent Routes" section
-    $persistentRoutesIndex = $routeLines.IndexOf("Persistent Routes")
-
-    if ($persistentRoutesIndex -ge 0) {
-        # Extract the lines after "Persistent Routes"
-        $persistentRoutes = $routeLines[$persistentRoutesIndex + 2..$routeLines.Length]
-
-        # Filter out any empty lines
-        $persistentRoutes = $persistentRoutes | Where-Object { $_ -ne "" }
-
-        # Output the persistent routes
-        $Persistent = $true
-    } else {
-        $Persistent = $false
-        $IsPersistent = "No persistent routes found"
+    $routeAarray = @(
+    "84.225.67.128/25",
+    "84.255.124.192/27",
+    "84.255.126.32/27",
+    "84.255.75.0/24"
+    )
+    $persistentRoutes = @()
+    $Persistent = $False
+    $routeAarray | foreach-object {
+        $DestPrefix = "$_"
+        if ( [bool](Get-NetRoute -PolicyStore PersistentStore | Where-Object { $_.DestinationPrefix -eq $DestPrefix })) {
+            $Persistent = $True
+            $persistentRoutes += $DestPrefix
+        }
     }
+    # # Run the route print command and capture the output
+    # $routeOutput = route print -4
+
+    # # Convert the output to a string and split it into an array of lines
+    # $routeLines = $routeOutput -split "`n"
+
+    # # Find the index of the "Persistent Routes" section
+    # $persistentRoutesIndex = $routeLines.IndexOf("Persistent Routes")
+
+    # if ($persistentRoutesIndex -ge 0) {
+    #     # Extract the lines after "Persistent Routes"
+    #     $persistentRoutes = $routeLines[$persistentRoutesIndex + 2..$routeLines.Length]
+
+    #     # Filter out any empty lines
+    #     $persistentRoutes = $persistentRoutes | Where-Object { $_ -ne "" }
+
+    #     # Output the persistent routes
+    #     $Persistent = $true
+    # } else {
+    #     $Persistent = $false
+    #     $IsPersistent = "No persistent routes found"
+    # }
 
     return $Persistent,$persistentRoutes
 
@@ -158,6 +174,8 @@ if (Test-PendingReboot) {
     $PendingReboot  = "No reboot is pending"
 }
 $Persistent,$persistentRoutes = Test-Persistent
+# Get-NetRoute -PolicyStore PersistentStore | Where-Object { $_.DestinationPrefix -eq '84.255.75.0/24' }
+
 if ($Persistent) {
     $Persistent  = $persistentRoutes
 } else {
