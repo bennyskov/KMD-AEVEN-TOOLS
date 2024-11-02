@@ -38,8 +38,11 @@
   gather_facts: false
   vars:
       tmpdir: "C:/Windows/Temp/persistent_check/"
-      cmdexec: "check_for_persistent_route.ps1"  
-      stdoutfile: "check_for_persistent_stdout.log"
+      cmdexec: "serverConfigScanner.ps1"  
+      stdoutfile: "serverConfigScanner.log"
+      foutcsv: "serverConfigScanner.csv"
+      foutjsn: "serverConfigScanner.json"
+      foutxml: "serverConfigScanner.xml"
   tasks:
     - name: run check_for_persistent_route
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -52,7 +55,7 @@
             dest: "{{ tmpdir }}"
 
         - name: Run powershell
-          win_shell: "{{ tmpdir }}check_for_persistent_route.ps1 > {{ tmpdir }}{{ stdoutfile }} 2>&1"
+          win_shell: "{{ tmpdir }}{{ cmdexec }} > {{ tmpdir }}{{ stdoutfile }} 2>&1"
           args:
             chdir: "{{ tmpdir }}"
           register: script_run_persistent
@@ -65,3 +68,12 @@
           debug:
             msg: |-
               "aeven_stdout_log {{ file_content_stdout.stdout }}"
+
+        - name: "Read content from foutcsv"
+          run_once: true
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ foutcsv }}"
+          register: file_content_stdout
+        - name: "Display content in stdout"
+          debug:
+            msg: |-
+              "aeven_foutcsv {{ file_content_stdout.foutcsv }}"
