@@ -91,8 +91,8 @@
           run_once: true
           win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ fsftcsv }}"
           register: file_content_fsftcsv
-        - name: "Display content in fsrvcsv"
+        - name: "Display content in fsftcsv"
           debug:
             msg: |-
-              "aeven_fsrvcsv {{ file_content_fsftcsv.stdout }}"
+              "aeven_fsftcsv {{ file_content_fsftcsv.stdout }}"
               
