@@ -39,10 +39,16 @@
   vars:
       tmpdir: "C:/Windows/Temp/persistent_check/"
       cmdexec: "serverConfigScanner.ps1"  
-      foutlog: "serverConfigScanner.log"
+      fstdout: "serverConfigScanner.log"
       foutcsv: "serverConfigScanner.csv"
       fsrvcsv: "serverConfigScanner_services.csv"
       fsftcsv: "serverConfigScanner_software.csv"
+    # aeven_logfile           = parsearg['logfile']
+    # aeven_fstdout           = parsearg['stdout_file'] 
+    # aeven_ferrors           = f"{workdir}/logs/activities/temp/serverConfigScanner_ferrors.csv"
+    # aeven_foutcsv           = f"{workdir}/logs/activities/temp/serverConfigScanner_foutcsv.csv"
+    # aeven_fsrvcsv           = f"{workdir}/logs/activities/temp/serverConfigScanner_fsrvcsv.csv"
+    # aeven_fsftcsv           = f"{workdir}/logs/activities/temp/serverConfigScanner_fsftcsv.csv"      
   tasks:
     - name: run check_for_persistent_route
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -55,14 +61,14 @@
             dest: "{{ tmpdir }}"
 
         - name: Run powershell
-          win_shell: "{{ tmpdir }}{{ cmdexec }} > {{ tmpdir }}{{ foutlog }} 2>&1"
+          win_shell: "{{ tmpdir }}{{ cmdexec }} > {{ tmpdir }}{{ fstdout }} 2>&1"
           args:
             chdir: "{{ tmpdir }}"
-          register: script_run_persistent
+          register: running_aeven_logfile
 
-        - name: "Read content from foutlog"
+        - name: "Read content from aeven_logfile"
           run_once: true
-          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ foutlog }}"
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ fstdout }}"
           register: file_content_stdout
         - name: "Display content in stdout"
           debug:
@@ -95,4 +101,5 @@
           debug:
             msg: |-
               "aeven_fsftcsv {{ file_content_fsftcsv.stdout }}"
-              
+           
+
