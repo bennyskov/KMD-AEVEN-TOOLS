@@ -109,11 +109,11 @@
         - name: "Read content from {{ logfile }}"
           run_once: true
           win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ logfile }}"
-          register: file_content_logfile
+          register: file_content_fstdout
         - name: "Display content in stdout"
           debug:
             msg: |-
-              "aeven_logfile_log {{ file_content_logfile.stdout }}"      
+              "aeven_fstdout {{ file_content_fstdout.stdout }}"      
 
         - name: "Read content from {{ stdoutfile }}"
           run_once: true
@@ -122,7 +122,7 @@
         - name: "Display content in stdout"
           debug:
             msg: |-
-              "aeven_fstdout {{ file_content_stdout.stdout }}"      
+              "aeven_logfile {{ file_content_stdout.stdout }}"      
 
         - name: "List {{ tmpdir }} at the end"
           run_once: true
