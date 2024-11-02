@@ -39,10 +39,10 @@
   vars:
       tmpdir: "C:/Windows/Temp/persistent_check/"
       cmdexec: "serverConfigScanner.ps1"  
-      stdoutfile: "serverConfigScanner.log"
+      foutlog: "serverConfigScanner.log"
       foutcsv: "serverConfigScanner.csv"
-      foutjsn: "serverConfigScanner.json"
-      foutxml: "serverConfigScanner.xml"
+      fsrvcsv: "serverConfigScanner_services.csv"
+      fsftcsv: "serverConfigScanner_software.csv"
   tasks:
     - name: run check_for_persistent_route
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -55,14 +55,14 @@
             dest: "{{ tmpdir }}"
 
         - name: Run powershell
-          win_shell: "{{ tmpdir }}{{ cmdexec }} > {{ tmpdir }}{{ stdoutfile }} 2>&1"
+          win_shell: "{{ tmpdir }}{{ cmdexec }} > {{ tmpdir }}{{ foutlog }} 2>&1"
           args:
             chdir: "{{ tmpdir }}"
           register: script_run_persistent
 
-        - name: "Read content from stdoutfile"
+        - name: "Read content from foutlog"
           run_once: true
-          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ stdoutfile }}"
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ foutlog }}"
           register: file_content_stdout
         - name: "Display content in stdout"
           debug:
@@ -72,8 +72,27 @@
         - name: "Read content from foutcsv"
           run_once: true
           win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ foutcsv }}"
-          register: file_content_stdout
-        - name: "Display content in stdout"
+          register: file_content_foutcsv
+        - name: "Display content in foutcsv"
           debug:
             msg: |-
-              "aeven_foutcsv {{ file_content_stdout.foutcsv }}"
+              "aeven_foutcsv {{ file_content_foutcsv.stdout }}"
+        
+        - name: "Read content from fsrvcsv"
+          run_once: true
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ fsrvcsv }}"
+          register: file_content_fsrvcsv
+        - name: "Display content in fsrvcsv"
+          debug:
+            msg: |-
+              "aeven_fsrvcsv {{ file_content_fsrvcsv.fsrvcsv }}"
+        
+        - name: "Read content from fsftcsv"
+          run_once: true
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ fsftcsv }}"
+          register: file_content_fsftcsv
+        - name: "Display content in fsrvcsv"
+          debug:
+            msg: |-
+              "aeven_fsrvcsv {{ file_content_fsftcsv.stdout }}"
+              
