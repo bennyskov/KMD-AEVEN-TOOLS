@@ -39,16 +39,17 @@
   vars:
       tmpdir: "C:/Windows/Temp/persistent_check/"
       cmdexec: "serverConfigScanner.ps1"  
-      fstdout: "serverConfigScanner.log"
+      logfile: "serverConfigScanner.log"
+      fstdout: "serverConfigScanner.txt"
       foutcsv: "serverConfigScanner.csv"
       fsrvcsv: "serverConfigScanner_services.csv"
       fsftcsv: "serverConfigScanner_software.csv"
-    # aeven_logfile           = parsearg['logfile']
-    # aeven_fstdout           = parsearg['stdout_file'] 
-    # aeven_ferrors           = f"{workdir}/logs/activities/temp/serverConfigScanner_ferrors.csv"
-    # aeven_foutcsv           = f"{workdir}/logs/activities/temp/serverConfigScanner_foutcsv.csv"
-    # aeven_fsrvcsv           = f"{workdir}/logs/activities/temp/serverConfigScanner_fsrvcsv.csv"
-    # aeven_fsftcsv           = f"{workdir}/logs/activities/temp/serverConfigScanner_fsftcsv.csv"      
+      # aeven_logfile           = parsearg['logfile']
+      # aeven_fstdout           = parsearg['stdout_file'] 
+      # aeven_ferrors           = f"{workdir}/logs/activities/temp/serverConfigScanner_ferrors.csv"
+      # aeven_foutcsv           = f"{workdir}/logs/activities/temp/serverConfigScanner_foutcsv.csv"
+      # aeven_fsrvcsv           = f"{workdir}/logs/activities/temp/serverConfigScanner_fsrvcsv.csv"
+      # aeven_fsftcsv           = f"{workdir}/logs/activities/temp/serverConfigScanner_fsftcsv.csv"
   tasks:
     - name: run check_for_persistent_route
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -61,19 +62,19 @@
             dest: "{{ tmpdir }}"
 
         - name: Run powershell
-          win_shell: "{{ tmpdir }}{{ cmdexec }} > {{ tmpdir }}{{ fstdout }} 2>&1"
+          win_shell: "{{ tmpdir }}{{ cmdexec }} > {{ tmpdir }}{{ logfile }} 2>&1"
           args:
             chdir: "{{ tmpdir }}"
-          register: running_aeven_logfile
+          register: running_aeven_fstdout
 
         - name: "Read content from aeven_logfile"
           run_once: true
-          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ fstdout }}"
-          register: file_content_stdout
-        - name: "Display content in stdout"
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ logfile }}"
+          register: file_content_logfile
+        - name: "Display content in logfile"
           debug:
             msg: |-
-              "aeven_stdout_log {{ file_content_stdout.stdout }}"
+              "aeven_logfile {{ file_content_logfile.stdout }}"
 
         - name: "Read content from foutcsv"
           run_once: true
@@ -91,7 +92,7 @@
         - name: "Display content in fsrvcsv"
           debug:
             msg: |-
-              "aeven_fsrvcsv {{ file_content_fsrvcsv.fsrvcsv }}"
+              "aeven_fsrvcsv {{ file_content_fsrvcsv.stdout }}"
         
         - name: "Read content from fsftcsv"
           run_once: true
