@@ -37,7 +37,7 @@
   ignore_errors: yes      
   gather_facts: false
   vars:
-      # aeven_logfile           = f"{contentDir}/serverConfigScanner_aeven_logfile.trc" # collected from the host: the transcript
+      # aeven_logfile           = f"{contentDir}/serverConfigScanner_aeven_logfile.trc" # collected from the host: the transcript - if any
       # aeven_fstdout           = f"{contentDir}/serverConfigScanner_aeven_fstdout.log" # collected from the host: the stdout - if any
       # aeven_foutcsv           = f"{contentDir}/serverConfigScanner_aeven_foutcsv.csv" # collected from the host: the OS/Computer info collected on the host
       # aeven_fsrvcsv           = f"{contentDir}/serverConfigScanner_aeven_fsrvcsv.csv" # collected from the host: the services found on host
@@ -45,7 +45,6 @@
 
       tmpdir: "C:/Windows/Temp/persistent_check/"
       cmdexec: "serverConfigScanner.ps1"  
-      aeven_logfile: "serverConfigScanner_aeven_logfile.trc"
       aeven_fstdout: "serverConfigScanner_aeven_fstdout.log"
       aeven_foutcsv: "serverConfigScanner_aeven_foutcsv.csv"
       aeven_fsrvcsv: "serverConfigScanner_aeven_fsrvcsv.csv"
@@ -67,19 +66,19 @@
             dest: "{{ tmpdir }}"
 
         - name: Run powershell
-          win_shell: "{{ tmpdir }}{{ cmdexec }} > {{ tmpdir }}{{ aeven_logfile }} 2>&1"
+          win_shell: "{{ tmpdir }}{{ cmdexec }} > {{ tmpdir }}{{ aeven_fstdout }} 2>&1"
           args:
             chdir: "{{ tmpdir }}"
-          register: running program
+          register: running_program
 
         - name: "Read content_file_1"
           run_once: true
-          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_logfile }}"
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fstdout }}"
           register: content_file_1
         - name: "pass content_file_1"
           debug:
             msg: |-
-              "aeven_logfile {{ content_file_1.stdout }}"
+              "aeven_fstdout {{ content_file_1.stdout }}"
 
            
 
