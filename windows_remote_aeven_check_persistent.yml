@@ -70,19 +70,19 @@
           args:
             chdir: "{{ tmpdir }}"
           register: running_program
-
         - name: "pass content_file_1"
           debug:
             msg: |-
               "aeven_fstdout {{ running_program.stdout }}"
-
-        - name: "Read content_file_1"
+        
+        - name: "Read content_file_2 ( putting it into same file )"
           run_once: true
           win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fstdout }}"
-          register: content_file_1
+          register: content_file_2
+        - name: "pass content_file_2"
           debug:
             msg: |-
-              "aeven_fstdout {{ content_file_1.stdout }}"
+              "aeven_fstdout {{ content_file_2.stdout }}"        
 
            
 
