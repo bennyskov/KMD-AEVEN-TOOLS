@@ -70,11 +70,11 @@
           args:
             chdir: "{{ tmpdir }}"
           register: running_program
-          
+
         - name: "pass content_file_1"
           debug:
             msg: |-
-              "aeven_fstdout {{ running_program.output }}"
+              "aeven_fstdout {{ running_program.stdout }}"
         # - name: "Read content_file_1"
         #   run_once: true
         #   win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fstdout }}"
