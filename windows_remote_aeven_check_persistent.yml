@@ -56,6 +56,11 @@
       # run check_for_persistent_route
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
       block:
+        - name: Delete directory {{ tmpdir }} 
+          win_file:
+            path: "{{ tmpdir }}"
+            state: absent
+
         - name: copy scripts
           win_copy: 
             src: scripts/
