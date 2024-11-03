@@ -26,7 +26,7 @@ Remove-Variable * -ErrorAction SilentlyContinue
 #
 #
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-# serverConfigScanner.ps1  :   collect server information data
+# servercheck.ps1  :   collect server information data
 #
 # 2023-04-30  Initial release ( Benny.Skov@kyndryl.dk )
 #
@@ -57,11 +57,11 @@ try {
     $xml['date']                = $begin
 
     $scriptdir                  = (Get-Location).Path
-    # $scriptdir                  = "C:/Windows/Temp/persistent_check/"
-    # $scriptdir                  = "D:/scripts/tview/build/scripts/serverConfigScanner/"
+    # $scriptdir                  = "C:/Windows/Temp/servercheck/"
+    # $scriptdir                  = "D:/scripts/tview/build/scripts/servercheck/"
     $scriptname                 = ($myinvocation).mycommand.Name
     if ( [string]::IsNullOrEmpty($scriptname) ) {
-        $scriptname = 'serverConfigScanner'
+        $scriptname = 'servercheck'
     } else {
         $scriptname             = [System.Text.RegularExpressions.Regex]::Replace($scriptname,"`.ps1","")
     }

@@ -37,22 +37,22 @@
   ignore_errors: yes      
   gather_facts: false
   vars:
-      # aeven_logfile           = f"{contentDir}/serverConfigScanner_aeven_logfile.log" # collected from the host: the redirected 2>&1 from the execute of program
-      # aeven_fstdout           = f"{contentDir}/serverConfigScanner_aeven_fstdout.log" # collected from the host: the stdout - if any
-      # aeven_foutcsv           = f"{contentDir}/serverConfigScanner_aeven_foutcsv.csv" # collected from the host: the OS/Computer info collected on the host
-      # aeven_fsrvcsv           = f"{contentDir}/serverConfigScanner_aeven_fsrvcsv.csv" # collected from the host: the services found on host ( filtered )
-      # aeven_fsrvall           = f"{contentDir}/serverConfigScanner_aeven_fsrvall.csv" # collected from the host: the services found on host ( ALL )
-      # aeven_fsftcsv           = f"{contentDir}/serverConfigScanner_aeven_fsftcsv.csv" # collected from the host: the software found on host ( filtered )
-      # aeven_fsftall           = f"{contentDir}/serverConfigScanner_aeven_fsftall.csv" # collected from the host: the software found on host ( ALL )
-      tmpdir: "C:/Windows/Temp/persistent_check/"
-      cmdexec: "serverConfigScanner.ps1"  
-      aeven_logfile: "serverConfigScanner_aeven_logfile.log"
-      aeven_fstdout: "serverConfigScanner_aeven_fstdout.log"
-      aeven_foutcsv: "serverConfigScanner_aeven_foutcsv.csv"
-      aeven_fsrvcsv: "serverConfigScanner_aeven_fsrvcsv.csv"
-      aeven_fsrvall: "serverConfigScanner_aeven_fsrvall.csv"
-      aeven_fsftcsv: "serverConfigScanner_aeven_fsftcsv.csv"
-      aeven_fsftall: "serverConfigScanner_aeven_fsftall.csv"
+      # aeven_logfile           = f"{contentDir}/servercheck_aeven_logfile.log" # collected from the host: the redirected 2>&1 from the execute of program
+      # aeven_fstdout           = f"{contentDir}/servercheck_aeven_fstdout.log" # collected from the host: the stdout - if any
+      # aeven_foutcsv           = f"{contentDir}/servercheck_aeven_foutcsv.csv" # collected from the host: the OS/Computer info collected on the host
+      # aeven_fsrvcsv           = f"{contentDir}/servercheck_aeven_fsrvcsv.csv" # collected from the host: the services found on host ( filtered )
+      # aeven_fsrvall           = f"{contentDir}/servercheck_aeven_fsrvall.csv" # collected from the host: the services found on host ( ALL )
+      # aeven_fsftcsv           = f"{contentDir}/servercheck_aeven_fsftcsv.csv" # collected from the host: the software found on host ( filtered )
+      # aeven_fsftall           = f"{contentDir}/servercheck_aeven_fsftall.csv" # collected from the host: the software found on host ( ALL )
+      tmpdir: "C:/Windows/Temp/servercheck/"
+      cmdexec: "servercheck.ps1"  
+      aeven_logfile: "servercheck_aeven_logfile.log"
+      aeven_fstdout: "servercheck_aeven_fstdout.log"
+      aeven_foutcsv: "servercheck_aeven_foutcsv.csv"
+      aeven_fsrvcsv: "servercheck_aeven_fsrvcsv.csv"
+      aeven_fsrvall: "servercheck_aeven_fsrvall.csv"
+      aeven_fsftcsv: "servercheck_aeven_fsftcsv.csv"
+      aeven_fsftall: "servercheck_aeven_fsftall.csv"
   tasks:
     - name: run check_for_persistent_route
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
