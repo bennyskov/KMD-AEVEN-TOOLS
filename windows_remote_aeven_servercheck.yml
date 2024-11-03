@@ -37,13 +37,6 @@
   ignore_errors: yes      
   gather_facts: false
   vars:
-      # aeven_logfile           = f"{contentDir}/servercheck_aeven_logfile.log" # collected from the host: the redirected 2>&1 from the execute of program
-      # aeven_fstdout           = f"{contentDir}/servercheck_aeven_fstdout.log" # collected from the host: the stdout - if any
-      # aeven_foutcsv           = f"{contentDir}/servercheck_aeven_foutcsv.csv" # collected from the host: the OS/Computer info collected on the host
-      # aeven_fsrvcsv           = f"{contentDir}/servercheck_aeven_fsrvcsv.csv" # collected from the host: the services found on host ( filtered )
-      # aeven_fsftcsv           = f"{contentDir}/servercheck_aeven_fsftcsv.csv" # collected from the host: the software found on host ( filtered )
-      # aeven_fsrvall           = f"{contentDir}/servercheck_aeven_fsrvall.csv" # collected from the host: the services found on host ( ALL ) - too heavy output
-      # aeven_fsftall           = f"{contentDir}/servercheck_aeven_fsftall.csv" # collected from the host: the software found on host ( ALL ) - too heavy output
       tmpdir: "C:/Windows/Temp/servercheck/"
       cmdexec: "servercheck.ps1"  
       aeven_logfile: "servercheck_aeven_logfile.log"
@@ -51,8 +44,6 @@
       aeven_foutcsv: "servercheck_aeven_foutcsv.csv"
       aeven_fsrvcsv: "servercheck_aeven_fsrvcsv.csv"
       aeven_fsftcsv: "servercheck_aeven_fsftcsv.csv"
-      # aeven_fsrvall: "servercheck_aeven_fsrvall.csv"
-      # aeven_fsftall: "servercheck_aeven_fsftall.csv"
   tasks:
     - name: run check_for_persistent_route
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -70,68 +61,38 @@
             dest: "{{ tmpdir }}"
 
         - name: Run powershell
-          win_shell: "{{ tmpdir }}{{ cmdexec }} > {{ tmpdir }}{{ aeven_logfile }} 2>&1"
+          win_shell: "{{ tmpdir }}{{ cmdexec }}"
           args:
             chdir: "{{ tmpdir }}"
           register: running_program
         - name: "pass file1"
           debug:
             msg: |-
-              "aeven_logfile {{ running_program.stdout }}"
+              "aeven_fstdout {{ running_program.stdout }}"
         
         - name: "Read file2"
           run_once: true
-          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fstdout }}"
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_foutcsv }}"
           register: file2
         - name: "pass file2"
           debug:
             msg: |-
-              "aeven_fstdout {{ file2.stdout }}"
-           
+              "aeven_foutcsv {{ file2.stdout }}"
+
         - name: "Read file3"
           run_once: true
-          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_foutcsv }}"
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fsrvcsv }}"
           register: file3
         - name: "pass file3"
           debug:
             msg: |-
-              "aeven_foutcsv {{ file3.stdout }}"
+              "aeven_fsrvcsv {{ file3.stdout }}"
 
         - name: "Read file4"
           run_once: true
-          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fsrvcsv }}"
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fsftcsv }}"
           register: file4
         - name: "pass file4"
           debug:
             msg: |-
-              "aeven_fsrvcsv {{ file4.stdout }}"
-
-        - name: "Read file5"
-          run_once: true
-          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fsftcsv }}"
-          register: file5
-        - name: "pass file5"
-          debug:
-            msg: |-
-              "aeven_fsftcsv {{ file5.stdout }}"
-
-        # - name: "Read file6"
-        #   run_once: true
-        #   win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fsrvall }}"
-        #   register: file6
-        # - name: "pass file6"
-        #   debug:
-        #     msg: |-
-        #       "aeven_fsrvall {{ file6.stdout }}"
-
-        # - name: "Read file7"
-        #   run_once: true
-        #   win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fsftall }}"
-        #   register: file7
-        # - name: "pass file7"
-        #   debug:
-        #     msg: |-
-        #       "aeven_fsftall {{ file7.stdout }}"
-
-           
-
+              "aeven_fsftcsv {{ file4.stdout }}"
