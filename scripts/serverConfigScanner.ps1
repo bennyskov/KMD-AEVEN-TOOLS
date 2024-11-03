@@ -611,7 +611,7 @@ if ( -not [string]::IsNullOrEmpty($filteredSoftware) ) {
     $filteredSoftware | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
 }
 if ( -not [string]::IsNullOrEmpty($allSoftwareList) ) {
-    $csvFilename    = "$scriptdir/${scriptname}_aeven_fsftcsv_All.csv"
+    $csvFilename    = "$scriptdir/${scriptname}_aeven_fsftall.csv"
     $null           = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
     $allSoftwareList | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
 }
@@ -628,7 +628,7 @@ if ( -not [string]::IsNullOrEmpty($filteredServices) ) {
     $filteredServices | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
 }
 if ( -not [string]::IsNullOrEmpty($allServicesList) ) {
-    $csvFilename    = "$scriptdir/${scriptname}_aeven_fsrvcsv_All.csv"
+    $csvFilename    = "$scriptdir/${scriptname}_aeven_fsrvall.csv"
     $null           = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
     $allServicesList | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
 }
