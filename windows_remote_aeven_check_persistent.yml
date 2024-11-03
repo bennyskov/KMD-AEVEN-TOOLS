@@ -65,16 +65,16 @@
           win_shell: "{{ tmpdir }}{{ cmdexec }} > {{ tmpdir }}{{ aeven_logfile }} 2>&1"
           args:
             chdir: "{{ tmpdir }}"
-          register: running_aeven_logfile
+          register: running program
 
-        - name: "Read content from aeven_logfile"
+        - name: "Read content_file_1"
           run_once: true
           win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_logfile }}"
-          register: file_content_aeven_logfile
-        - name: "Display content in aeven_logfile"
+          register: content_file_1
+        - name: "pass content_file_1"
           debug:
             msg: |-
-              "aeven_logfile {{ file_content_aeven_logfile.stdout }}"
+              "aeven_logfile {{ content_file_1.stdout }}"
 
            
 
