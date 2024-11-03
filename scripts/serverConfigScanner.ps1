@@ -68,14 +68,6 @@ try {
     $xml['scriptname']          = $scriptname
     $xml['xmlFile']             = $scriptdir+$scriptname+".xml"
 
-    # $ErrorActionPreference      = "SilentlyContinue"
-    # $null                       = Stop-Transcript -ErrorAction SilentlyContinue | out-null
-    # $transcriptFile             = "$scriptdir/${scriptname}_aeven_logfile.trc"
-    # $null                       = remove-item -Path "$transcriptFile" -Force -ErrorAction SilentlyContinue
-    # $null                       = Stop-Transcript -ErrorAction SilentlyContinue | out-null
-    # $ErrorActionPreference      = "SilentlyContinue"
-    # $null                       = Start-Transcript -path "$transcriptFile" -append | out-null
-
     $defaultServices            = Import-Csv -Path "$scriptdir/serverConfigExclude_services.csv" -Delimiter ';'
     $defaultSoftware            = Import-Csv -Path "$scriptdir/serverConfigExclude_software.csv" -Delimiter ';'
     f_logOK
@@ -761,4 +753,3 @@ if ($TimeDiff.Seconds -lt 0) {
 }
 $Difference = '{0:00}:{1:00}:{2:00}' -f $Hrs,$Mins,$Secs
 $text = "End  elapsed  $Difference"; $step++; f_log -logMsg $text -step $step;f_logOK
-# Stop-Transcript -ErrorAction SilentlyContinue

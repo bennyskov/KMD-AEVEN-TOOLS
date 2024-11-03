@@ -75,11 +75,14 @@
           debug:
             msg: |-
               "aeven_fstdout {{ running_program.stdout }}"
-        # - name: "Read content_file_1"
-        #   run_once: true
-        #   win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fstdout }}"
-        #   register: content_file_1
-        
+
+        - name: "Read content_file_1"
+          run_once: true
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fstdout }}"
+          register: content_file_1
+          debug:
+            msg: |-
+              "aeven_fstdout {{ content_file_1.stdout }}"
 
            
 
