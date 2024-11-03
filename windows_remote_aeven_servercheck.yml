@@ -45,6 +45,7 @@
 
       tmpdir: "C:/Windows/Temp/persistent_check/"
       cmdexec: "serverConfigScanner.ps1"  
+      aeven_logfile: "serverConfigScanner_aeven_logfile.log"
       aeven_fstdout: "serverConfigScanner_aeven_fstdout.log"
       aeven_foutcsv: "serverConfigScanner_aeven_foutcsv.csv"
       aeven_fsrvcsv: "serverConfigScanner_aeven_fsrvcsv.csv"
@@ -66,16 +67,16 @@
             dest: "{{ tmpdir }}"
 
         - name: Run powershell
-          win_shell: "{{ tmpdir }}{{ cmdexec }} > {{ tmpdir }}{{ aeven_fstdout }} 2>&1"
+          win_shell: "{{ tmpdir }}{{ cmdexec }} > {{ tmpdir }}{{ aeven_logfile }} 2>&1"
           args:
             chdir: "{{ tmpdir }}"
           register: running_program
         - name: "pass file1"
           debug:
             msg: |-
-              "aeven_fstdout_1 {{ running_program.stdout }}"
+              "aeven_logfile {{ running_program.stdout }}"
         
-        - name: "Read file2 ( putting it into same file )"
+        - name: "Read file2"
           run_once: true
           win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fstdout }}"
           register: file2
