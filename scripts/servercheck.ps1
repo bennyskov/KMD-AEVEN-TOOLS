@@ -55,16 +55,17 @@ try {
     $begin                      = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
     $xml                        = @{}
     $xml['date']                = $begin
-
-    $scriptdir                  = (Get-Location).Path
-    $scriptdir                  = $scriptdir -replace '\\', '/'
-    $scriptname                 = ($myinvocation).mycommand.Name
-    if ( [string]::IsNullOrEmpty($scriptdir) ) {
-        $scriptdir              = "C:/Windows/Temp/servercheck/"
-        $scriptname             = 'servercheck'
-    } else {
-        $scriptname             = [System.Text.RegularExpressions.Regex]::Replace($scriptname,"`.ps1","")
-    }
+    # $scriptdir                  = (Get-Location).Path
+    # $scriptdir                 = [System.Text.RegularExpressions.Regex]::Replace($scriptdir,"`\","/")
+    # $scriptname                 = ($myinvocation).mycommand.Name
+    # if ( [string]::IsNullOrEmpty($scriptdir) ) {
+    #     $scriptdir              = "C:/Windows/Temp/servercheck/"
+    #     $scriptname             = 'servercheck'
+    # } else {
+    #     $scriptname             = [System.Text.RegularExpressions.Regex]::Replace($scriptname,"`.ps1","")
+    # }
+    $scriptdir                  = "C:/Windows/Temp/servercheck/"
+    $scriptname                 = 'servercheck'
     $xml['scriptname']          = $scriptname
     $xml['xmlFile']             = $scriptdir+$scriptname+".xml"
 
