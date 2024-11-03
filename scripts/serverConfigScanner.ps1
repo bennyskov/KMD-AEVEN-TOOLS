@@ -539,57 +539,25 @@ function f_get-Persistent {
     )
     $rc = $false; $result=""
     [string]$element = "route-$PolicyStore-$DestPrefix"
-
     try {
-        # $ifRoutes               = [bool](Get-NetRoute -PolicyStore "$PolicyStore" | Where-Object { $_.DestinationPrefix -imatch "${DestPrefix}." }).DestinationPrefix
-        # Write-Host ""
-        # Write-Host "f_get-Persistent"
-        # Write-Host "ifRoutes=$ifRoutes"
         $routes                 = (Get-NetRoute -PolicyStore "$PolicyStore" | Where-Object { $_.DestinationPrefix -imatch "${DestPrefix}." }).DestinationPrefix
-        # Write-Host "routes=$routes"
-        # $rc             = $true
-        # $result         = "xxxxxxxxxxxxxxxxx."
-        # $routes = (Get-NetRoute -PolicyStore 'ActiveStore' | Where-Object { $_.DestinationPrefix -imatch '84.255.92.' }).DestinationPrefix
-        # $routes = (Get-NetRoute -PolicyStore 'ActiveStore' | Where-Object { $_.DestinationPrefix -imatch '84.225.92.' }).DestinationPrefix
-        # $routes = (Get-NetRoute -PolicyStore 'ActiveStore' | Where-Object { $_.DestinationPrefix -imatch '84.255.92.' }).DestinationPrefix;$PersistentRoutes = @(); $routes | foreach-object { [string]$route = $_ ; $route; $PersistentRoutes += $route };[string]$PersistentRoutes = $PersistentRoutes -join ",";$result = $PersistentRoutes;$result
-
-        # $routes = (Get-NetRoute -PolicyStore 'PersistentStore' | Where-Object { $_.DestinationPrefix -imatch '84.255.124.' }).DestinationPrefix
-        # $PersistentRoutes = @(); $routes               = (Get-NetRoute -PolicyStore 'PersistentStore' | Where-Object { $_.DestinationPrefix -imatch '84.255.124.' }).DestinationPrefix;$routes | foreach-object { [string]$route = $_ ; $route; $PersistentRoutes += $route };[string]$PersistentRoutes = $PersistentRoutes -join ",";$result = $PersistentRoutes;$result
-        # if ( $routes ) {
         if ( -not [string]::IsNullOrEmpty($routes) ) {
             $PersistentRoutes = @();
             $routes | foreach-object {
                 [string]$route = $_
                 $PersistentRoutes += $route
             }
-            $PersistentRoutes = $PersistentRoutes | Sort-Object -Unique
-            [string]$PersistentString = $PersistentRoutes -join ","
-
-            # $PersistentRoutes = $PersistentString -split ','
-
-            # Write-Host $PersistentRoutes.GetType()
-            # Write-Host $PersistentString.GetType()
-            # Write-Host "PersistentString=$PersistentString"
-            # [string]$PersistentRoutes    = [System.Collections.Generic.HashSet[string]]::new($PersistentRoutes) # Remove duplicates
-            # exit 0
-
-            $result = $PersistentRoutes
-            $xml[$element]  = $PersistentRoutes
-            $rc             = $true
+            $PersistentRoutes           = $PersistentRoutes | Sort-Object -Unique
+            [string]$PersistentString   = $PersistentRoutes -join ","
+            $result                     = $PersistentString
+            $xml[$element]              = $PersistentString
+            $rc                         = $true
         } else {
-            $rc             = $true
-            $result         = "No routes found for $DestPrefix in $PolicyStore."
-            $xml[$element]  = $result
+            $rc                         = $true
+            $result                     = "No routes found for $DestPrefix in $PolicyStore."
+            $xml[$element]              = $result
         }
-        # Write-Host "rc=$rc"
-        # Write-Host "result=$result"
-        # #     [string]$Persistent     = $PersistentRoutes -join ","
-        # #     [string]$uniqueArray    = [System.Collections.Generic.HashSet[string]]::new($Persistent) # Remove duplicates
-        # #     [string]$xml[$element]  = $uniqueArray
-        # #     $rc             = $true
-        # #     $result         = "persistent routes is found in $PolicyStore."
     } catch {
-
         Write-Host "An error occurred: $($_.Exception.Message)"
         $errorDetails = $_
         if ($errorDetails) {
