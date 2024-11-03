@@ -68,8 +68,8 @@ try {
     $xml['scriptname']          = $scriptname
     $xml['xmlFile']             = $scriptdir+$scriptname+".xml"
 
-    $defaultServices            = Import-Csv -Path "$scriptdir/serverConfigExclude_services.csv" -Delimiter ';'
-    $defaultSoftware            = Import-Csv -Path "$scriptdir/serverConfigExclude_software.csv" -Delimiter ';'
+    $defaultServices            = Import-Csv -Path "$scriptdir/servercheck_services.csv" -Delimiter ';'
+    $defaultSoftware            = Import-Csv -Path "$scriptdir/servercheck_software.csv" -Delimiter ';'
     f_logOK
 } catch {
 
