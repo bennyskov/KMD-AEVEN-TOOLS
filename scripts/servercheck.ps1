@@ -57,11 +57,11 @@ try {
     $xml['date']                = $begin
 
     $scriptdir                  = (Get-Location).Path
-    # $scriptdir                  = "C:/Windows/Temp/servercheck/"
-    # $scriptdir                  = "D:/scripts/tview/build/scripts/servercheck/"
+    $scriptdir                  = $scriptdir -replace '\\', '/'
     $scriptname                 = ($myinvocation).mycommand.Name
-    if ( [string]::IsNullOrEmpty($scriptname) ) {
-        $scriptname = 'servercheck'
+    if ( [string]::IsNullOrEmpty($scriptdir) ) {
+        $scriptdir              = "C:/Windows/Temp/servercheck/"
+        $scriptname             = 'servercheck'
     } else {
         $scriptname             = [System.Text.RegularExpressions.Regex]::Replace($scriptname,"`.ps1","")
     }
