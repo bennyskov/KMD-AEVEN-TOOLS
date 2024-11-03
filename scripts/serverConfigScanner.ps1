@@ -34,12 +34,6 @@ Remove-Variable * -ErrorAction SilentlyContinue
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # INIT
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# $ErrorActionPreference = "SilentlyContinue"
-# $null = Stop-Transcript -ErrorAction SilentlyContinue | out-null
-# remove-item -Path "D:/scripts/tview/build/scripts/serverConfigScanner/serverConfigScanner_Transcript.log" -Force -ErrorAction SilentlyContinue
-# $null = Stop-Transcript -ErrorAction SilentlyContinue | out-null
-# $ErrorActionPreference = "SilentlyContinue"
-# $null = Start-Transcript -path "D:/scripts/tview/build/scripts/serverConfigScanner/serverConfigScanner_transcript.log" -append | out-null
 Function f_log {
    Param ([string]$logMsg, $step)
    $now = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
@@ -63,6 +57,7 @@ try {
     $xml['date']                = $begin
 
     $scriptdir                  = (Get-Location).Path
+    # $scriptdir                  = "C:/Windows/Temp/persistent_check/"
     # $scriptdir                  = "D:/scripts/tview/build/scripts/serverConfigScanner/"
     $scriptname                 = ($myinvocation).mycommand.Name
     if ( [string]::IsNullOrEmpty($scriptname) ) {
@@ -72,6 +67,15 @@ try {
     }
     $xml['scriptname']          = $scriptname
     $xml['xmlFile']             = $scriptdir+$scriptname+".xml"
+
+    $ErrorActionPreference      = "SilentlyContinue"
+    $null                       = Stop-Transcript -ErrorAction SilentlyContinue | out-null
+    $transcriptFile             = "$scriptdir/${scriptname}_aeven_logfile.trc"
+    $null                       = remove-item -Path "$transcriptFile" -Force -ErrorAction SilentlyContinue
+    $null                       = Stop-Transcript -ErrorAction SilentlyContinue | out-null
+    $ErrorActionPreference      = "SilentlyContinue"
+    $null                       = Start-Transcript -path "$transcriptFile" -append | out-null
+
     $defaultServices            = Import-Csv -Path "$scriptdir/serverConfigExclude_services.csv" -Delimiter ';'
     $defaultSoftware            = Import-Csv -Path "$scriptdir/serverConfigExclude_software.csv" -Delimiter ';'
     f_logOK
@@ -642,12 +646,12 @@ $rc, $result, $filteredSoftware, $allSoftwareList   = f_get-software -defaultSof
 if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
 
 if ( -not [string]::IsNullOrEmpty($filteredSoftware) ) {
-    $csvFilename    = "$scriptdir/${scriptname}_software.csv"
+    $csvFilename    = "$scriptdir/${scriptname}_aeven_fsftcsv.csv"
     $null           = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
     $filteredSoftware | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
 }
 if ( -not [string]::IsNullOrEmpty($allSoftwareList) ) {
-    $csvFilename    = "$scriptdir/${scriptname}_software_All.csv"
+    $csvFilename    = "$scriptdir/${scriptname}_aeven_fsftcsv_All.csv"
     $null           = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
     $allSoftwareList | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
 }
@@ -659,12 +663,12 @@ $rc, $result, $filteredServices, $allServicesList  = f_get-services -defaultServ
 if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
 
 if ( -not [string]::IsNullOrEmpty($filteredServices) ) {
-    $csvFilename    = "$scriptdir/${scriptname}_services.csv"
+    $csvFilename    = "$scriptdir/${scriptname}_aeven_fsrvcsv.csv"
     $null           = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
     $filteredServices | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
 }
 if ( -not [string]::IsNullOrEmpty($allServicesList) ) {
-    $csvFilename    = "$scriptdir/${scriptname}_services_All.csv"
+    $csvFilename    = "$scriptdir/${scriptname}_aeven_fsrvcsv_All.csv"
     $null           = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
     $allServicesList | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
 }
@@ -700,18 +704,6 @@ foreach ($key in $xml.Keys | Sort $key  ) {
     Write-Output $line
 }
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Create a new jsom file
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-$sortedByKey = $xml.GetEnumerator() | Sort-Object Name
-$sortedHashtable = [ordered]@{}
-$sortedByKey | ForEach-Object {
-    $sortedHashtable[$_.Name] = $_.Value
-}
-$json = $sortedHashtable | ConvertTo-Json
-$jsonFilename = "$scriptdir/$scriptname.json"
-$null = Remove-Item $jsonFilename -Force -ErrorAction SilentlyContinue
-$json | Out-File -FilePath $jsonFilename -Encoding utf8
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Create a new csv file
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 $sortedByKey = $xml.GetEnumerator() | Sort-Object Name
@@ -720,27 +712,39 @@ $sortedByKey | ForEach-Object {
     $sortedHashtable[$_.Name] = $_.Value
 }
 $csvObject = New-Object PSObject -Property $sortedHashtable
-$csvFilename = "$scriptdir/$scriptname.csv"
+$csvFilename = "${scriptdir}/${scriptname}_aeven_foutcsv.csv"
 $null = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
 $csvObject | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Create a new jsom file
+# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# $sortedByKey = $xml.GetEnumerator() | Sort-Object Name
+# $sortedHashtable = [ordered]@{}
+# $sortedByKey | ForEach-Object {
+#     $sortedHashtable[$_.Name] = $_.Value
+# }
+# $json = $sortedHashtable | ConvertTo-Json
+# $jsonFilename = "$scriptdir/$scriptname.json"
+# $null = Remove-Item $jsonFilename -Force -ErrorAction SilentlyContinue
+# $json | Out-File -FilePath $jsonFilename -Encoding utf8
+# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Create a new XML document
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-$xmlDoc = New-Object System.Xml.XmlDocument
-$xmlDeclaration = $xmlDoc.CreateXmlDeclaration("1.0", "UTF-8", $null)
-$xmlDoc.AppendChild($xmlDeclaration)
-$root = $xmlDoc.CreateElement("SystemInformation")
-$xmlDoc.AppendChild($root)
+# $xmlDoc = New-Object System.Xml.XmlDocument
+# $xmlDeclaration = $xmlDoc.CreateXmlDeclaration("1.0", "UTF-8", $null)
+# $xmlDoc.AppendChild($xmlDeclaration)
+# $root = $xmlDoc.CreateElement("SystemInformation")
+# $xmlDoc.AppendChild($root)
 
-# Create child xml and add them to the root element
-foreach ($elementName in $xml.Keys | Sort $elementName  ) {
-    $element = $xmlDoc.CreateElement($elementName)
-    $element.InnerText = $xml[$elementName]
-    $root.AppendChild($element)
-}
-$OSFilename = $scriptdir+"/"+$scriptname+".xml"
-$null       = remove-item $OSFilename -Force -ErrorAction SilentlyContinue
-$xmlDoc.Save($OSFilename)
+# # Create child xml and add them to the root element
+# foreach ($elementName in $xml.Keys | Sort $elementName  ) {
+#     $element = $xmlDoc.CreateElement($elementName)
+#     $element.InnerText = $xml[$elementName]
+#     $root.AppendChild($element)
+# }
+# $OSFilename = $scriptdir+"/"+$scriptname+".xml"
+# $null       = remove-item $OSFilename -Force -ErrorAction SilentlyContinue
+# $xmlDoc.Save($OSFilename)
 # -----------------------------------------------------------------------------------------------------------------
 # The End
 # -----------------------------------------------------------------------------------------------------------------
@@ -757,4 +761,4 @@ if ($TimeDiff.Seconds -lt 0) {
 }
 $Difference = '{0:00}:{1:00}:{2:00}' -f $Hrs,$Mins,$Secs
 $text = "End  elapsed  $Difference"; $step++; f_log -logMsg $text -step $step;f_logOK
-# Stop-Transcript -ErrorAction SilentlyContinue
+Stop-Transcript -ErrorAction SilentlyContinue

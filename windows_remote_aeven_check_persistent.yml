@@ -37,19 +37,19 @@
   ignore_errors: yes      
   gather_facts: false
   vars:
+      # aeven_logfile           = f"{contentDir}/serverConfigScanner_aeven_logfile.trc" # collected from the host: the transcript
+      # aeven_fstdout           = f"{contentDir}/serverConfigScanner_aeven_fstdout.log" # collected from the host: the stdout - if any
+      # aeven_foutcsv           = f"{contentDir}/serverConfigScanner_aeven_foutcsv.csv" # collected from the host: the OS/Computer info collected on the host
+      # aeven_fsrvcsv           = f"{contentDir}/serverConfigScanner_aeven_fsrvcsv.csv" # collected from the host: the services found on host
+      # aeven_fsftcsv           = f"{contentDir}/serverConfigScanner_aeven_fsftcsv.csv" # collected from the host: the software found on host
+
       tmpdir: "C:/Windows/Temp/persistent_check/"
       cmdexec: "serverConfigScanner.ps1"  
-      logfile: "serverConfigScanner.log"
-      fstdout: "serverConfigScanner.txt"
-      foutcsv: "serverConfigScanner.csv"
-      fsrvcsv: "serverConfigScanner_services.csv"
-      fsftcsv: "serverConfigScanner_software.csv"
-      # aeven_logfile           = parsearg['logfile']
-      # aeven_fstdout           = parsearg['stdout_file'] 
-      # aeven_ferrors           = f"{workdir}/logs/activities/temp/serverConfigScanner_ferrors.csv"
-      # aeven_foutcsv           = f"{workdir}/logs/activities/temp/serverConfigScanner_foutcsv.csv"
-      # aeven_fsrvcsv           = f"{workdir}/logs/activities/temp/serverConfigScanner_fsrvcsv.csv"
-      # aeven_fsftcsv           = f"{workdir}/logs/activities/temp/serverConfigScanner_fsftcsv.csv"
+      aeven_logfile: "serverConfigScanner_aeven_logfile.trc"
+      aeven_fstdout: "serverConfigScanner_aeven_fstdout.log"
+      aeven_foutcsv: "serverConfigScanner_aeven_foutcsv.csv"
+      aeven_fsrvcsv: "serverConfigScanner_aeven_fsrvcsv.csv"
+      aeven_fsftcsv: "serverConfigScanner_aeven_fsftcsv.csv"
   tasks:
     - name: run check_for_persistent_route
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -62,45 +62,19 @@
             dest: "{{ tmpdir }}"
 
         - name: Run powershell
-          win_shell: "{{ tmpdir }}{{ cmdexec }} > {{ tmpdir }}{{ logfile }} 2>&1"
+          win_shell: "{{ tmpdir }}{{ cmdexec }} > {{ tmpdir }}{{ aeven_logfile }} 2>&1"
           args:
             chdir: "{{ tmpdir }}"
-          register: running_aeven_fstdout
+          register: running_aeven_logfile
 
         - name: "Read content from aeven_logfile"
           run_once: true
-          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ logfile }}"
-          register: file_content_logfile
-        - name: "Display content in logfile"
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_logfile }}"
+          register: file_content_aeven_logfile
+        - name: "Display content in aeven_logfile"
           debug:
             msg: |-
-              "aeven_logfile {{ file_content_logfile.stdout }}"
+              "aeven_logfile {{ file_content_aeven_logfile.stdout }}"
 
-        - name: "Read content from foutcsv"
-          run_once: true
-          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ foutcsv }}"
-          register: file_content_foutcsv
-        - name: "Display content in foutcsv"
-          debug:
-            msg: |-
-              "aeven_foutcsv {{ file_content_foutcsv.stdout }}"
-        
-        - name: "Read content from fsrvcsv"
-          run_once: true
-          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ fsrvcsv }}"
-          register: file_content_fsrvcsv
-        - name: "Display content in fsrvcsv"
-          debug:
-            msg: |-
-              "aeven_fsrvcsv {{ file_content_fsrvcsv.stdout }}"
-        
-        - name: "Read content from fsftcsv"
-          run_once: true
-          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ fsftcsv }}"
-          register: file_content_fsftcsv
-        - name: "Display content in fsftcsv"
-          debug:
-            msg: |-
-              "aeven_fsftcsv {{ file_content_fsftcsv.stdout }}"
            
 
