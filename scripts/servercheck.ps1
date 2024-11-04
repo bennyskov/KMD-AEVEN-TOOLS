@@ -692,8 +692,8 @@ if ( -not [string]::IsNullOrEmpty($allServicesList) ) {
 $sortedByKey = $xml.GetEnumerator() | Sort-Object Name
 $sortedHashtable = [ordered]@{}
 $sortedByKey | ForEach-Object {
-    [string]$value = "$_.Value"
-    [string]$key = "$_.Name"
+    [string]$value = '\"$_.Value\"'
+    [string]$key = '\"$_.Name\"'
     [string]$sortedHashtable[$key] = $value
 }
 $finalHashtable = New-Object PSObject -Property $sortedHashtable
@@ -712,7 +712,7 @@ foreach ($key in $xml.Keys | Sort $key  ) {
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 $csvFilename = "${scriptdir}/${scriptname}_aeven_foutcsv.csv"
 $null = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
-$finalHashtable | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation -UseQuotes Always
+$finalHashtable | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Create json file
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
