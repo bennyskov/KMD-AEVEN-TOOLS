@@ -74,7 +74,7 @@
         - name: "Display content in stdout"
           debug:
             msg: |-
-              "aeven_stdout_log {{ file_content_uninstall_stdout.stdout }}"      
+              "aeven_fstdout {{ file_content_uninstall_stdout.stdout }}"      
 
         - name: "List {{ tmpdir }} at the end"
           run_once: true
