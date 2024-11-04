@@ -171,7 +171,7 @@ function f_get-machineInfo {
         $workHash['OSname']         = $OSname
 
         [string]$OSversion          = (Get-WmiObject Win32_OperatingSystem).version
-        $workHash['OSname']         = $OSversion
+        $workHash['OSversion']      = $OSversion
 
         [string]$OSservicePack      = (Get-WmiObject Win32_OperatingSystem).ServicePackMajorVersion
         $workHash['OSservicePack']  = $OSservicePack
@@ -188,6 +188,20 @@ function f_get-machineInfo {
         [string]$x64                = (Get-WmiObject -Class Win32_OperatingSystem).OSArchitecture -like '64-bit'
         $workHash['x64']            = $x64
 
+        [string]$biosVersion        = (Get-WmiObject Win32_BIOS).Version
+        $workHash['biosVersion']    = $biosVersion
+
+        [string]$biosName           = (Get-WmiObject Win32_BIOS).Name
+        $workHash['biosName']       = $biosName
+
+        [string]$Manufacturer       = (Get-WmiObject Win32_ComputerSystem).Manufacturer
+        $workHash['Manufacturer']   = $Manufacturer
+
+        [string]$model              = (Get-WmiObject Win32_ComputerSystem).Model
+        $workHash['model']          = $model
+
+        [string]$PrimaryOwnerName   = (Get-WmiObject Win32_ComputerSystem).PrimaryOwnerName
+        $workHash['PrimaryOwnerName']= $PrimaryOwnerName
         $workHash['netAdapters_total']=  @(Get-WmiObject -Class Win32_NetworkAdapterConfiguration).Count
         $NetworkAdapterConfiguration= Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Filter IPENABLED=TRUE
         [string]$netAdapters_enabled= @($NetworkAdapterConfiguration).Count
@@ -212,8 +226,6 @@ function f_get-machineInfo {
         $workHash['CPUcount']       = ($CPU | Measure-Object -Property NumberOfCores -Sum).Sum.ToString()
         $workHash['CPUcores']       = ($CPU | Measure-Object -Property NumberOfLogicalProcessors -Sum).Sum.ToString()
         $workHash['CPUsockets']     = ($CPU | Select-Object -ExpandProperty SocketDesignation | Measure-Object).Count.ToString()
-
-
 
         $PhysicalMemory             = (Get-CimInstance -class Win32_PhysicalMemory | Measure-Object -Property capacity -Sum).Sum
         $TotalAvailMemory           = ([math]::round(($PhysicalMemory / 1GB),0))
@@ -244,21 +256,6 @@ function f_get-machineInfo {
 
         [string]$serialnumber       = (Get-WmiObject Win32_BIOS).SerialNumber
         $workHash['SerialNumber']   = $SerialNumber
-
-        [string]$biosVersion        = (Get-WmiObject Win32_BIOS).Version
-        $workHash['biosVersion']    = $biosVersion
-
-        [string]$biosName           = (Get-WmiObject Win32_BIOS).Name
-        $workHash['biosName']       = $biosName
-
-        [string]$Manufacturer       = (Get-WmiObject Win32_ComputerSystem).Manufacturer
-        $workHash['Manufacturer']   = $Manufacturer
-
-        [string]$model              = (Get-WmiObject Win32_ComputerSystem).Model
-        $workHash['model']          = $model
-
-        [string]$PrimaryOwnerName   = (Get-WmiObject Win32_ComputerSystem).PrimaryOwnerName
-        $workHash['PrimaryOwnerName']= $PrimaryOwnerName
 
         $IsVirtual                  = $false
         if ( $SerialNumber -icontains "*VMware*") {
@@ -478,8 +475,8 @@ function f_get-miscellaneous {
         $saltminion                     = [Bool](Get-Service -Name salt-minion -ErrorAction SilentlyContinue)
         $workHash['salt-minion']        = $saltminion
 
-        $SAAgent                        = [Bool](get-service -name 'SA Agent' -ErrorAction SilentlyContinue )
-        $workHash['SA-Agent']           = $SAAgent
+        $SAAgent                        = [Bool](get-service -name 'OpswareAgent' -ErrorAction SilentlyContinue)
+        $workHash['SA-OpswareAgent']    = $SAAgent
 
         $OvCtrl                         = [Bool](get-service -name OvCtrl -ErrorAction SilentlyContinue )
         $workHash['OvCtrl']             = $OvCtrl
