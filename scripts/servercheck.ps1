@@ -161,31 +161,31 @@ function f_get-machineInfo {
 
     try {
         [string]$hostname           = $env:COMPUTERNAME.ToLower()
-        $workHash['hostname']    = $hostname
+        $workHash['hostname']       = $hostname
 
-        [string]$OperatingSystem    = Get-CimInstance -ClassName Win32_OperatingSystem
+        $OperatingSystem            = Get-CimInstance -ClassName Win32_OperatingSystem
         [string]$OperatingSystem    = $OperatingSystem.caption + " " + $OperatingSystem.OSArchitecture + " SP " + $OperatingSystem.ServicePackMajorVersion
         $workHash['OperatingSystem']= $OperatingSystem
 
         [string]$OSname             = (Get-WmiObject Win32_OperatingSystem).Caption
         $workHash['OSname']         = $OSname
 
-        $OSversion                  = (Get-WmiObject Win32_OperatingSystem).version
+        [string]$OSversion          = (Get-WmiObject Win32_OperatingSystem).version
         $workHash['OSname']         = $OSversion
 
         [string]$OSservicePack      = (Get-WmiObject Win32_OperatingSystem).ServicePackMajorVersion
         $workHash['OSservicePack']  = $OSservicePack
 
         [string]$windir             = $env:WINDIR
-        [string]$workHash['windir'] = $windir
+        $workHash['windir']         = $windir
 
-        $systemroot                 = $env:SystemRoot
+        [string]$systemroot         = $env:SystemRoot
         $workHash['systemroot']     = $systemroot
 
-        $systemdrive                = $env:SystemDrive
+        [string]$systemdrive        = $env:SystemDrive
         $workHash['systemdrive']    = $systemdrive
 
-        $x64                        = (Get-WmiObject -Class Win32_OperatingSystem).OSArchitecture -like '64-bit'
+        [string]$x64                = (Get-WmiObject -Class Win32_OperatingSystem).OSArchitecture -like '64-bit'
         $workHash['x64']            = $x64
 
         $workHash['netAdapters_total']=  @(Get-WmiObject -Class Win32_NetworkAdapterConfiguration).Count
@@ -216,7 +216,7 @@ function f_get-machineInfo {
 
 
         $PhysicalMemory             = (Get-CimInstance -class Win32_PhysicalMemory | Measure-Object -Property capacity -Sum).Sum
-        $TotalAvailMemory           = ([math]::round(($PhysicalMemory / 1GB),2))
+        $TotalAvailMemory           = ([math]::round(($PhysicalMemory / 1GB),0))
         $TotalMem                   = "{0:N2}" -f $TotalAvailMemory
         [string]$TotalMem           = $TotalMem
         [string]$TotalAvailMemory   = $TotalAvailMemory
@@ -226,7 +226,7 @@ function f_get-machineInfo {
         $workHash['PhysicalMemory']  =$PhysicalMemory
 
         $TotalPhysicalMemory        = (Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory
-        [string]$TotalPhysicalMemory= ([math]::round(($TotalPhysicalMemory / 1GB),2))
+        [string]$TotalPhysicalMemory= ([math]::round(($TotalPhysicalMemory / 1GB),0))
         $workHash['TotalPhysicalMemory']= "{0:N2}" -f $TotalPhysicalMemory
 
         [string]$FQDN               = ([System.Net.Dns]::GetHostEntry([System.Net.Dns]::GetHostName())).HostName
@@ -235,11 +235,11 @@ function f_get-machineInfo {
         [string]$Domain             = (Get-WmiObject Win32_ComputerSystem).Domain
         $workHash['Domain']         = $Domain
 
-        [string]$diskspace          = get-WmiObject Win32_Volume -ErrorAction SilentlyContinue | Where-Object { $_.drivetype -eq '3' -and $_.driveletter } | Select-Object driveletter,@{Name='freespace';Expression={[math]::round($_.freespace/1GB, 2)}},@{Name='capacity';Expression={[math]::round($_.capacity/1GB, 2)}}
+        $diskspace                  = get-WmiObject Win32_Volume -ErrorAction SilentlyContinue | Where-Object { $_.drivetype -eq '3' -and $_.driveletter } | Select-Object driveletter,@{Name='freespace';Expression={[math]::round($_.freespace/1GB, 0)}},@{Name='capacity';Expression={[math]::round($_.capacity/1GB, 0)}}
         $workHash['diskspace']      = $diskspace | ConvertTo-Json -Compress
 
-        $DiskSpaceSum               = 0
-        [string]$DiskSpaceSum       = Get-WmiObject Win32_Volume -Filter "DriveType='3'" | ForEach-Object {$DiskSpaceSum += [Math]::Round(($_.Capacity / 1GB),0)}
+        $DiskSpaceSum               = (Get-WmiObject Win32_Volume -Filter "DriveType='3'" | Measure-Object -Property capacity -Sum).Sum
+        $DiskSpaceSum               = [Math]::Round(($DiskSpaceSum / 1GB),0)
         $workHash['DiskSpaceSum']   = $DiskSpaceSum
 
         [string]$serialnumber       = (Get-WmiObject Win32_BIOS).SerialNumber
@@ -358,7 +358,15 @@ function f_get-ports {
         $rc, $result                = get-IPPort -target $target -port $port
         $workHash[$toolName]        = "$result"
 
-        $toolName                   = 'OMI-2'; $target = '84.255.75.2'; $port = 12002
+        $toolName                   = 'OMI-2'; $target = '84.255.75.2'; $port = 383
+        $rc, $result                = get-IPPort -target $target -port $port
+        $workHash[$toolName]        = "$result"
+
+        $toolName                   = 'OMI-3'; $target = '84.255.75.1'; $port = 3128
+        $rc, $result                = get-IPPort -target $target -port $port
+        $workHash[$toolName]        = "$result"
+
+        $toolName                   = 'OMI-4'; $target = '84.255.75.2'; $port = 3128
         $rc, $result                = get-IPPort -target $target -port $port
         $workHash[$toolName]        = "$result"
 
@@ -693,7 +701,9 @@ $sortedByKey = $workHash.GetEnumerator() | Sort-Object Name
 $finalHashtable = [ordered]@{}
 $sortedByKey | ForEach-Object {
     [string]$value = $_.Value
+    [string]$value = $value.Trim()
     [string]$key = $_.Name
+    [string]$key = $key.Trim()
     [string]$finalHashtable[$key] = "${value}"
 }
 $finalPSObject = New-Object PSObject -Property $finalHashtable
