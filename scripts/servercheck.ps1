@@ -98,7 +98,7 @@ function f_get-software {
             if ($defaultSoftware.DisplayName -inotcontains $product.DisplayName ) {
                 $product
             }
-            if ($allSoftwareList.Name -imatch '.*SA Agent.*' ) {
+            if ($allSoftwareList.DisplayName -imatch '.*SA Agent.*' ) {
                 $workHash['SAAgent - software']   = $true
             }
         }
