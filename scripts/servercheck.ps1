@@ -99,7 +99,7 @@ function f_get-software {
                 $product
             }
             if ($allSoftwareList.DisplayName -imatch '.*SA Agent.*' ) {
-                $workHash['SAAgent - software']   = $true
+                $workHash['SAAgent - software'] = $true
             }
         }
         if ( [string]::IsNullOrEmpty($filteredSoftware) ) {
