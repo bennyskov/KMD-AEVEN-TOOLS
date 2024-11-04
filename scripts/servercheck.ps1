@@ -98,10 +98,10 @@ function f_get-software {
             if ($defaultSoftware.DisplayName -inotcontains $product.DisplayName ) {
                 $product
             }
-            if ($allSoftwareList.DisplayName -imatch '.*SA Agent.*' ) {
-                $workHash['SAAgent - software'] = $true
-            }
         }
+        $opsware = [bool]($allSoftwareList |  Where-Object { $_.DisplayName -imatch '.*SA Agent.*' }).DisplayName
+        $workHash['SA-OpswareAgent-software'] = $opsware
+
         if ( [string]::IsNullOrEmpty($filteredSoftware) ) {
             $rc = $False
             $result = "Error - get-software step failed!"
