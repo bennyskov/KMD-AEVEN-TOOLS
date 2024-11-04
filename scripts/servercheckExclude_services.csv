@@ -14,7 +14,7 @@
 "BrokerInfrastructure";"Background Tasks Infrastructure Service"
 "BFE";"Base Filtering Engine"
 "bthserv";"Bluetooth Support Service"
-"CDPUserSvc_147a6c";"CDPUserSvc_147a6c"
+"CDPUserSvc.*";"CDPUserSvc.*"
 "CertPropSvc";"Certificate Propagation"
 "ClipSVC";"Client License Service (ClipSVC)"
 "KeyIso";"CNG Key Isolation"

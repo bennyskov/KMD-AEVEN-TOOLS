@@ -440,6 +440,9 @@ function f_get-miscellaneous {
     )
     $rc = $false; $result=""
     try {
+        $SAAgent                    = [Bool](Get-Service -Name OpswareAgent -ErrorAction SilentlyContinue)
+        $xml['SAAgent']             = $SAAgent
+
         $kmdpaas                    = [Bool](Get-Service -Name kmdpaas -ErrorAction SilentlyContinue)
         $xml['kmdpaas']             = $kmdpaas
 
