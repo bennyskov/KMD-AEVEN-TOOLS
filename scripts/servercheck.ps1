@@ -53,8 +53,8 @@ $text = "begin -----------------------------------------------------"; $step++; 
 $text = "INIT"; $step++; f_log -logMsg $text -step $step
 try {
     $begin                      = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
-    $workHash                = @{}
-    $workHash['date']        = $begin
+    $workHash                   = [ordered]@{}
+    $workHash['date']           = $begin
     # $scriptdir                = (Get-Location).Path
     # $scriptdir                = [System.Text.RegularExpressions.Regex]::Replace($scriptdir,"`\","/")
     # $scriptname               = ($myinvocation).mycommand.Name
@@ -203,8 +203,8 @@ function f_get-machineInfo {
         [string]$PrimaryOwnerName   = (Get-WmiObject Win32_ComputerSystem).PrimaryOwnerName
         $workHash['PrimaryOwnerName']= $PrimaryOwnerName
         $workHash['netAdapters_total']=  @(Get-WmiObject -Class Win32_NetworkAdapterConfiguration).Count
+        $workHash['netAdapters_enabled']= @(Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Filter IPENABLED=TRUE).Count
         $NetworkAdapterConfiguration= Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Filter IPENABLED=TRUE
-        [string]$netAdapters_enabled= @($NetworkAdapterConfiguration).Count
         [string]$IPAddress          = $NetworkAdapterConfiguration.IPAddress[0]
         [string]$IPSubnet           = $NetworkAdapterConfiguration.IPSubnet
         [string]$DefaultIPGateway   = $NetworkAdapterConfiguration.DefaultIPGateway
@@ -229,11 +229,11 @@ function f_get-machineInfo {
 
         $PhysicalMemory             = (Get-CimInstance -class Win32_PhysicalMemory | Measure-Object -Property capacity -Sum).Sum
         $TotalAvailMemory           = ([math]::round(($PhysicalMemory / 1GB),0))
-        $TotalMem                   = "{0:N2}" -f $TotalAvailMemory
-        [string]$TotalMem           = $TotalMem
+        # $TotalMem                   = "{0:N2}" -f $TotalAvailMemory
+        # [string]$TotalMem           = $TotalMem
+        # $workHash['TotalMem']       = $TotalMem
         [string]$TotalAvailMemory   = $TotalAvailMemory
         [string]$PhysicalMemory     = $PhysicalMemory
-        $workHash['TotalMem']       = $TotalMem
         $workHash['TotalAvailMemory']=$TotalAvailMemory
         $workHash['PhysicalMemory']  =$PhysicalMemory
 
@@ -258,7 +258,7 @@ function f_get-machineInfo {
         $workHash['SerialNumber']   = $SerialNumber
 
         $IsVirtual                  = $false
-        if ( $SerialNumber -icontains "*VMware*") {
+        if ( $SerialNumber -imatch "VMware") {
             $IsVirtual = $true
         } else {
             switch -wildcard ( $biosVersion ) {
@@ -268,11 +268,11 @@ function f_get-machineInfo {
             }
         }
         if ( -not $IsVirtual ) {
-            if      ( $Manufacturer -icontains "*Microsoft*")  { $IsVirtual = $true }
-            elseif  ( $Manufacturer -icontains "*VMWare*")     { $IsVirtual = $true }
-            elseif  ( $model -icontains "*Virtual*")           { $IsVirtual = $true }
+            if      ( $Manufacturer -imatch "Microsoft")  { $IsVirtual = $true }
+            elseif  ( $Manufacturer -imatch "VMWare")     { $IsVirtual = $true }
+            elseif  ( $model -imatch "Virtual")           { $IsVirtual = $true }
         }
-        [string]$workHash['IsVirtual']   = $IsVirtual
+        $workHash['IsVirtual']   = $IsVirtual
 
         $rc = $true
         $result = "OK - machineInfo is collected."
@@ -694,26 +694,34 @@ if ( -not [string]::IsNullOrEmpty($allServicesList) ) {
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Create a sorted hash table
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-$sortedByKey = $workHash.GetEnumerator() | Sort-Object Name
-$finalHashtable = [ordered]@{}
-$sortedByKey | ForEach-Object {
-    [string]$value = $_.Value
-    [string]$value = $value.Trim()
-    [string]$key = $_.Name
-    [string]$key = $key.Trim()
-    [string]$finalHashtable[$key] = "${value}"
-}
-$finalPSObject = New-Object PSObject -Property $finalHashtable
+# $sortedByKey = $workHash.GetEnumerator() | Sort-Object Name
+# $finalHashtable = [ordered]@{}
+# $finalHashtable = @{}
+# $workHash | ForEach-Object {
+#     [string]$value = $_.Value
+#     [string]$value = $value.Trim()
+#     [string]$key = $_.Name
+#     [string]$key = $key.Trim()
+#     [string]$finalHashtable[$key] = "${value}"
+# }
+# $finalPSObject = New-Object PSObject -Property $finalHashtable
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # print keys and values
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Write-Host "# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
 Write-Host "# print keys and values"
 Write-Host "# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
-foreach ($key in $workHash.Keys | Sort $key  ) {
-    $line = '{0,-40} {1}' -f $key,$workHash[$key]
+# foreach ($key in $workHash.Keys | Sort $key  ) {
+$finalHashtable = [ordered]@{}
+foreach ($key in $workHash.Keys ) {
+    [string]$value  = $workHash[$key]
+    [string]$value  = $value.Trim()
+    [string]$key    = $key.Trim()
+    $finalHashtable[$key] = "${value}"
+    $line = '{0,-40} {1}' -f $key,$value
     Write-Output $line
 }
+$finalPSObject = New-Object PSObject -Property $finalHashtable
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Create a csv file
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -735,7 +743,8 @@ $xmlDeclaration = $xmlDoc.CreateXmlDeclaration("1.0", "UTF-8", $null)
 $xmlDoc.AppendChild($xmlDeclaration)
 $root = $xmlDoc.CreateElement("SystemInformation")
 $xmlDoc.AppendChild($root)
-foreach ($elementName in $finalHashtable.Keys | Sort $elementName  ) {
+# foreach ($elementName in $finalHashtable.Keys | Sort $elementName  ) {
+foreach ($elementName in $finalHashtable.Keys ) {
     $element = $xmlDoc.CreateElement($elementName)
     $element.InnerText = $finalHashtable[$elementName]
     $root.AppendChild($element)
