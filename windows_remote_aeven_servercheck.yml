@@ -115,3 +115,8 @@
           debug:
             msg: |-
               "aeven_foutxml {{ file6.stdout }}"
+      always:
+        - name: Delete directory {{ tmpdir }} 
+          win_file:
+            path: "{{ tmpdir }}"
+            state: absent
