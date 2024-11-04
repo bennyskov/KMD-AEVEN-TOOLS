@@ -43,6 +43,8 @@
       aeven_foutcsv: "servercheck_aeven_foutcsv.csv"
       aeven_fsrvcsv: "servercheck_aeven_fsrvcsv.csv"
       aeven_fsftcsv: "servercheck_aeven_fsftcsv.csv"
+      aeven_foutjsn: "servercheck_aeven_foutjsn.json"
+      aeven_foutxml: "servercheck_aeven_foutxml.xml"
   tasks:
     - name: run check_for_persistent_route
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -95,3 +97,21 @@
           debug:
             msg: |-
               "aeven_fsftcsv {{ file4.stdout }}"
+        
+        - name: "Read file5"
+          run_once: true
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_foutjsn }}"
+          register: file5
+        - name: "pass file5"
+          debug:
+            msg: |-
+              "aeven_foutjsn {{ file5.stdout }}"
+
+        - name: "Read file6"
+          run_once: true
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_foutxml }}"
+          register: file6
+        - name: "pass file6"
+          debug:
+            msg: |-
+              "aeven_foutxml {{ file6.stdout }}"

@@ -712,33 +712,33 @@ $csvObject | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Create a new jsom file
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# $sortedByKey = $xml.GetEnumerator() | Sort-Object Name
-# $sortedHashtable = [ordered]@{}
-# $sortedByKey | ForEach-Object {
-#     $sortedHashtable[$_.Name] = $_.Value
-# }
-# $json = $sortedHashtable | ConvertTo-Json
-# $jsonFilename = "$scriptdir/$scriptname.json"
-# $null = Remove-Item $jsonFilename -Force -ErrorAction SilentlyContinue
-# $json | Out-File -FilePath $jsonFilename -Encoding utf8
+$sortedByKey = $xml.GetEnumerator() | Sort-Object Name
+$sortedHashtable = [ordered]@{}
+$sortedByKey | ForEach-Object {
+    $sortedHashtable[$_.Name] = $_.Value
+}
+$json = $sortedHashtable | ConvertTo-Json
+$jsonFilename = "${scriptdir}/${scriptname}_aeven_foutjsn.json"
+$null = Remove-Item $jsonFilename -Force -ErrorAction SilentlyContinue
+$json | Out-File -FilePath $jsonFilename -Encoding utf8
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Create a new XML document
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# $xmlDoc = New-Object System.Xml.XmlDocument
-# $xmlDeclaration = $xmlDoc.CreateXmlDeclaration("1.0", "UTF-8", $null)
-# $xmlDoc.AppendChild($xmlDeclaration)
-# $root = $xmlDoc.CreateElement("SystemInformation")
-# $xmlDoc.AppendChild($root)
+$xmlDoc = New-Object System.Xml.XmlDocument
+$xmlDeclaration = $xmlDoc.CreateXmlDeclaration("1.0", "UTF-8", $null)
+$xmlDoc.AppendChild($xmlDeclaration)
+$root = $xmlDoc.CreateElement("SystemInformation")
+$xmlDoc.AppendChild($root)
 
-# # Create child xml and add them to the root element
-# foreach ($elementName in $xml.Keys | Sort $elementName  ) {
-#     $element = $xmlDoc.CreateElement($elementName)
-#     $element.InnerText = $xml[$elementName]
-#     $root.AppendChild($element)
-# }
-# $OSFilename = $scriptdir+"/"+$scriptname+".xml"
-# $null       = remove-item $OSFilename -Force -ErrorAction SilentlyContinue
-# $xmlDoc.Save($OSFilename)
+# Create child xml and add them to the root element
+foreach ($elementName in $xml.Keys | Sort $elementName  ) {
+    $element = $xmlDoc.CreateElement($elementName)
+    $element.InnerText = $xml[$elementName]
+    $root.AppendChild($element)
+}
+$OSFilename = "${scriptdir}/${scriptname}_aeven_foutxml.xml"
+$null       = remove-item $OSFilename -Force -ErrorAction SilentlyContinue
+$xmlDoc.Save($OSFilename)
 # -----------------------------------------------------------------------------------------------------------------
 # The End
 # -----------------------------------------------------------------------------------------------------------------
