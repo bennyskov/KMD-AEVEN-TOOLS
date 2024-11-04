@@ -98,6 +98,9 @@ function f_get-software {
             if ($defaultSoftware.DisplayName -inotcontains $product.DisplayName ) {
                 $product
             }
+            if ($allSoftwareList.Name imatch '.*SA Agent.*' ) {
+                $xml['SAAgent - software']   = $true
+            }
         }
         if ( [string]::IsNullOrEmpty($filteredSoftware) ) {
             $rc = $False
@@ -437,7 +440,7 @@ function f_get-miscellaneous {
     $rc = $false; $result=""
     try {
         $SAAgent                    = [Bool](Get-Service -Name OpswareAgent -ErrorAction SilentlyContinue)
-        $xml['SAAgent']             = $SAAgent
+        $xml['SAAgent - Service']   = $SAAgent
 
         $kmdpaas                    = [Bool](Get-Service -Name kmdpaas -ErrorAction SilentlyContinue)
         $xml['kmdpaas']             = $kmdpaas
