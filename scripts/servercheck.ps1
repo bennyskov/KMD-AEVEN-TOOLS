@@ -692,7 +692,7 @@ if ( -not [string]::IsNullOrEmpty($allServicesList) ) {
 $sortedByKey = $xml.GetEnumerator() | Sort-Object Name
 $sortedHashtable = [ordered]@{}
 $sortedByKey | ForEach-Object {
-    [string]$sortedHashtable[$_.Name] = $_.Value
+    [string]$sortedHashtable[$_.Name] = [string]$_.Value
 }
 $finalHashtable = New-Object PSObject -Property $sortedHashtable
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
