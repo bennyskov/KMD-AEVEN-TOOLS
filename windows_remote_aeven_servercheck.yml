@@ -39,7 +39,6 @@
   vars:
       tmpdir: "C:/Windows/Temp/servercheck/"
       cmdexec: "servercheck.ps1"  
-      aeven_logfile: "servercheck_aeven_logfile.log"
       aeven_fstdout: "servercheck_aeven_fstdout.log"
       aeven_foutcsv: "servercheck_aeven_foutcsv.csv"
       aeven_fsrvcsv: "servercheck_aeven_fsrvcsv.csv"

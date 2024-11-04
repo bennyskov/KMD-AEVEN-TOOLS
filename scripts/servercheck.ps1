@@ -66,8 +66,8 @@ try {
     # }
     $scriptdir                  = "C:/Windows/Temp/servercheck/"
     $scriptname                 = 'servercheck'
-    $xml['scriptname']          = $scriptname
-    $xml['xmlFile']             = $scriptdir+$scriptname+".xml"
+    # $xml['scriptname']          = $scriptname
+    # $xml['xmlFile']             = $scriptdir+$scriptname+".xml"
 
     $defaultServices            = Import-Csv -Path "$scriptdir/servercheckExclude_services.csv" -Delimiter ';'
     $defaultSoftware            = Import-Csv -Path "$scriptdir/servercheckExclude_software.csv" -Delimiter ';'
