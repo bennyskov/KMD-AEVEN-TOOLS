@@ -697,43 +697,38 @@ foreach ($key in $xml.Keys | Sort $key  ) {
     Write-Output $line
 }
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Create a new csv file
+# Create a sorted hash table
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 $sortedByKey = $xml.GetEnumerator() | Sort-Object Name
 $sortedHashtable = [ordered]@{}
 $sortedByKey | ForEach-Object {
-    $sortedHashtable[$_.Name] = $_.Value
+    [string]$sortedHashtable[$_.Name] = $_.Value
 }
-$csvObject = New-Object PSObject -Property $sortedHashtable
+$finalHashtable = New-Object PSObject -Property $sortedHashtable
+# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Create a csv file
+# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 $csvFilename = "${scriptdir}/${scriptname}_aeven_foutcsv.csv"
 $null = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
-$csvObject | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
-# to get only the
+$finalHashtable | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Create a new jsom file
+# Create json file
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-$sortedByKey = $xml.GetEnumerator() | Sort-Object Name
-$sortedHashtable = [ordered]@{}
-$sortedByKey | ForEach-Object {
-    $sortedHashtable[$_.Name] = $_.Value
-}
-$json = $sortedHashtable | ConvertTo-Json
 $jsonFilename = "${scriptdir}/${scriptname}_aeven_foutjsn.json"
 $null = Remove-Item $jsonFilename -Force -ErrorAction SilentlyContinue
+$json = $finalHashtable | ConvertTo-Json
 $json | Out-File -FilePath $jsonFilename -Encoding utf8
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Create a new XML document
+# Create XML file
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 $xmlDoc = New-Object System.Xml.XmlDocument
 $xmlDeclaration = $xmlDoc.CreateXmlDeclaration("1.0", "UTF-8", $null)
 $xmlDoc.AppendChild($xmlDeclaration)
 $root = $xmlDoc.CreateElement("SystemInformation")
 $xmlDoc.AppendChild($root)
-
-# Create child xml and add them to the root element
-foreach ($elementName in $xml.Keys | Sort $elementName  ) {
+foreach ($elementName in $finalHashtable.Keys | Sort $elementName  ) {
     $element = $xmlDoc.CreateElement($elementName)
-    $element.InnerText = $xml[$elementName]
+    $element.InnerText = $finalHashtable[$elementName]
     $root.AppendChild($element)
 }
 $OSFilename = "${scriptdir}/${scriptname}_aeven_foutxml.xml"
