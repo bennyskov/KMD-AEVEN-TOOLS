@@ -343,6 +343,14 @@ function f_get-ports {
         $rc, $result                = get-IPPort -target $target -port $port
         $xml[$toolName]             = "$result"
 
+        $toolName                   = 'OMI-#1'; $target = '84.255.75.1'; $port = 383
+        $rc, $result                = get-IPPort -target $target -port $port
+        $xml[$toolName]             = "$result"
+
+        $toolName                   = 'OMI-#2'; $target = '84.255.75.2'; $port = 12002
+        $rc, $result                = get-IPPort -target $target -port $port
+        $xml[$toolName]             = "$result"
+
         $toolName                   = 'ansible-#1'; $target = '84.255.94.31'; $port = 8081
         $rc, $result                = get-IPPort -target $target -port $port
         $xml[$toolName]             = "$result"
