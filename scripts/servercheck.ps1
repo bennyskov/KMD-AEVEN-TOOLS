@@ -99,8 +99,8 @@ function f_get-software {
                 $product
             }
         }
-        $opsware = [bool]($allSoftwareList |  Where-Object { $_.DisplayName -imatch '.*SA Agent.*' }).DisplayName
-        $workHash['SA-OpswareAgent-software'] = $opsware
+        [string]$opsware = [bool]($allSoftwareList |  Where-Object { $_.DisplayName -imatch '.*SA Agent.*' }).DisplayName
+        $workHash['SA-Opsware-software'] = $opsware
 
         if ( [string]::IsNullOrEmpty($filteredSoftware) ) {
             $rc = $False
@@ -119,20 +119,31 @@ function f_get-software {
         $rc = $false
         $result = "Error - get-software step failed!"
     }
-    return $rc, $result, $filteredSoftware, $allSoftwareList
+    return $rc, $result, $filteredSoftware, $allSoftwareList, $workHash
 }
 function f_get-services {
-    param ($defaultServices)
+    param ($defaultServices,$workHash)
     $rc = $false; $result=""
     try {
 
         $allServices = Get-Service | Select-Object Name, DisplayName | Sort-Object DisplayName
-        $allServicesList = $allServices
         $filteredServices = foreach ($service in $allServices) {
             if ($defaultServices.Name -inotcontains $service.Name ) {
                 $service
             }
         }
+        $workHash['OpswareAgent-SA']    = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'OpswareAgent' })
+        $workHash['OvSvcDiscAgent-OMI'] = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'OvSvcDiscAgent' })
+        $workHash['OvCtrl-OMI']         = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'OvCtrl' })
+        $workHash['DiscAgent-ucmdb']    = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'DiscAgent' })
+        $workHash['WinRMService']       = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'winrm' })
+        $workHash['kmdpaas']            = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'kmdpaas' })
+        $workHash['webhostingminion']   = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'webhostingminion' })
+        $workHash['salt-minion']        = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'salt-minion' })
+        $workHash['TSMclassic']         = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'TSM client' })
+        $workHash['TSMspectum']         = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'TSM client' })
+        $workHash['Commvault']          = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'Commvault' })
+
         if ( [string]::IsNullOrEmpty($filteredServices) ) {
             $rc = $False
             $result = "Error - f_get-services step failed!"
@@ -150,7 +161,7 @@ function f_get-services {
         $rc = $false
         $result = "Error - f_get-services step failed!"
     }
-    return $rc, $result, $filteredServices, $allServicesList
+    return $rc, $result, $filteredServices, $allServices, $workHash
 }
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # functions
@@ -272,7 +283,6 @@ function f_get-machineInfo {
         $errorDetails = $_
         if ($errorDetails) {
             Write-Host "Error details: $($errorDetails.Exception)"
-            $result = "Error - f_get-services step failed!"
         }
 
         $rc = $false
@@ -375,10 +385,10 @@ function f_get-ports {
     } catch {
 
         Write-Host "An error occurred: $($_.Exception.Message)"
-        # $errorDetails = $_
-        # if ($errorDetails) {
-        #     Write-Host "Error details: $($errorDetails.Exception)"
-        # }
+        $errorDetails = $_
+        if ($errorDetails) {
+            Write-Host "Error details: $($errorDetails.Exception)"
+        }
 
         $rc = $false
         $result = "Error - get-ports step failed!"
@@ -453,32 +463,6 @@ function f_get-miscellaneous {
     )
     $rc = $false; $result=""
     try {
-        $SAAgent                        = [Bool](Get-Service -Name OpswareAgent -ErrorAction SilentlyContinue)
-        $workHash['SAAgent-Service']    = $SAAgent
-
-        $kmdpaas                        = [Bool](Get-Service -Name kmdpaas -ErrorAction SilentlyContinue)
-        $workHash['kmdpaas']            = $kmdpaas
-
-        $webhostingminion               = [Bool](Get-Service -Name webhostingminion -ErrorAction SilentlyContinue)
-        $workHash['webhostingminion']   = $webhostingminion
-
-        $saltminion                     = [Bool](Get-Service -Name salt-minion -ErrorAction SilentlyContinue)
-        $workHash['salt-minion']        = $saltminion
-
-        $SAAgent                        = [Bool](get-service -name 'OpswareAgent' -ErrorAction SilentlyContinue)
-        $workHash['SA-OpswareAgent']    = $SAAgent
-
-        $OvCtrl                         = [Bool](get-service -name OvCtrl -ErrorAction SilentlyContinue )
-        $workHash['OvCtrl']             = $OvCtrl
-
-        $TSMclassic                     = [Bool](get-service -DisplayName 'TSM client*' -ErrorAction SilentlyContinue)
-        $workHash['TSMclassic']         = $TSMclassic
-
-        $TSMspectum                     = [Bool](get-service -Name 'TSM Sched*' -ErrorAction SilentlyContinue)
-        $workHash['TSMspectum']         = $TSMspectum
-
-        $Commvault                      = [Bool](get-service -Name '*ClMgrS*' -ErrorAction SilentlyContinue)
-        $workHash['Commvault']          = $Commvault
 
         [int]$PSVersion                 = $PSVersionTable.PSVersion | select-object -ExpandProperty major
         $workHash['PSVersion']          = $PSVersion
@@ -494,9 +478,6 @@ function f_get-miscellaneous {
 
         $WSMan                          = [bool](Test-WSMan -ErrorAction SilentlyContinue).ToString()
         $workHash['WSMan']              = $WSMan
-
-        $WinRMService                   = (Get-Service winrm -ErrorAction SilentlyContinue).status | ConvertTo-Json -Compress
-        $workHash['WinRMService']       = $WinRMService
 
         $winrm_listener                 = (winrm enumerate winrm/config/Listener) | ConvertTo-Json -Compress
         $workHash['winrm_listener']     = $winrm_listener
@@ -651,7 +632,7 @@ if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
 # f_get-software and write jsonSwList
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 $text = "get-software"; $step++; f_log -logMsg $text -step $step
-$rc, $result, $filteredSoftware, $allSoftwareList = f_get-software -defaultSoftware $defaultSoftware
+$rc, $result, $filteredSoftware, $allSoftwareList, $workHash = f_get-software -defaultSoftware $defaultSoftware -workHash $workHash
 if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
 
 if ( -not [string]::IsNullOrEmpty($filteredSoftware) ) {
@@ -668,7 +649,7 @@ if ( -not [string]::IsNullOrEmpty($allSoftwareList) ) {
 # f_get-services and write jsonSwList
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 $text = "get-services"; $step++; f_log -logMsg $text -step $step
-$rc, $result, $filteredServices, $allServicesList = f_get-services -defaultServices $defaultServices
+$rc, $result, $filteredServices, $allServices, $workHash = f_get-services -defaultServices $defaultServices -workHash $workHash
 if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
 
 if ( -not [string]::IsNullOrEmpty($filteredServices) ) {
@@ -676,10 +657,10 @@ if ( -not [string]::IsNullOrEmpty($filteredServices) ) {
     $null           = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
     $filteredServices | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
 }
-if ( -not [string]::IsNullOrEmpty($allServicesList) ) {
+if ( -not [string]::IsNullOrEmpty($allServices) ) {
     $csvFilename    = "$scriptdir/${scriptname}_aeven_fsrvall.csv"
     $null           = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
-    $allServicesList | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
+    $allServices | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
 }
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Create a sorted hash table
@@ -728,10 +709,10 @@ $json | Out-File -FilePath $jsonFilename -Encoding utf8
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Create XML file
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-$xmlDoc = New-Object System.Xml.XmlDocument
+$xmlDoc         = New-Object System.Xml.XmlDocument
 $xmlDeclaration = $xmlDoc.CreateXmlDeclaration("1.0", "UTF-8", $null)
 $xmlDoc.AppendChild($xmlDeclaration)
-$root = $xmlDoc.CreateElement("SystemInformation")
+$root           = $xmlDoc.CreateElement("SystemInformation")
 $xmlDoc.AppendChild($root)
 # foreach ($elementName in $finalHashtable.Keys | Sort $elementName  ) {
 foreach ($elementName in $finalHashtable.Keys ) {
