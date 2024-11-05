@@ -228,18 +228,7 @@ function f_get-machineInfo {
         $workHash['CPUsockets']     = ($CPU | Select-Object -ExpandProperty SocketDesignation | Measure-Object).Count.ToString()
 
         $PhysicalMemory             = (Get-CimInstance -class Win32_PhysicalMemory | Measure-Object -Property capacity -Sum).Sum
-        $TotalAvailMemory           = ([math]::round(($PhysicalMemory / 1GB),0))
-        # $TotalMem                   = "{0:N2}" -f $TotalAvailMemory
-        # [string]$TotalMem           = $TotalMem
-        # $workHash['TotalMem']       = $TotalMem
-        [string]$TotalAvailMemory   = $TotalAvailMemory
-        [string]$PhysicalMemory     = $PhysicalMemory
-        $workHash['TotalAvailMemory']=$TotalAvailMemory
-        $workHash['PhysicalMemory']  =$PhysicalMemory
-
-        $TotalPhysicalMemory        = (Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory
-        [string]$TotalPhysicalMemory= ([math]::round(($TotalPhysicalMemory / 1GB),0))
-        $workHash['TotalPhysicalMemory']= "{0:N2}" -f $TotalPhysicalMemory
+        $PhysicalMemory             = ([math]::round(($PhysicalMemory / 1GB),0))
 
         [string]$FQDN               = ([System.Net.Dns]::GetHostEntry([System.Net.Dns]::GetHostName())).HostName
         $workHash['FQDN']           = $FQDN
@@ -283,6 +272,7 @@ function f_get-machineInfo {
         $errorDetails = $_
         if ($errorDetails) {
             Write-Host "Error details: $($errorDetails.Exception)"
+            $result = "Error - f_get-services step failed!"
         }
 
         $rc = $false
