@@ -247,8 +247,18 @@ function f_get-machineInfo {
         [string]$Domain             = (Get-WmiObject Win32_ComputerSystem).Domain
         $workHash['Domain']         = $Domain
 
-        $diskspace                  = get-WmiObject Win32_Volume -ErrorAction SilentlyContinue | Where-Object { $_.drivetype -eq '3' -and $_.driveletter } | Select-Object driveletter,@{Name='freespace';Expression={[math]::round($_.freespace/1GB, 0)}},@{Name='capacity';Expression={[math]::round($_.capacity/1GB, 0)}}
-        $workHash['diskspace']      = $diskspace | ConvertTo-Json -Compress
+        # $diskspace                  = get-WmiObject Win32_Volume -ErrorAction SilentlyContinue | Where-Object { $_.drivetype -eq '3' -and $_.driveletter } | Select-Object driveletter,@{Name='freespace';Expression={[math]::round($_.freespace/1GB, 0)}},@{Name='capacity';Expression={[math]::round($_.capacity/1GB, 0)}}
+        # $workHash['diskspace']      = $diskspace.trim()
+        # $workHash['diskspace']      = $diskspace | ConvertTo-Json -Compress
+        $diskdrives                 = Get-WmiObject Win32_Volume -ErrorAction SilentlyContinue | Where-Object { $_.DriveType -eq 3 -and $_.DriveLetter }
+        $diskdrives | ForEach-Object {
+            $driveLetter            = $_.DriveLetter
+            $driveLetter            = [System.Text.RegularExpressions.Regex]::Replace($driveLetter,"`:","")
+            $capacity = [math]::Floor($_.Capacity / 1GB)
+            $freeSpace = [math]::Floor($_.FreeSpace / 1GB)
+            $key = "diskdrive_${driveLetter}"
+            $workHash[$key] = "capacity=${capacity},free=${freeSpace}"
+        }
 
         $DiskSpaceSum               = (Get-WmiObject Win32_Volume -Filter "DriveType='3'" | Measure-Object -Property capacity -Sum).Sum
         $DiskSpaceSum               = [Math]::Round(($DiskSpaceSum / 1GB),0)
@@ -663,58 +673,35 @@ if ( -not [string]::IsNullOrEmpty($allServices) ) {
     $allServices | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
 }
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Create a sorted hash table
+# output all
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# $sortedByKey = $workHash.GetEnumerator() | Sort-Object Name
-# $finalHashtable = [ordered]@{}
-# $finalHashtable = @{}
-# $workHash | ForEach-Object {
-#     [string]$value = $_.Value
-#     [string]$value = $value.Trim()
-#     [string]$key = $_.Name
-#     [string]$key = $key.Trim()
-#     [string]$finalHashtable[$key] = "${value}"
-# }
-# $finalPSObject = New-Object PSObject -Property $finalHashtable
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# print keys and values
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-Write-Host "# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
-Write-Host "# print keys and values"
-Write-Host "# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
-# foreach ($key in $workHash.Keys | Sort $key  ) {
 $finalHashtable = [ordered]@{}
 foreach ($key in $workHash.Keys ) {
+    [string]$key    = $key
     [string]$value  = $workHash[$key]
-    [string]$value  = $value.Trim()
-    [string]$key    = $key.Trim()
-    $finalHashtable[$key] = "${value}"
+    $key            = $key.Trim()
+    $value          = $value.Trim()
+    $finalHashtable[$key] = $value
     $line = '{0,-40} {1}' -f $key,$value
     Write-Output $line
 }
-$finalPSObject = New-Object PSObject -Property $finalHashtable
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Create a csv file
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 $csvFilename = "${scriptdir}/${scriptname}_aeven_foutcsv.csv"
 $null = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
-$finalPSObject | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+$finalHashtable | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
+
 # Create json file
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 $jsonFilename = "${scriptdir}/${scriptname}_aeven_foutjsn.json"
 $null = Remove-Item $jsonFilename -Force -ErrorAction SilentlyContinue
-$json = $finalPSObject | ConvertTo-Json
+$json = $finalHashtable | ConvertTo-Json
 $json | Out-File -FilePath $jsonFilename -Encoding utf8
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 # Create XML file
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-$xmlDoc         = New-Object System.Xml.XmlDocument
+$xmlDoc = New-Object System.Xml.XmlDocument
 $xmlDeclaration = $xmlDoc.CreateXmlDeclaration("1.0", "UTF-8", $null)
 $xmlDoc.AppendChild($xmlDeclaration)
-$root           = $xmlDoc.CreateElement("SystemInformation")
+$root = $xmlDoc.CreateElement("SystemInformation")
 $xmlDoc.AppendChild($root)
-# foreach ($elementName in $finalHashtable.Keys | Sort $elementName  ) {
 foreach ($elementName in $finalHashtable.Keys ) {
     $element = $xmlDoc.CreateElement($elementName)
     $element.InnerText = $finalHashtable[$elementName]
