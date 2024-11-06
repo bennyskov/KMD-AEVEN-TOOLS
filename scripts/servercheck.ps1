@@ -450,18 +450,19 @@ function f_get-RebootPending {
             $result  = "OK - No reboot is pending."
         }
         $rc = $true
+        $workHash[$element] = $result
     } catch {
 
         Write-Host "An error occurred: $($_.Exception.Message)"
-        # $errorDetails = $_
-        # if ($errorDetails) {
-        #     Write-Host "Error details: $($errorDetails.Exception)"
-        # }
+        $errorDetails = $_
+        if ($errorDetails) {
+            Write-Host "Error details: $($errorDetails.Exception)"
+        }
 
         $rc = $false
         $result  = "Error - RebootPending step failed!"
     }
-    $workHash[$element] = $result
+
     return $rc, $result, $workHash
 }
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -480,8 +481,10 @@ function f_get-miscellaneous {
         $MaxMemoryPerShellMB            = (Get-Item WSMan:\\localhost\\Shell\\MaxMemoryPerShellMB).Value
         $workHash['MaxMemoryPerShellMB']= $MaxMemoryPerShellMB
 
-        $FireWallEnabled                = (get-netfirewallprofile -ErrorAction SilentlyContinue | Where-Object {$_.Name -imatch 'Domain|Private|Public' }).Enabled
-        $workHash['FireWallEnabled']    = $FireWallEnabled
+        [string]$Domain                 = (get-netfirewallprofile -ErrorAction SilentlyContinue | Where-Object {$_.Name -imatch 'Domain' }).Enabled
+        [string]$Private                = (get-netfirewallprofile -ErrorAction SilentlyContinue | Where-Object {$_.Name -imatch 'Private' }).Enabled
+        [string]$Public                 = (get-netfirewallprofile -ErrorAction SilentlyContinue | Where-Object {$_.Name -imatch 'Public' }).Enabled
+        $workHash['FireWallEnabled']    = "Domain=$Domain|Private=$Domain|Public=$Domain"
 
         $EnableLUA                      = (Get-ItemProperty -Path HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\system -Name EnableLUA).EnableLUA.tostring()
         $workHash['EnableLUA']          = $EnableLUA
@@ -489,8 +492,12 @@ function f_get-miscellaneous {
         $WSMan                          = [bool](Test-WSMan -ErrorAction SilentlyContinue).ToString()
         $workHash['WSMan']              = $WSMan
 
-        $winrm_listener                 = (winrm enumerate winrm/config/Listener) | ConvertTo-Json -Compress
-        $workHash['winrm_listener']     = $winrm_listener
+        [string]$listener               = (winrm enumerate winrm/config/Listener)
+        [string]$listener               = $listener -replace '=', '' -replace '\,','' -replace '"', '' -replace '\s+',' '
+        [string]$port                   = [regex]::Match($listener, 'Port\s+(\S+?)\s').Groups.Value[0]
+        [string]$Enabled                = [regex]::Match($listener, 'Enabled\s+(\S+?)\s').Groups.Value[0]
+        [string]$ListeningOn            = [regex]::Match($listener, 'ListeningOn\s+(\S+?)\s').Groups.Value[0]
+        $workHash['winrmListener']      = "$port,$Enabled,$ListeningOn"
 
         $DotNetVersion                  = (Get-ChildItem 'HKLM:\\SOFTWARE\\Microsoft\\NET Framework Setup\\NDP' -recurse | Get-ItemProperty -name Version -EA 0).Version | ConvertTo-Json -Compress
         $workHash['DotNetVersion']      = $DotNetVersion
@@ -500,10 +507,10 @@ function f_get-miscellaneous {
     } catch {
 
         Write-Host "An error occurred: $($_.Exception.Message)"
-        # $errorDetails = $_
-        # if ($errorDetails) {
-        #     Write-Host "Error details: $($errorDetails.Exception)"
-        # }
+        $errorDetails = $_
+        if ($errorDetails) {
+            Write-Host "Error details: $($errorDetails.Exception)"
+        }
 
         $rc = $false
         $result = "Error - miscellaneous step failed!"
@@ -522,17 +529,17 @@ function f_get-pimUsers {
         $pimusers | foreach-object {
             $waldo                  = [Bool](Get-Localuser -Name $_ -ErrorAction SilentlyContinue)
             $fred                   = [Bool](Get-LocalGroupMember -Group 'Administrators' -member $_ -ErrorAction SilentlyContinue)
-            $workHash[$_]                = "User:$waldo,Administrators:$fred"
+            $workHash[$_]           = "User:$waldo,Administrators:$fred"
         }
         $rc = $true
         $result = "OK - pim_users is collected."
     } catch {
 
         Write-Host "An error occurred: $($_.Exception.Message)"
-        # $errorDetails = $_
-        # if ($errorDetails) {
-        #     Write-Host "Error details: $($errorDetails.Exception)"
-        # }
+        $errorDetails = $_
+        if ($errorDetails) {
+            Write-Host "Error details: $($errorDetails.Exception)"
+        }
 
         $rc = $false
         $result = "Error - pimUsers step failed!"
@@ -675,16 +682,17 @@ if ( -not [string]::IsNullOrEmpty($allServices) ) {
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # output all
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-$finalHashtable = [ordered]@{}
-foreach ($key in $workHash.Keys ) {
-    [string]$key    = $key
-    [string]$value  = $workHash[$key]
-    $key            = $key.Trim()
-    $value          = $value.Trim()
-    $finalHashtable[$key] = $value
-    $line = '{0,-40} {1}' -f $key,$value
-    Write-Output $line
-}
+$finalHashtable = $workHash
+# $finalHashtable = [ordered]@{}
+# foreach ($key in $workHash.Keys ) {
+#     [string]$key    = $key
+#     [string]$value  = $workHash[$key]
+#     $key            = $key.Trim()
+#     $value          = $value.Trim()
+#     $finalHashtable[$key] = $value
+#     $line = '{0,-40} {1}' -f $key,$value
+#     Write-Output $line
+# }
 # Create a csv file
 $csvFilename = "${scriptdir}/${scriptname}_aeven_foutcsv.csv"
 $null = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
@@ -696,15 +704,15 @@ $null = Remove-Item $jsonFilename -Force -ErrorAction SilentlyContinue
 $json = $finalHashtable | ConvertTo-Json
 $json | Out-File -FilePath $jsonFilename -Encoding utf8
 
-# Create XML file
+# Create xml file
 $xmlDoc = New-Object System.Xml.XmlDocument
 $xmlDeclaration = $xmlDoc.CreateXmlDeclaration("1.0", "UTF-8", $null)
 $xmlDoc.AppendChild($xmlDeclaration)
-$root = $xmlDoc.CreateElement("SystemInformation")
+$root = $xmlDoc.CreateElement('SystemInformation')
 $xmlDoc.AppendChild($root)
-foreach ($elementName in $finalHashtable.Keys ) {
-    $element = $xmlDoc.CreateElement($elementName)
-    $element.InnerText = $finalHashtable[$elementName]
+foreach ($key in $finalHashtable.Keys) {
+    $element = $xmlDoc.CreateElement($key)
+    $element.InnerText = $finalHashtable[$key]
     $root.AppendChild($element)
 }
 $OSFilename = "${scriptdir}/${scriptname}_aeven_foutxml.xml"
