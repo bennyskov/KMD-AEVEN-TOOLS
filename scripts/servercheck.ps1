@@ -377,6 +377,14 @@ function f_get-ports {
         $rc, $result                = get-IPPort -target $target -port $port
         $workHash[$toolName]        = "$result"
 
+        $toolName                   = 'UCMDB-1'; $target = '84.255.75.4'; $port = 2738
+        $rc, $result                = get-IPPort -target $target -port $port
+        $workHash[$toolName]        = "$result"
+
+        $toolName                   = 'UCMDB-2'; $target = '84.255.75.5'; $port = 2738
+        $rc, $result                = get-IPPort -target $target -port $port
+        $workHash[$toolName]        = "$result"
+
         $toolName                   = 'ansible-1'; $target = '84.255.94.31'; $port = 8081
         $rc, $result                = get-IPPort -target $target -port $port
         $workHash[$toolName]        = "$result"
@@ -499,7 +507,8 @@ function f_get-miscellaneous {
         [string]$ListeningOn            = [regex]::Match($listener, 'ListeningOn\s+(\S+?)\s').Groups.Value[0]
         $workHash['winrmListener']      = "$port,$Enabled,$ListeningOn"
 
-        $DotNetVersion                  = (Get-ChildItem 'HKLM:\\SOFTWARE\\Microsoft\\NET Framework Setup\\NDP' -recurse | Get-ItemProperty -name Version -EA 0).Version | ConvertTo-Json -Compress
+        $DotNetArray                    = (Get-ChildItem 'HKLM:\\SOFTWARE\\Microsoft\\NET Framework Setup\\NDP' -recurse | Get-ItemProperty -name Version -EA 0).Version | Sort-Object -Unique
+        [string]$DotNetVersion          = $DotNetArray -join ", "
         $workHash['DotNetVersion']      = $DotNetVersion
 
         $rc = $true
@@ -682,42 +691,54 @@ if ( -not [string]::IsNullOrEmpty($allServices) ) {
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # output all
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-$finalHashtable = $workHash
-# $finalHashtable = [ordered]@{}
-# foreach ($key in $workHash.Keys ) {
-#     [string]$key    = $key
-#     [string]$value  = $workHash[$key]
-#     $key            = $key.Trim()
-#     $value          = $value.Trim()
-#     $finalHashtable[$key] = $value
-#     $line = '{0,-40} {1}' -f $key,$value
-#     Write-Output $line
-# }
+# $finalHashtable = $workHash
+$finalHashtable = [ordered]@{}
+foreach ($key in $workHash.Keys ) {
+    [string]$key    = $key
+    [string]$value  = $workHash[$key]
+    $key            = $key.Trim()
+    $value          = $value.Trim()
+    $finalHashtable[$key] = $value
+    $line = '{0,-40} {1}' -f $key,$value
+    Write-Output $line
+}
+
+# Create a PSCustomObject
+$customObject = [PSCustomObject]$finalHashtable
+# $customObject = New-Object PSObject -Property $finalHashtable # same same.
+
 # Create a csv file
 $csvFilename = "${scriptdir}/${scriptname}_aeven_foutcsv.csv"
 $null = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
-$finalHashtable | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
+$customObject | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
 
 # Create json file
 $jsonFilename = "${scriptdir}/${scriptname}_aeven_foutjsn.json"
 $null = Remove-Item $jsonFilename -Force -ErrorAction SilentlyContinue
-$json = $finalHashtable | ConvertTo-Json
+$json = $customObject | ConvertTo-Json
 $json | Out-File -FilePath $jsonFilename -Encoding utf8
 
 # Create xml file
-$xmlDoc = New-Object System.Xml.XmlDocument
-$xmlDeclaration = $xmlDoc.CreateXmlDeclaration("1.0", "UTF-8", $null)
-$xmlDoc.AppendChild($xmlDeclaration)
-$root = $xmlDoc.CreateElement('SystemInformation')
-$xmlDoc.AppendChild($root)
-foreach ($key in $finalHashtable.Keys) {
-    $element = $xmlDoc.CreateElement($key)
-    $element.InnerText = $finalHashtable[$key]
-    $root.AppendChild($element)
-}
 $OSFilename = "${scriptdir}/${scriptname}_aeven_foutxml.xml"
 $null       = remove-item $OSFilename -Force -ErrorAction SilentlyContinue
-$xmlDoc.Save($OSFilename)
+$xml        = $customObject | ConvertTo-Xml -As String
+$xml | Out-File -FilePath $OSFilename -Encoding utf8
+
+
+
+# $xmlDoc = New-Object System.Xml.XmlDocument
+# $xmlDeclaration = $xmlDoc.CreateXmlDeclaration("1.0", "UTF-8", $null)
+# $xmlDoc.AppendChild($xmlDeclaration)
+# $root = $xmlDoc.CreateElement('SystemInformation')
+# $xmlDoc.AppendChild($root)
+# foreach ($key in $finalHashtable.Keys) {
+#     $element = $xmlDoc.CreateElement($key)
+#     $element.InnerText = $finalHashtable[$key]
+#     $root.AppendChild($element)
+# }
+# $OSFilename = "${scriptdir}/${scriptname}_aeven_foutxml.xml"
+# $null       = remove-item $OSFilename -Force -ErrorAction SilentlyContinue
+# $xmlDoc.Save($OSFilename)
 # -----------------------------------------------------------------------------------------------------------------
 # The End
 # -----------------------------------------------------------------------------------------------------------------
