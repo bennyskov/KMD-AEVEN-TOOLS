@@ -239,7 +239,7 @@ function f_get-machineInfo {
         $workHash['CPUsockets']     = ($CPU | Select-Object -ExpandProperty SocketDesignation | Measure-Object).Count.ToString()
 
         $PhysicalMemory             = (Get-CimInstance -class Win32_PhysicalMemory | Measure-Object -Property capacity -Sum).Sum
-        $PhysicalMemory             = ([math]::round(($PhysicalMemory / 1GB),0))
+        $workHash['PhysicalMemory'] = ([math]::round(($PhysicalMemory / 1GB),0))
 
         [string]$FQDN               = ([System.Net.Dns]::GetHostEntry([System.Net.Dns]::GetHostName())).HostName
         $workHash['FQDN']           = $FQDN
