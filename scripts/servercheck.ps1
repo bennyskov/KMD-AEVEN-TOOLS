@@ -71,6 +71,12 @@ try {
     $scriptname                 = 'servercheck'
     # $workHash['scriptname']= $scriptname
     # $workHash['xmlFile']= $scriptdir+$scriptname+".xml"
+    Write-Host "==================================================================================================="
+    Write-Host "Issued a route print, to look for the routes. Get-NetRoute is first introduced in ps 5 "
+    Write-Host "the -4, for ip version 4"
+    Write-Host "==================================================================================================="
+    $routePrintArray = route print -4
+    $routePrintArray
 
     $defaultServices            = Import-Csv -Path "$scriptdir/servercheckExclude_services.csv" -Delimiter ';'
     $defaultSoftware            = Import-Csv -Path "$scriptdir/servercheckExclude_software.csv" -Delimiter ';'
@@ -569,12 +575,7 @@ function f_get-Persistent {
             $element = [string]"route-$PolicyStore-$DestPrefix"
             $psVersionValue = $workHash['PSVersion']
             if ( $psVersionValue -lt 5) {
-                    Write-Host "==================================================================================================="
-                    Write-Host "Issued a route print, to look for the routes. Get-NetRoute is first introduced in ps 5 "
-                    Write-Host "the -4, for ip version 4"
-                    Write-Host "==================================================================================================="
                     $routePrintArray = route print -4
-                    $routePrintArray
                     [string]$routePrint = $routePrintArray -replace '=', '' -replace '\s+',' '
                     $routeArray = $routePrint -split "Persistent Routes:"
 
