@@ -54,7 +54,10 @@ $text = "INIT"; $step++; f_log -logMsg $text -step $step
 try {
     $begin                      = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
     $workHash                   = [ordered]@{}
+    $workHash.Clear()
     $workHash['date']           = $begin
+    [int]$PSVersion             = $PSVersionTable.PSVersion | select-object -ExpandProperty major
+    $workHash['PSVersion']      = $PSVersion
     # $scriptdir                = (Get-Location).Path
     # $scriptdir                = [System.Text.RegularExpressions.Regex]::Replace($scriptdir,"`\","/")
     # $scriptname               = ($myinvocation).mycommand.Name
@@ -483,9 +486,6 @@ function f_get-miscellaneous {
     $rc = $false; $result=""
     try {
 
-        [int]$PSVersion                 = $PSVersionTable.PSVersion | select-object -ExpandProperty major
-        $workHash['PSVersion']          = $PSVersion
-
         $MaxMemoryPerShellMB            = (Get-Item WSMan:\\localhost\\Shell\\MaxMemoryPerShellMB).Value
         $workHash['MaxMemoryPerShellMB']= $MaxMemoryPerShellMB
 
@@ -565,25 +565,60 @@ function f_get-Persistent {
         $workHash
     )
     $rc = $false; $result=""
-    [string]$element = "route-$PolicyStore-$DestPrefix"
     try {
-        $routes                 = (Get-NetRoute -PolicyStore "$PolicyStore" | Where-Object { $_.DestinationPrefix -imatch "${DestPrefix}." }).DestinationPrefix
-        if ( -not [string]::IsNullOrEmpty($routes) ) {
-            $PersistentRoutes = @();
-            $routes | foreach-object {
-                [string]$route = $_
-                $PersistentRoutes += $route
-            }
-            $PersistentRoutes           = $PersistentRoutes | Sort-Object -Unique
-            [string]$PersistentString   = $PersistentRoutes -join ","
-            $result                     = $PersistentString
-            $workHash[$element]         = $PersistentString
-            $rc                         = $true
-        } else {
-            $rc                         = $true
-            $result                     = "No routes found for $DestPrefix in $PolicyStore."
-            $workHash[$element]         = $result
-        }
+            $element = [string]"route-$PolicyStore-$DestPrefix"
+            $psVersionValue = $workHash['PSVersion']
+            if ( $psVersionValue -lt 5) {
+                    Write-Host "==================================================================================================="
+                    Write-Host "Issued a route print, to look for the routes. Get-NetRoute is first introduced in ps 5 "
+                    Write-Host "the -4, for ip version 4"
+                    Write-Host "==================================================================================================="
+                    $routePrintArray = route print -4
+                    $routePrintArray
+                    [string]$routePrint = $routePrintArray -replace '=', '' -replace '\s+',' '
+                    $routeArray = $routePrint -split "Persistent Routes:"
+
+                    if ( $PolicyStore = "ActiveStore"  ) {
+                        $activeRoutes = ($routeArray[0] -split "Active Routes:")[1]
+                        $activeRoutes = $activeRoutes -split " "
+                        $isfound = [bool]($activeRoutes |  Select-String -Pattern $DestPrefix)
+                    } else {
+                        $PersistentRoutes = $routeArray[1]
+                        $isfound = [bool]($PersistentRoutes |  Select-String -Pattern $DestPrefix)
+                    }
+                    $isfound
+                    if ($isfound) {
+                        $result                     = $PersistentRoutes = $routeArray[1]
+                        $workHash[$element]         = $PersistentString
+                        $rc                         = $true
+                    } else {
+                        $rc                         = $true
+                        $result                     = "No routes found for $DestPrefix in $PolicyStore."
+                        $workHash[$element]         = $result
+                    }
+
+            } else {
+
+                    $routes = (Get-NetRoute -PolicyStore "$PolicyStore" | Where-Object { $_.DestinationPrefix -imatch "${DestPrefix}." }).DestinationPrefix
+                    if ( -not [string]::IsNullOrEmpty($routes) ) {
+                        $PersistentRoutes = @();
+                        $routes | foreach-object {
+                            [string]$route = $_
+                            $PersistentRoutes += $route
+                        }
+                        $PersistentRoutes           = $PersistentRoutes | Sort-Object -Unique
+                        $PersistentString           = $PersistentRoutes -join ","
+                        $result                     = $PersistentString
+                        $workHash[$element]         = $PersistentString
+                        $rc                         = $true
+                    } else {
+                        $rc                         = $true
+                        [string]$result             = "No routes found for $DestPrefix in $PolicyStore."
+                        $workHash[$element]         = $result
+                    }
+                }
+
+
     } catch {
         Write-Host "An error occurred: $($_.Exception.Message)"
         $errorDetails = $_
