@@ -56,8 +56,9 @@ try {
     $workHash                   = [ordered]@{}
     $workHash.Clear()
     $workHash['date']           = $begin
-    [int]$PSVersion             = $PSVersionTable.PSVersion | select-object -ExpandProperty major
+    $PSVersion                  = ($PSVersionTable.PSVersion).major
     $workHash['PSVersion']      = $PSVersion
+    # $workHash['PSVersion'].GetType()
     # $scriptdir                = (Get-Location).Path
     # $scriptdir                = [System.Text.RegularExpressions.Regex]::Replace($scriptdir,"`\","/")
     # $scriptname               = ($myinvocation).mycommand.Name
@@ -71,13 +72,11 @@ try {
     $scriptname                 = 'servercheck'
     # $workHash['scriptname']= $scriptname
     # $workHash['xmlFile']= $scriptdir+$scriptname+".xml"
-    Write-Host "==================================================================================================="
-    Write-Host "Issued a route print, to look for the routes. Get-NetRoute is first introduced in ps 5 "
-    Write-Host "the -4, for ip version 4"
-    Write-Host "==================================================================================================="
-    $routePrintArray = route print -4
-    $routePrintArray
-
+    # "==================================================================================================="
+    # "Issued a route print, to look for the routes. Get-NetRoute is first introduced in ps 5 "
+    # "the -4, for ip version 4"
+    # "==================================================================================================="
+    $routePrintArray            = route print -4
     $defaultServices            = Import-Csv -Path "$scriptdir/servercheckExclude_services.csv" -Delimiter ';'
     $defaultSoftware            = Import-Csv -Path "$scriptdir/servercheckExclude_software.csv" -Delimiter ';'
     f_logOK
@@ -141,17 +140,18 @@ function f_get-services {
                 $service
             }
         }
-        $workHash['OpswareAgent-SA']    = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'OpswareAgent' })
-        $workHash['OvSvcDiscAgent-OMI'] = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'OvSvcDiscAgent' })
-        $workHash['OvCtrl-OMI']         = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'OvCtrl' })
-        $workHash['DiscAgent-ucmdb']    = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'DiscAgent' })
-        $workHash['WinRMService']       = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'winrm' })
-        $workHash['kmdpaas']            = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'kmdpaas' })
-        $workHash['webhostingminion']   = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'webhostingminion' })
-        $workHash['salt-minion']        = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'salt-minion' })
-        $workHash['TSMclassic']         = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'TSM client' })
-        $workHash['TSMspectum']         = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'TSM client' })
-        $workHash['Commvault']          = [BOOL]($allServices |  Where-Object { $_.Name -imatch 'Commvault' })
+
+        if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'OpswareAgent'}))           { $workHash['OpswareAgent-SA']    = [BOOL]($allServices | Where-Object { $_.Name -imatch 'OpswareAgent' })}
+        if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'OvSvcDiscAgent'}))         { $workHash['OvSvcDiscAgent-OMI'] = [BOOL]($allServices | Where-Object { $_.Name -imatch 'OvSvcDiscAgent' })}
+        if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'OvCtrl'}))                 { $workHash['OvCtrl-OMI']         = [BOOL]($allServices | Where-Object { $_.Name -imatch 'OvCtrl'})}
+        if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'DiscAgent'}))              { $workHash['DiscAgent-ucmdb']    = [BOOL]($allServices | Where-Object { $_.Name -imatch 'DiscAgent'})}
+        if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'winrm'}))                  { $workHash['WinRMService']       = [BOOL]($allServices | Where-Object { $_.Name -imatch 'winrm'})}
+        if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'kmdpaas'}))                { $workHash['kmdpaas']            = [BOOL]($allServices | Where-Object { $_.Name -imatch 'kmdpaas'})}
+        if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'webhostingminion'}))       { $workHash['webhostingminion']   = [BOOL]($allServices | Where-Object { $_.Name -imatch 'webhostingminion'})}
+        if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'salt-minion'}))            { $workHash['salt-minion']        = [BOOL]($allServices | Where-Object { $_.Name -imatch 'salt-minion'})}
+        if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'TSM client'}))             { $workHash['TSMclassic']         = [BOOL]($allServices | Where-Object { $_.Name -imatch 'TSM client'})}
+        if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'TSM client'}))             { $workHash['TSMspectum']         = [BOOL]($allServices | Where-Object { $_.Name -imatch 'TSM client'})}
+        if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'Commvault'}))              { $workHash['Commvault']          = [BOOL]($allServices | Where-Object { $_.Name -imatch 'Commvault'})}
 
         if ( [string]::IsNullOrEmpty($filteredServices) ) {
             $rc = $False
@@ -229,7 +229,8 @@ function f_get-machineInfo {
         [string]$IPSubnet           = $NetworkAdapterConfiguration.IPSubnet
         [string]$DefaultIPGateway   = $NetworkAdapterConfiguration.DefaultIPGateway
         [string]$MACAddress         = $NetworkAdapterConfiguration.MACAddress
-        [string]$DNSServerSearch    = $NetworkAdapterConfiguration.DNSServerSearchOrder
+        $DNSServerSearch            = $NetworkAdapterConfiguration.DNSServerSearchOrder
+        [string]$DNSServerSearch    = $DNSServerSearch -join ", "
         $workHash['IPAddress']      = $IPaddress
         $workHash['IPSubnet']       = $IPSubnet
         $workHash['DefaultIPGateway']=$DefaultIPGateway
@@ -538,13 +539,55 @@ function f_get-miscellaneous {
 function f_get-pimUsers {
     param ($workHash)
     $rc = $false; $result=""
-
     try {
-        $pimusers                   = (Get-LocalUser | Where-Object { $_.Name -match '^(kmdwiat|pimadm).*' }).Name
-        $pimusers | foreach-object {
-            $waldo                  = [Bool](Get-Localuser -Name $_ -ErrorAction SilentlyContinue)
-            $fred                   = [Bool](Get-LocalGroupMember -Group 'Administrators' -member $_ -ErrorAction SilentlyContinue)
-            $workHash[$_]           = "User:$waldo,Administrators:$fred"
+
+        $localUsers                 = (Get-LocalUser | Where-Object { $_.Name -match '^(azureadmin|cred_linux|cred_unix|cyberark|enguxat|engwiat|kmduxat|kmdwiat|pim|svccacf).*' }).Name
+        # $localUsers
+        ForEach($user in $localUsers){
+            $command                = "cmd /C net user $user"
+            $netUser                = Invoke-Expression $command
+            ForEach($line in $netUser){
+                if ( [string]::IsNullOrWhiteSpace($line) ) { continue }
+                $line = $line -replace '=', '' -replace '\s+',' '
+                $line = $line.trim()
+                # $line
+                if ( $line -imatch "^Comment" ) {
+                    $desc = ($line -split "Comment")[-1]
+                    $desc = $desc.trim()
+                    if ( $line -imatch "/" ) {
+                        $desc = ($desc -split "/")[-1]
+                    }
+                    # $desc
+                    continue
+                }
+                if ( $line -imatch "^Account active" ) {
+                    $enabled = ($line -split " ")[-1]
+                    $enabled = $enabled.trim()
+                    # $enabled
+                    continue
+                }
+                if ( $line -imatch "^Account expires" ) {
+                    $usr_expire = ($line -split " ")[-1]
+                    $usr_expire = $usr_expire.trim()
+                    # $usr_expire
+                    continue
+                }
+                if ( $line -imatch "^Password expires" ) {
+                    $pw_expire = ($line -split " ")[-1]
+                    $pw_expire = $pw_expire.trim()
+                    # $pw_expire
+                    continue
+                }
+                if ( $line -imatch "^Local group Memberships" ) {
+                    $group = ($line -split "Local Group Memberships")[1]
+                    $group = $group.trim()
+                    $group = $group -replace '^\*', ''
+                    $group = $group -replace ' \*', '; '
+                    # $group
+                    continue
+                }
+                $workHash[$user] = "User:$user,desc:$desc,enabled:$enabled,usr_expire:$usr_expire,pw_expire:$pw_expire,group:$group"
+            }
         }
         $rc = $true
         $result = "OK - pim_users is collected."
@@ -566,59 +609,111 @@ function f_get-pimUsers {
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 function f_get-Persistent {
     param (
-        [string]$PolicyStore,
-        [string]$DestPrefix,
         $workHash
     )
-    $rc = $false; $result=""
+    $rc = $false; $result="";
     try {
-            $element = [string]"route-$PolicyStore-$DestPrefix"
-            $psVersionValue = $workHash['PSVersion']
-            if ( $psVersionValue -lt 5) {
-                    $routePrintArray = route print -4
-                    [string]$routePrint = $routePrintArray -replace '=', '' -replace '\s+',' '
-                    $routeArray = $routePrint -split "Persistent Routes:"
+        $checkRoutesAarray = @(
+        "84.225.67",
+        "84.255.75",
+        "84.255.92",
+        "84.255.124",
+        "84.255.126"
+        )
+        $everyActiveDestination = @()
+        $everyPersistentDestination = @()
+        $persistentIsFound = $false
+        $activeIsFound = $false
 
-                    if ( $PolicyStore = "ActiveStore"  ) {
-                        $activeRoutes = ($routeArray[0] -split "Active Routes:")[1]
-                        $activeRoutes = $activeRoutes -split " "
-                        $isfound = [bool]($activeRoutes |  Select-String -Pattern $DestPrefix)
-                    } else {
-                        $PersistentRoutes = $routeArray[1]
-                        $isfound = [bool]($PersistentRoutes |  Select-String -Pattern $DestPrefix)
-                    }
-                    $isfound
-                    if ($isfound) {
-                        $result                     = $PersistentRoutes = $routeArray[1]
-                        $workHash[$element]         = $PersistentString
-                        $rc                         = $true
-                    } else {
-                        $rc                         = $true
-                        $result                     = "No routes found for $DestPrefix in $PolicyStore."
-                        $workHash[$element]         = $result
-                    }
+        $routePrintArray = route print -4
+        $routeprint4 = $routePrintArray -split "\n"
+        foreach ($line in $routeprint4) {
+            $line = $line -replace '=', '' -replace '\s+',' '
+            $line = $line.trim()
+            if ($line -eq '') { continue }
+            if ($line -imatch '^IPv4') { continue }
+            if ($line -imatch '.*Adapter.*') { continue }
+            if ($line -imatch '.*Interface$') { continue }
+            if ($line -imatch '^Network.*') { continue }
+            if ($line -imatch 'Default$') { continue }
+            if ($line -imatch '^0.0.0.0') { continue }
+            if ($line -imatch '^127') { continue }
+            if ($line -imatch '^255') { continue }
+            if ($line -imatch '^224') { continue }
+            if ($line -imatch '^Active Routes') { $collectActive = $true; $collectPersistent = $false; continue }
+            if ($line -imatch '^Persistent Routes') { $collectActive = $false; $collectPersistent = $true; continue }
+            if ( $collectActive ) {
+                $destination = ($line -split " ")[0]
+                # Write-Host "destination $destination"
+                $everyActiveDestination += $destination
+            }
+            if ( $collectPersistent ) {
+                [string]$destination = ($line -split " ")[0]
+                # Write-Host "destination $destination"
+                $everyPersistentDestination += $destination
+            }
+        }
 
-            } else {
 
-                    $routes = (Get-NetRoute -PolicyStore "$PolicyStore" | Where-Object { $_.DestinationPrefix -imatch "${DestPrefix}." }).DestinationPrefix
-                    if ( -not [string]::IsNullOrEmpty($routes) ) {
-                        $PersistentRoutes = @();
-                        $routes | foreach-object {
-                            [string]$route = $_
-                            $PersistentRoutes += $route
-                        }
-                        $PersistentRoutes           = $PersistentRoutes | Sort-Object -Unique
-                        $PersistentString           = $PersistentRoutes -join ","
-                        $result                     = $PersistentString
-                        $workHash[$element]         = $PersistentString
-                        $rc                         = $true
-                    } else {
-                        $rc                         = $true
-                        [string]$result             = "No routes found for $DestPrefix in $PolicyStore."
-                        $workHash[$element]         = $result
+        if ( $everyActiveDestination -ne '' ) {
+            $everyActiveDestination = $everyActiveDestination | Sort-Object -Unique
+            # Write-Host "everyActiveDestination $everyActiveDestination"
+
+            $checkRoutesAarray | foreach-object {
+                $destPrefix = [string]$_
+                [string]$ActiveElement = "ActiveRoutes_$destPrefix"
+                # Write-Host "$ActiveElement"
+                $filteredActiveDestination = @()
+                foreach ($item in $everyActiveDestination) {
+                    if ( $item -imatch $destPrefix ) {
+                        $filteredActiveDestination += $item
                     }
                 }
+                if ( $filteredActiveDestination -ne '' ) {
+                    [string]$ActiveEndString = $filteredActiveDestination -join ", "
+                    $workHash[$ActiveElement] = $ActiveEndString
+                    # Write-Host "ActiveEndString $ActiveEndString"
+                    $activeIsFound = $true
+                } else {
+                    $ActiveEndString = "No routes found for $destPrefix in 'Active Routes'"
+                    $workHash[$ActiveElement] = $ActiveEndString
+                    # Write-Host "ActiveEndString $ActiveEndString"
+                }
+            }
+        }
 
+        if ( $everyPersistentDestination -ne '' ) {
+            $everyPersistentDestination = $everyPersistentDestination | Sort-Object -Unique
+            # Write-Host "everyPersistentDestination $everyPersistentDestination"
+
+            $checkRoutesAarray | foreach-object {
+                $destPrefix = [string]$_
+                [string]$PersistentElement = "PersistentRoutes_$destPrefix"
+                # Write-Host "$PersistentElement"
+                $filteredPersistentDestination = @()
+                foreach ($item in $everyPersistentDestination) {
+                    if ( $item -imatch $destPrefix ) {
+                        $filteredPersistentDestination += $item
+                    }
+                }
+                if ( $filteredPersistentDestination -ne '' ) {
+                    [string]$PersistentEndString = $filteredPersistentDestination -join ", "
+                    $workHash[$PersistentElement] = $PersistentEndString
+                    # Write-Host "PersistentEndString $PersistentEndString"
+                    $persistentIsFound = $true
+                } else {
+                    $PersistentEndString = "No routes found for $destPrefix in 'Persistent Routes'"
+                    $workHash[$PersistentElement] = $PersistentEndString
+                    # Write-Host "PersistentEndString $PersistentEndString"
+                }
+            }
+        }
+        if ( $activeIsFound -or $persistentIsFound ) {
+            $result = "OK - f_get-Persistent step succeeded. Some routes found."
+        } else {
+            $result = "OK - f_get-Persistent step succeeded. But no routes found."
+        }
+        $rc = $true
 
     } catch {
         Write-Host "An error occurred: $($_.Exception.Message)"
@@ -643,23 +738,9 @@ function f_get-Persistent {
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # get-Persistent
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-$PolicyStore = @("ActiveStore","PersistentStore")
-$routeAarray = @(
-    "84.225.67",
-    "84.255.124",
-    "84.255.126",
-    "84.255.75",
-    "84.255.92"
-)
-$PolicyStore | foreach-object {
-    $PolicyStore = "$_"
-    $routeAarray | foreach-object {
-        $DestPrefix         = "$_"
-        $text               = "get-Persistent $PolicyStore for $DestPrefix"; $step++; f_log -logMsg $text -step $step
-        $rc, $result, $workHash  = f_get-Persistent -DestPrefix $DestPrefix -PolicyStore $PolicyStore -workHash $workHash
-        if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
-    }
-}
+$text = "check for match of active/persistent routes"; $step++; f_log -logMsg $text -step $step
+$rc, $result, $workHash = f_get-Persistent -workHash $workHash
+if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # get-ports
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -760,8 +841,6 @@ $null       = remove-item $OSFilename -Force -ErrorAction SilentlyContinue
 $xml        = $customObject | ConvertTo-Xml -As String
 $xml | Out-File -FilePath $OSFilename -Encoding utf8
 
-
-
 # $xmlDoc = New-Object System.Xml.XmlDocument
 # $xmlDeclaration = $xmlDoc.CreateXmlDeclaration("1.0", "UTF-8", $null)
 # $xmlDoc.AppendChild($xmlDeclaration)
@@ -775,6 +854,11 @@ $xml | Out-File -FilePath $OSFilename -Encoding utf8
 # $OSFilename = "${scriptdir}/${scriptname}_aeven_foutxml.xml"
 # $null       = remove-item $OSFilename -Force -ErrorAction SilentlyContinue
 # $xmlDoc.Save($OSFilename)
+
+# -----------------------------------------------------------------------------------------------------------------
+# dump route print
+# -----------------------------------------------------------------------------------------------------------------
+$routePrintArray
 # -----------------------------------------------------------------------------------------------------------------
 # The End
 # -----------------------------------------------------------------------------------------------------------------
