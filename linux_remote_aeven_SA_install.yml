@@ -43,14 +43,14 @@
         - debug_facts
 
     - name: "List homedir files"
-      shell: "ls -lrt"
+      shell: "ls -lrta"
       register: script_homedir
     - name: Output list homedir
       debug:
         var: script_homedir.stdout_lines
 
-    - name: "List /tmp/"
-      shell: "ls -lrt /tmp/"
+    - name: "List /var/tmp/"
+      shell: "ls -lrta /var/tmp/"
       register: script_tmp
     - name: Output list tmp
       debug:
@@ -71,8 +71,7 @@
   gather_facts: false
   vars:
     agentdir: "/opt/opsware/agent/bin/"
-    # vardir: "/var/opsware-agent-linux/"
-    vardir: /opt/IBM/ITM/opsware-agent-linux/"
+    vardir: "/var/tmp/opsware-agent-linux/"
     logfile: "sa-agent_install.log"  
     stdoutfile: "sa-agent_stdout.log"      
     uninstall_stdout: "sa-agent_uninstall_stdout.log"      
@@ -128,7 +127,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: "List {{ vardir }}"
-          shell: "ls -lrt {{ vardir }}"
+          shell: "ls -lrta {{ vardir }}*"
           register: script_vardir_before
         - name: Output list script_vardir_before
           debug:
@@ -144,7 +143,7 @@
           register: file_stat_agentdir
 
         - name: "List {{ agentdir }}"
-          shell: "ls -lrt {{ agentdir }}"
+          shell: "ls -lrta {{ agentdir }}"
           register: list_agentdir_out
           when: file_stat_agentdir.stat.exists
 
@@ -212,7 +211,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: "List {{ vardir }}"
-          shell: "ls -lrt {{ vardir }}*"
+          shell: "ls -lrta {{ vardir }}*"
           register: script_tmp_after_run
         - name: Output list script_tmp_after_run
           debug:
