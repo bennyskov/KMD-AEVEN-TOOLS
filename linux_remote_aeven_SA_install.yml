@@ -128,7 +128,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: "List {{ vardir }}"
-          shell: "ls -lrt {{ vardir }}*"
+          shell: "ls -lrt {{ vardir }}"
           register: script_vardir_before
         - name: Output list script_vardir_before
           debug:
