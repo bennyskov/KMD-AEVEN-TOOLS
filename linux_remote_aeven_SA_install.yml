@@ -49,8 +49,8 @@
       debug:
         var: script_homedir.stdout_lines
 
-    - name: "List /var/tmp/"
-      shell: "ls -lrta /var/tmp/"
+    - name: "List /var/"
+      shell: "ls -lrta /var/"
       register: script_tmp
     - name: Output list tmp
       debug:
@@ -71,7 +71,7 @@
   gather_facts: false
   vars:
     agentdir: "/opt/opsware/agent/bin/"
-    vardir: "/var/tmp/opsware-agent-linux/"
+    vardir: "/var/opsware-agent-linux/"
     logfile: "sa-agent_install.log"  
     stdoutfile: "sa-agent_stdout.log"      
     uninstall_stdout: "sa-agent_uninstall_stdout.log"      
@@ -294,9 +294,9 @@
             msg: |-
               "aeven_logfile_log: {{ aeven_logfile_log.stdout }}"                          
           when: file_stat_install_logfile.stat.exists
-      # always:
-      #   - name: Delete temp {{ vardir }} agent directory
-      #     file:
-      #       path: "{{ vardir }}"
-      #       state: absent
+      always:
+        - name: Delete temp {{ vardir }} agent directory
+          file:
+            path: "{{ vardir }}"
+            state: absent
 
