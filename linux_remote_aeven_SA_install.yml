@@ -71,7 +71,8 @@
   gather_facts: false
   vars:
     agentdir: "/opt/opsware/agent/bin/"
-    vardir: "/var/opsware-agent-linux/"
+    # vardir: "/var/opsware-agent-linux/"
+    vardir: /opt/IBM/ITM/opsware-agent-linux/"
     logfile: "sa-agent_install.log"  
     stdoutfile: "sa-agent_stdout.log"      
     uninstall_stdout: "sa-agent_uninstall_stdout.log"      
