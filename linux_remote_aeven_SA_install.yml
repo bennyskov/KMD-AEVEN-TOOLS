@@ -92,6 +92,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: "Delete {{ vardir }} directory on {{ hostlist }}"
           run_once: true
+          become: true
           file:
             path: "{{ vardir }}"
             state: absent 
@@ -103,6 +104,7 @@
         #     mode: 0777
 
         - name: copy multiple items
+          become: true          
           copy: 
             src: "{{ item.src }}" 
             dest: "{{ item.dest }}"
@@ -115,6 +117,7 @@
               dest: "{{ vardir }}"
 
         - name: Set permissions for a directory and its contents
+          become: true          
           file:
             path: "{{ vardir }}"
             state: directory
@@ -127,8 +130,10 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: "List {{ vardir }}"
+          become: true          
           shell: "ls -lrta {{ vardir }}*"
           register: script_vardir_before
+
         - name: Output list script_vardir_before
           debug:
             var: script_vardir_before.stdout_lines
@@ -138,11 +143,13 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: "Check if the {{ agentdir }} exists"
+          become: true          
           stat:
             path: "{{ agentdir }}"
           register: file_stat_agentdir
 
         - name: "List {{ agentdir }}"
+          become: true          
           shell: "ls -lrta {{ agentdir }}"
           register: list_agentdir_out
           when: file_stat_agentdir.stat.exists
@@ -156,11 +163,13 @@
         # run UNINSTALL
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: "Check if the agent_uninstall.sh exists"
+          become: true          
           stat:
             path: "{{ agentdir }}agent_uninstall.sh"
           register: file_stat_uninstall_sh
 
         - name: Run UNINSTALL
+          become: true          
           shell: sh {{ agentdir }}agent_uninstall.sh --force > {{ vardir }}{{ uninstall_stdout }} 2>&1
           args:
             chdir: "{{ agentdir }}"
@@ -176,6 +185,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: "Check if the {{ uninstall_stdout }} exists"
+          become: true          
           stat:
             path: "{{ vardir }}{{ uninstall_stdout }}"
           register: file_stat_uninstall_stdoutfile
@@ -197,6 +207,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: Run INSTALL
+          become: true          
           shell: sh {{ vardir }}sa_agent_install.sh > {{ vardir }}{{ stdoutfile }} 2>&1
           args:
             chdir: "{{ vardir }}"
@@ -211,6 +222,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: "List {{ vardir }}"
+          become: true          
           shell: "ls -lrta {{ vardir }}*"
           register: script_tmp_after_run
         - name: Output list script_tmp_after_run
@@ -222,11 +234,13 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: "Check if the {{ agentdir }} exists"
+          become: true          
           stat:
             path: "{{ agentdir }}"
           register: file_stat_agentdir2
 
         - name: "List {{ agentdir }}"
+          become: true          
           shell: "ls -lrt {{ agentdir }}"
           register: list_agentdir_out2
           when: file_stat_agentdir2.stat.exists
@@ -240,11 +254,13 @@
         # send {{ stdoutfile }} to ansible stdout
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: "Check if the {{ stdoutfile }} exists"
+          become: true          
           stat:
             path: "{{ vardir }}{{ stdoutfile }}"
           register: file_stat_install_stdout
 
         - name: "Read content from {{ stdoutfile }}"
+          become: true          
           run_once: true
           shell: cat "{{ vardir }}{{ stdoutfile }}"
           register: sa_agent_install_stdout_log 
@@ -261,11 +277,13 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         
         - name: "Check if the {{ logfile }} exists"
+          become: true          
           stat:
             path: "{{ vardir }}{{ logfile }}"
           register: file_stat_install_logfile
 
         - name: "Read content from {{ logfile }}"
+          become: true          
           run_once: true
           shell: cat "{{ vardir }}{{ logfile }}"
           register: aeven_logfile_log
