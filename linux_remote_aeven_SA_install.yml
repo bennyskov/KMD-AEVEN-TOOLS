@@ -294,9 +294,11 @@
             msg: |-
               "aeven_logfile_log: {{ aeven_logfile_log.stdout }}"                          
           when: file_stat_install_logfile.stat.exists
-      # always:
-      #   - name: Delete temp {{ vardir }} agent directory
-      #     file:
-      #       path: "{{ vardir }}"
-      #       state: absent
+      always:
+        - name: Delete temp {{ vardir }} agent directory
+          file:
+            path: "{{ vardir }}"
+            state: absent
+
+
 

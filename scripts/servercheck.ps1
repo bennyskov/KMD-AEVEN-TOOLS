@@ -111,7 +111,7 @@ function f_get-software {
         $workHash['SA-Opsware-software'] = $opsware
 
         if ( [string]::IsNullOrEmpty($filteredSoftware) ) {
-            $rc = $False
+            $rc = $false
             $result = "Error - get-software step failed!"
         } else {
             $rc = $true
@@ -140,7 +140,17 @@ function f_get-services {
                 $service
             }
         }
-
+        $workHash['OpswareAgent-SA'] = $false
+        $workHash['OvSvcDiscAgent-OMI'] = $false
+        $workHash['OvCtrl-OMI'] = $false
+        $workHash['DiscAgent-ucmdb'] = $false
+        $workHash['WinRMService'] = $false
+        $workHash['kmdpaas'] = $false
+        $workHash['webhostingminion'] = $false
+        $workHash['salt-minion'] = $false
+        $workHash['TSMclassic'] = $false
+        $workHash['TSMspectum'] = $false
+        $workHash['Commvault'] = $false
         if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'OpswareAgent'}))           { $workHash['OpswareAgent-SA']    = [BOOL]($allServices | Where-Object { $_.Name -imatch 'OpswareAgent' })}
         if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'OvSvcDiscAgent'}))         { $workHash['OvSvcDiscAgent-OMI'] = [BOOL]($allServices | Where-Object { $_.Name -imatch 'OvSvcDiscAgent' })}
         if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'OvCtrl'}))                 { $workHash['OvCtrl-OMI']         = [BOOL]($allServices | Where-Object { $_.Name -imatch 'OvCtrl'})}
@@ -154,7 +164,7 @@ function f_get-services {
         if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'Commvault'}))              { $workHash['Commvault']          = [BOOL]($allServices | Where-Object { $_.Name -imatch 'Commvault'})}
 
         if ( [string]::IsNullOrEmpty($filteredServices) ) {
-            $rc = $False
+            $rc = $false
             $result = "Error - f_get-services step failed!"
         } else {
             $rc = $true
@@ -197,12 +207,15 @@ function f_get-machineInfo {
         $workHash['OSservicePack']  = $OSservicePack
 
         [string]$windir             = $env:WINDIR
+        $windir                     = [System.Text.RegularExpressions.Regex]::Replace($windir,"`\`\","/")
         $workHash['windir']         = $windir
 
         [string]$systemroot         = $env:SystemRoot
+        $systemroot                 = [System.Text.RegularExpressions.Regex]::Replace($systemroot,"`\`\","/")
         $workHash['systemroot']     = $systemroot
 
         [string]$systemdrive        = $env:SystemDrive
+        $systemdrive                = [System.Text.RegularExpressions.Regex]::Replace($systemdrive,"`\`\","/")
         $workHash['systemdrive']    = $systemdrive
 
         [string]$x64                = (Get-WmiObject -Class Win32_OperatingSystem).OSArchitecture -like '64-bit'
@@ -260,15 +273,18 @@ function f_get-machineInfo {
         # $diskspace                  = get-WmiObject Win32_Volume -ErrorAction SilentlyContinue | Where-Object { $_.drivetype -eq '3' -and $_.driveletter } | Select-Object driveletter,@{Name='freespace';Expression={[math]::round($_.freespace/1GB, 0)}},@{Name='capacity';Expression={[math]::round($_.capacity/1GB, 0)}}
         # $workHash['diskspace']      = $diskspace.trim()
         # $workHash['diskspace']      = $diskspace | ConvertTo-Json -Compress
+        $diskarray = @()
         $diskdrives                 = Get-WmiObject Win32_Volume -ErrorAction SilentlyContinue | Where-Object { $_.DriveType -eq 3 -and $_.DriveLetter }
         $diskdrives | ForEach-Object {
-            $driveLetter            = $_.DriveLetter
+            [string]$driveLetter    = $_.DriveLetter
             $driveLetter            = [System.Text.RegularExpressions.Regex]::Replace($driveLetter,"`:","")
             $capacity = [math]::Floor($_.Capacity / 1GB)
             $freeSpace = [math]::Floor($_.FreeSpace / 1GB)
-            $key = "diskdrive_${driveLetter}"
-            $workHash[$key] = "capacity=${capacity},free=${freeSpace}"
+            [string]$driveLetter = "diskdrive_${driveLetter}"
+            $diskarray += "${driveLetter},capacity=${capacity},free=${freeSpace}"
         }
+        [string]$diskstr            = $diskarray
+        $workHash['diskdrives']     = $diskstr
 
         $DiskSpaceSum               = (Get-WmiObject Win32_Volume -Filter "DriveType='3'" | Measure-Object -Property capacity -Sum).Sum
         $DiskSpaceSum               = [Math]::Round(($DiskSpaceSum / 1GB),0)
@@ -541,7 +557,7 @@ function f_get-pimUsers {
     $rc = $false; $result=""
     try {
 
-        $localUsers                 = (Get-LocalUser | Where-Object { $_.Name -match '^(azureadmin|cred_linux|cred_unix|cyberark|enguxat|engwiat|kmduxat|kmdwiat|pim|svccacf).*' }).Name
+        $localUsers                 = (Get-LocalUser | Where-Object { $_.Name -match '^(azureadmin|cred_linux|cred_unix|cyberark|enguxat|engwiat|kmduxat|kmdwiat|pimadm_|svccacf).*' }).Name
         # $localUsers
         ForEach($user in $localUsers){
             $command                = "cmd /C net user $user"
@@ -644,12 +660,10 @@ function f_get-Persistent {
             if ($line -imatch '^Persistent Routes') { $collectActive = $false; $collectPersistent = $true; continue }
             if ( $collectActive ) {
                 $destination = ($line -split " ")[0]
-                # Write-Host "destination $destination"
                 $everyActiveDestination += $destination
             }
             if ( $collectPersistent ) {
                 [string]$destination = ($line -split " ")[0]
-                # Write-Host "destination $destination"
                 $everyPersistentDestination += $destination
             }
         }
@@ -657,12 +671,10 @@ function f_get-Persistent {
 
         if ( $everyActiveDestination -ne '' ) {
             $everyActiveDestination = $everyActiveDestination | Sort-Object -Unique
-            # Write-Host "everyActiveDestination $everyActiveDestination"
-
             $checkRoutesAarray | foreach-object {
                 $destPrefix = [string]$_
                 [string]$ActiveElement = "ActiveRoutes_$destPrefix"
-                # Write-Host "$ActiveElement"
+                $workHash[$ActiveElement] = ""
                 $filteredActiveDestination = @()
                 foreach ($item in $everyActiveDestination) {
                     if ( $item -imatch $destPrefix ) {
@@ -672,24 +684,21 @@ function f_get-Persistent {
                 if ( $filteredActiveDestination -ne '' ) {
                     [string]$ActiveEndString = $filteredActiveDestination -join ", "
                     $workHash[$ActiveElement] = $ActiveEndString
-                    # Write-Host "ActiveEndString $ActiveEndString"
                     $activeIsFound = $true
                 } else {
-                    $ActiveEndString = "No routes found for $destPrefix in 'Active Routes'"
+                    $ActiveEndString = $false
+
                     $workHash[$ActiveElement] = $ActiveEndString
-                    # Write-Host "ActiveEndString $ActiveEndString"
                 }
             }
         }
 
         if ( $everyPersistentDestination -ne '' ) {
             $everyPersistentDestination = $everyPersistentDestination | Sort-Object -Unique
-            # Write-Host "everyPersistentDestination $everyPersistentDestination"
-
             $checkRoutesAarray | foreach-object {
                 $destPrefix = [string]$_
                 [string]$PersistentElement = "PersistentRoutes_$destPrefix"
-                # Write-Host "$PersistentElement"
+                $workHash[$PersistentElement] = ""
                 $filteredPersistentDestination = @()
                 foreach ($item in $everyPersistentDestination) {
                     if ( $item -imatch $destPrefix ) {
@@ -699,12 +708,10 @@ function f_get-Persistent {
                 if ( $filteredPersistentDestination -ne '' ) {
                     [string]$PersistentEndString = $filteredPersistentDestination -join ", "
                     $workHash[$PersistentElement] = $PersistentEndString
-                    # Write-Host "PersistentEndString $PersistentEndString"
                     $persistentIsFound = $true
                 } else {
-                    $PersistentEndString = "No routes found for $destPrefix in 'Persistent Routes'"
+                    $PersistentEndString = $false
                     $workHash[$PersistentElement] = $PersistentEndString
-                    # Write-Host "PersistentEndString $PersistentEndString"
                 }
             }
         }
