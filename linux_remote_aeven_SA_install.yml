@@ -93,6 +93,7 @@
         - name: "Delete {{ vardir }} directory on {{ hostlist }}"
           run_once: true
           become: true
+          ignore_errors: yes
           file:
             path: "{{ vardir }}"
             state: absent 
