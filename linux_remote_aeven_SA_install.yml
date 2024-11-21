@@ -90,20 +90,12 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # Delete & create & copy files to dir /tmp/opsware-agent-linux/ 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: "Check if the {{ agentdir }} exists #1"
-          become: true          
-          stat:
-            path: "{{ agentdir }}"
-          register: file_stat_agentdir_1
-
         - name: "Delete {{ vardir }} directory on {{ hostlist }}"
           run_once: true
           become: true
-          ignore_errors: yes      
           file:
             path: "{{ vardir }}"
             state: absent 
-          when: file_stat_agentdir_1.stat.exists
 
         # - name: Create vardir directory
         #   file:
