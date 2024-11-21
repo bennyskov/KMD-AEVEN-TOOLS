@@ -48,46 +48,42 @@ Function f_logError {
     Param ([string]$logMsg="Error - step failed!")
     Write-Host "$logMsg"
 }
-$rc = $false; $result=""
-$text = "begin -----------------------------------------------------"; $step++; f_log -logMsg $text -step $step;f_logOK
-$text = "INIT"; $step++; f_log -logMsg $text -step $step
-try {
-    $begin                      = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
-    $workHash                   = [ordered]@{}
-    $workHash.Clear()
-    $workHash['date']           = $begin
-    $PSVersion                  = ($PSVersionTable.PSVersion).major
-    $workHash['PSVersion']      = $PSVersion
-    # $workHash['PSVersion'].GetType()
-    # $scriptdir                = (Get-Location).Path
-    # $scriptdir                = [System.Text.RegularExpressions.Regex]::Replace($scriptdir,"`\","/")
-    # $scriptname               = ($myinvocation).mycommand.Name
-    # if ( [string]::IsNullOrEmpty($scriptdir) ) {
-    #     $scriptdir            = "C:/Windows/Temp/servercheck/"
-    #     $scriptname           = 'servercheck'
-    # } else {
-    #     $scriptname           = [System.Text.RegularExpressions.Regex]::Replace($scriptname,"`.ps1","")
-    # }
-    $scriptdir                  = "C:/Windows/Temp/servercheck/"
-    $scriptname                 = 'servercheck'
-    # $workHash['scriptname']= $scriptname
-    # $workHash['xmlFile']= $scriptdir+$scriptname+".xml"
-    # "==================================================================================================="
-    # "Issued a route print, to look for the routes. Get-NetRoute is first introduced in ps 5 "
-    # "the -4, for ip version 4"
-    # "==================================================================================================="
-    $routePrintArray            = route print -4
-    $defaultServices            = Import-Csv -Path "$scriptdir/servercheckExclude_services.csv" -Delimiter ';'
-    $defaultSoftware            = Import-Csv -Path "$scriptdir/servercheckExclude_software.csv" -Delimiter ';'
-    f_logOK
-} catch {
+$PSVersion                  = ($PSVersionTable.PSVersion).major
+Write-Host "PSVersion=$PSVersion"
+if ( $PSVersion -lt 4 ) {
+    $psversionOK = $false
+    Write-Host "Powershell version is to low to collect servercheck."
+} else {
+    $psversionOK = $true
+    try {
+        $begin                      = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
+        $rc = $false; $result=""; $step=0
+        $text = "begin -----------------------------------------------------"; $step++; f_log -logMsg $text -step $step;f_logOK
+        $text = "INIT"; $step++; f_log -logMsg $text -step $step
+        $workHash                   = [ordered]@{}
+        $PSVersion                  = ($PSVersionTable.PSVersion).major
+        $workHash['PSVersion']      = $PSVersion
+        $workHash.Clear()
+        $workHash['date']           = $begin
+        $scriptdir                  = "C:/Windows/Temp/servercheck/"
+        $scriptname                 = 'servercheck'
+        # "==================================================================================================="
+        # "Issued a route print, to look for the routes. Get-NetRoute is first introduced in ps 5 "
+        # "the -4, for ip version 4"
+        # "==================================================================================================="
+        $routePrintArray            = route print -4
+        $defaultServices            = Import-Csv -Path "$scriptdir/servercheckExclude_services.csv" -Delimiter ';'
+        $defaultSoftware            = Import-Csv -Path "$scriptdir/servercheckExclude_software.csv" -Delimiter ';'
+        f_logOK
+    } catch {
 
-    Write-Host "An error occurred: $($_.Exception.Message)"
-    $errorDetails = $_
-    if ($errorDetails) {
-        Write-Host "Error details: $($errorDetails.Exception)"
+        Write-Host "An error occurred: $($_.Exception.Message)"
+        $errorDetails = $_
+        if ($errorDetails) {
+            Write-Host "Error details: $($errorDetails.Exception)"
+        }
+        f_logError
     }
-    f_logError
 }
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # functions
@@ -215,7 +211,7 @@ function f_get-machineInfo {
         $workHash['systemroot']     = $systemroot
 
         [string]$systemdrive        = $env:SystemDrive
-        $systemdrive                = [System.Text.RegularExpressions.Regex]::Replace($systemdrive,"`\`\","/")
+        $systemroot                 = [System.Text.RegularExpressions.Regex]::Replace($systemroot,"`\`\","/")
         $workHash['systemdrive']    = $systemdrive
 
         [string]$x64                = (Get-WmiObject -Class Win32_OperatingSystem).OSArchitecture -like '64-bit'
@@ -742,143 +738,140 @@ function f_get-Persistent {
 #
 #
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# get-Persistent
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-$text = "check for match of active/persistent routes"; $step++; f_log -logMsg $text -step $step
-$rc, $result, $workHash = f_get-Persistent -workHash $workHash
-if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# get-ports
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-$text = "get-ports"; $step++; f_log -logMsg $text -step $step
-$rc, $result, $workHash = f_get-ports -workHash $workHash
-if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# get-machineInfo
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-$text = "get-machineInfo"; $step++; f_log -logMsg $text -step $step
-$rc, $result, $workHash = f_get-machineInfo -workHash $workHash
-if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# get-RebootPending
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-$text = "get-RebootPending"; $step++; f_log -logMsg $text -step $step
-$rc, $result, $workHash = f_get-RebootPending -workHash $workHash
-if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# get-miscellaneous
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-$text = "get-miscellaneous"; $step++; f_log -logMsg $text -step $step
-$rc, $result, $workHash = f_get-miscellaneous -workHash $workHash
-if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# get-miscellaneous
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-$text = "get-pimUsers"; $step++; f_log -logMsg $text -step $step
-$rc, $result, $workHash = f_get-pimUsers -workHash $workHash
-if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# f_get-software and write jsonSwList
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-$text = "get-software"; $step++; f_log -logMsg $text -step $step
-$rc, $result, $filteredSoftware, $allSoftwareList, $workHash = f_get-software -defaultSoftware $defaultSoftware -workHash $workHash
-if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
+if ( $psversionOK ) {
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # get-Persistent
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    $text = "check for match of active/persistent routes"; $step++; f_log -logMsg $text -step $step
+    $rc, $result, $workHash = f_get-Persistent -workHash $workHash
+    if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # get-ports
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    $text = "get-ports"; $step++; f_log -logMsg $text -step $step
+    $rc, $result, $workHash = f_get-ports -workHash $workHash
+    if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # get-machineInfo
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    $text = "get-machineInfo"; $step++; f_log -logMsg $text -step $step
+    $rc, $result, $workHash = f_get-machineInfo -workHash $workHash
+    if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # get-RebootPending
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    $text = "get-RebootPending"; $step++; f_log -logMsg $text -step $step
+    $rc, $result, $workHash = f_get-RebootPending -workHash $workHash
+    if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # get-miscellaneous
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    $text = "get-miscellaneous"; $step++; f_log -logMsg $text -step $step
+    $rc, $result, $workHash = f_get-miscellaneous -workHash $workHash
+    if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # get-miscellaneous
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    $text = "get-pimUsers"; $step++; f_log -logMsg $text -step $step
+    $rc, $result, $workHash = f_get-pimUsers -workHash $workHash
+    if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # f_get-software and write jsonSwList
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    $text = "get-software"; $step++; f_log -logMsg $text -step $step
+    $rc, $result, $filteredSoftware, $allSoftwareList, $workHash = f_get-software -defaultSoftware $defaultSoftware -workHash $workHash
+    if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
 
-if ( -not [string]::IsNullOrEmpty($filteredSoftware) ) {
-    $csvFilename    = "$scriptdir/${scriptname}_aeven_fsftcsv.csv"
-    $null           = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
-    $filteredSoftware | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
-}
-if ( -not [string]::IsNullOrEmpty($allSoftwareList) ) {
-    $csvFilename    = "$scriptdir/${scriptname}_aeven_fsftall.csv"
-    $null           = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
-    $allSoftwareList | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
-}
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# f_get-services and write jsonSwList
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-$text = "get-services"; $step++; f_log -logMsg $text -step $step
-$rc, $result, $filteredServices, $allServices, $workHash = f_get-services -defaultServices $defaultServices -workHash $workHash
-if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
+    if ( -not [string]::IsNullOrEmpty($filteredSoftware) ) {
+        $csvFilename    = "$scriptdir/${scriptname}_aeven_fsftcsv.csv"
+        $null           = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
+        $filteredSoftware | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
+    }
+    if ( -not [string]::IsNullOrEmpty($allSoftwareList) ) {
+        $csvFilename    = "$scriptdir/${scriptname}_aeven_fsftall.csv"
+        $null           = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
+        $allSoftwareList | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
+    }
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # f_get-services and write jsonSwList
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    $text = "get-services"; $step++; f_log -logMsg $text -step $step
+    $rc, $result, $filteredServices, $allServices, $workHash = f_get-services -defaultServices $defaultServices -workHash $workHash
+    if ( $rc ) { f_logOK -logMsg $result  } else { f_logError -logMsg $result }
 
-if ( -not [string]::IsNullOrEmpty($filteredServices) ) {
-    $csvFilename    = "$scriptdir/${scriptname}_aeven_fsrvcsv.csv"
-    $null           = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
-    $filteredServices | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
-}
-if ( -not [string]::IsNullOrEmpty($allServices) ) {
-    $csvFilename    = "$scriptdir/${scriptname}_aeven_fsrvall.csv"
-    $null           = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
-    $allServices | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
-}
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# output all
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# $finalHashtable = $workHash
-$finalHashtable = [ordered]@{}
-foreach ($key in $workHash.Keys ) {
-    [string]$key    = $key
-    [string]$value  = $workHash[$key]
-    $key            = $key.Trim()
-    $value          = $value.Trim()
-    $finalHashtable[$key] = $value
-    $line = '{0,-40} {1}' -f $key,$value
-    Write-Output $line
-}
+    if ( -not [string]::IsNullOrEmpty($filteredServices) ) {
+        $csvFilename    = "$scriptdir/${scriptname}_aeven_fsrvcsv.csv"
+        $null           = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
+        $filteredServices | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
+    }
+    if ( -not [string]::IsNullOrEmpty($allServices) ) {
+        $csvFilename    = "$scriptdir/${scriptname}_aeven_fsrvall.csv"
+        $null           = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
+        $allServices | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
+    }
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # trim and dump $workHash
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    Write-Output "# --------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+    Write-Output "# dump workHash"
+    Write-Output "# --------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+    $finalHashtable = [ordered]@{}
+    foreach ($key in $workHash.Keys ) {
+        [string]$key            = $key
+        [string]$value          = $workHash[$key]
+        $key                    = $key.Trim()
+        $value                  = $value.Trim()
+        $finalHashtable[$key]   = $value
+        $line                   = '{0,-40} {1}' -f $key,$value
+        Write-Output $line
+    }
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # output all to files
+    # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Create a PSCustomObject
+    $customObject = [PSCustomObject]$finalHashtable
+    # $customObject = New-Object PSObject -Property $finalHashtable # same same.
 
-# Create a PSCustomObject
-$customObject = [PSCustomObject]$finalHashtable
-# $customObject = New-Object PSObject -Property $finalHashtable # same same.
+    # Create a csv file
+    $csvFilename = "${scriptdir}/${scriptname}_aeven_foutcsv.csv"
+    $null = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
+    $customObject | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
 
-# Create a csv file
-$csvFilename = "${scriptdir}/${scriptname}_aeven_foutcsv.csv"
-$null = Remove-Item $csvFilename -Force -ErrorAction SilentlyContinue
-$customObject | Export-Csv -Path $csvFilename -Delimiter ';' -NoTypeInformation
+    # Create json file
+    $jsonFilename = "${scriptdir}/${scriptname}_aeven_foutjsn.json"
+    $null = Remove-Item $jsonFilename -Force -ErrorAction SilentlyContinue
+    $json = $customObject | ConvertTo-Json
+    $json | Out-File -FilePath $jsonFilename -Encoding utf8
 
-# Create json file
-$jsonFilename = "${scriptdir}/${scriptname}_aeven_foutjsn.json"
-$null = Remove-Item $jsonFilename -Force -ErrorAction SilentlyContinue
-$json = $customObject | ConvertTo-Json
-$json | Out-File -FilePath $jsonFilename -Encoding utf8
-
-# Create xml file
-$OSFilename = "${scriptdir}/${scriptname}_aeven_foutxml.xml"
-$null       = remove-item $OSFilename -Force -ErrorAction SilentlyContinue
-$xml        = $customObject | ConvertTo-Xml -As String
-$xml | Out-File -FilePath $OSFilename -Encoding utf8
-
-# $xmlDoc = New-Object System.Xml.XmlDocument
-# $xmlDeclaration = $xmlDoc.CreateXmlDeclaration("1.0", "UTF-8", $null)
-# $xmlDoc.AppendChild($xmlDeclaration)
-# $root = $xmlDoc.CreateElement('SystemInformation')
-# $xmlDoc.AppendChild($root)
-# foreach ($key in $finalHashtable.Keys) {
-#     $element = $xmlDoc.CreateElement($key)
-#     $element.InnerText = $finalHashtable[$key]
-#     $root.AppendChild($element)
-# }
-# $OSFilename = "${scriptdir}/${scriptname}_aeven_foutxml.xml"
-# $null       = remove-item $OSFilename -Force -ErrorAction SilentlyContinue
-# $xmlDoc.Save($OSFilename)
-
-# -----------------------------------------------------------------------------------------------------------------
-# dump route print
-# -----------------------------------------------------------------------------------------------------------------
-$routePrintArray
-# -----------------------------------------------------------------------------------------------------------------
-# The End
-# -----------------------------------------------------------------------------------------------------------------
-$end = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
-$TimeDiff = New-TimeSpan $begin $end
-if ($TimeDiff.Seconds -lt 0) {
-	$Hrs = ($TimeDiff.Hours) + 23
-	$Mins = ($TimeDiff.Minutes) + 59
-	$Secs = ($TimeDiff.Seconds) + 59
+    # Create xml file
+    $OSFilename = "${scriptdir}/${scriptname}_aeven_foutxml.xml"
+    $null       = remove-item $OSFilename -Force -ErrorAction SilentlyContinue
+    $xml        = $customObject | ConvertTo-Xml -As String
+    $xml | Out-File -FilePath $OSFilename -Encoding utf8
+    Write-Output "# --------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+    Write-Output "# dump route print"
+    Write-Output "# --------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+    $routePrintArray
+    Write-Output "# --------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+    # -----------------------------------------------------------------------------------------------------------------
+    # The End
+    # -----------------------------------------------------------------------------------------------------------------
+    $end = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
+    $TimeDiff = New-TimeSpan $begin $end
+    if ($TimeDiff.Seconds -lt 0) {
+        $Hrs = ($TimeDiff.Hours) + 23
+        $Mins = ($TimeDiff.Minutes) + 59
+        $Secs = ($TimeDiff.Seconds) + 59
+    } else {
+        $Hrs = $TimeDiff.Hours
+        $Mins = $TimeDiff.Minutes44
+        $Secs = $TimeDiff.Seconds
+    }
+    $Difference = '{0:00}:{1:00}:{2:00}' -f $Hrs,$Mins,$Secs
+    $text = "End  elapsed  $Difference"; $step++; f_log -logMsg $text -step $step;f_logOK
+    $exitcode = 0
 } else {
-	$Hrs = $TimeDiff.Hours
-	$Mins = $TimeDiff.Minutes44
-	$Secs = $TimeDiff.Seconds
+    $exitcode = 12
 }
-$Difference = '{0:00}:{1:00}:{2:00}' -f $Hrs,$Mins,$Secs
-$text = "End  elapsed  $Difference"; $step++; f_log -logMsg $text -step $step;f_logOK
+
+exit($exitcode)
