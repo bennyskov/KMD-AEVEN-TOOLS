@@ -565,6 +565,7 @@ function f_get-pimUsers {
                 # $line
                 if ( $line -imatch "^Comment" ) {
                     $desc = ($line -split "Comment")[-1]
+                    $desc = $desc -replace ',', '' # removing commas in the comment, so it dont wreck the csv file
                     $desc = $desc.trim()
                     if ( $line -imatch "/" ) {
                         $desc = ($desc -split "/")[-1]
