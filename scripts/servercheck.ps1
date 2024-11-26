@@ -140,7 +140,7 @@ function f_get-services {
             }
         }
 
-        $workHash['SCCM'] = $false
+        $workHash['CcmExec-SCCM'] = $false
         $workHash['OpswareAgent-SA'] = $false
         $workHash['OvSvcDiscAgent-OMI'] = $false
         $workHash['OvCtrl-OMI'] = $false
@@ -152,7 +152,7 @@ function f_get-services {
         $workHash['TSMclassic'] = $false
         $workHash['TSMspectum'] = $false
         $workHash['Commvault'] = $false
-        if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'CcmExec'}))                { $workHash['SCCM']               = [BOOL]($allServices | Where-Object { $_.Name -imatch 'CcmExec' })}
+        if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'CcmExec'}))                { $workHash['CcmExec-SCCM']       = [BOOL]($allServices | Where-Object { $_.Name -imatch 'CcmExec' })}
         if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'OpswareAgent'}))           { $workHash['OpswareAgent-SA']    = [BOOL]($allServices | Where-Object { $_.Name -imatch 'OpswareAgent' })}
         if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'OvSvcDiscAgent'}))         { $workHash['OvSvcDiscAgent-OMI'] = [BOOL]($allServices | Where-Object { $_.Name -imatch 'OvSvcDiscAgent' })}
         if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'OvCtrl'}))                 { $workHash['OvCtrl-OMI']         = [BOOL]($allServices | Where-Object { $_.Name -imatch 'OvCtrl'})}
