@@ -19,7 +19,6 @@
 "CDPSvc";"Connected Devices Platform Service"
 "CDPUserSvc.*";"CDPUserSvc.*"
 "COMSysApp";"COM+ System Application"
-"CcmExec";"SMS Agent Host"
 "CertPropSvc";"Certificate Propagation"
 "ClickToRunSvc";"Microsoft Office Click-to-Run Service"
 "ClipSVC";"Client License Service (ClipSVC)"

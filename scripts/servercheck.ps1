@@ -105,6 +105,9 @@ function f_get-software {
         }
         [string]$opsware = [bool]($allSoftwareList |  Where-Object { $_.DisplayName -imatch '.*SA Agent.*' }).DisplayName
         $workHash['SA-Opsware-software'] = $opsware
+        [string]$SCCM = [bool]($allSoftwareList |  Where-Object { $_.DisplayName -imatch '.*Configuration Manager Client.*' }).DisplayName
+        $workHash['SCCM-software'] = $SCCM
+        # "Configuration Manager Client";"5.00.9122.1000";"Microsoft Corporation";
 
         if ( [string]::IsNullOrEmpty($filteredSoftware) ) {
             $rc = $false
@@ -136,6 +139,8 @@ function f_get-services {
                 $service
             }
         }
+
+        $workHash['SCCM'] = $false
         $workHash['OpswareAgent-SA'] = $false
         $workHash['OvSvcDiscAgent-OMI'] = $false
         $workHash['OvCtrl-OMI'] = $false
@@ -147,6 +152,7 @@ function f_get-services {
         $workHash['TSMclassic'] = $false
         $workHash['TSMspectum'] = $false
         $workHash['Commvault'] = $false
+        if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'CcmExec'}))                { $workHash['SCCM']               = [BOOL]($allServices | Where-Object { $_.Name -imatch 'CcmExec' })}
         if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'OpswareAgent'}))           { $workHash['OpswareAgent-SA']    = [BOOL]($allServices | Where-Object { $_.Name -imatch 'OpswareAgent' })}
         if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'OvSvcDiscAgent'}))         { $workHash['OvSvcDiscAgent-OMI'] = [BOOL]($allServices | Where-Object { $_.Name -imatch 'OvSvcDiscAgent' })}
         if ( [BOOL]($allServices | Where-Object { $_.Name -imatch 'OvCtrl'}))                 { $workHash['OvCtrl-OMI']         = [BOOL]($allServices | Where-Object { $_.Name -imatch 'OvCtrl'})}
