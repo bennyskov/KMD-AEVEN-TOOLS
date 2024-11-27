@@ -372,58 +372,86 @@ function f_get-ports {
     $rc = $false; $result=""
 
     try {
+        # MSA             : 84.255.75.1:3001,84.255.75.2:3001
+        # BTA DFK/KRFO    : 10.233.70.1:3001,10.233.70.2:3001
+        # BTA Eboks       : 10.226.80.1:3001,10.226.80.2:3001
+        # BTA LMST        : 10.233.78.1:3001,10.233.78.2:3001
 
-        $toolName                   = 'Opsware-1'; $target = '84.255.75.1'; $port = 3001
+        $toolName                   = 'Opsware-MSA-1'; $target = '84.255.75.1'; $port = 3001
         $rc, $result                = get-IPPort -target $target -port $port
         $workHash[$toolName]        = "$result"
 
-        $toolName                   = 'Opsware-2'; $target = '84.255.75.2'; $port = 3001
+        $toolName                   = 'Opsware-MSA-2'; $target = '84.255.75.2'; $port = 3001
         $rc, $result                = get-IPPort -target $target -port $port
         $workHash[$toolName]        = "$result"
 
-        $toolName                   = 'Opsware-3'; $target = '84.255.75.1'; $port = 1002
+        $toolName                   = 'Opsware-BTA-DFK-1'; $target = '10.233.70.1'; $port = 3001
         $rc, $result                = get-IPPort -target $target -port $port
         $workHash[$toolName]        = "$result"
 
-        $toolName                   = 'Opsware-4'; $target = '84.255.75.2'; $port = 1002
+        $toolName                   = 'Opsware-BTA-DFK-2'; $target = '10.233.70.2'; $port = 3001
         $rc, $result                = get-IPPort -target $target -port $port
         $workHash[$toolName]        = "$result"
 
-        $toolName                   = 'OMI-1'; $target = '84.255.75.1'; $port = 383
+        $toolName                   = 'Opsware-BTA-Eboks'; $target = '10.226.80.1'; $port = 3001
         $rc, $result                = get-IPPort -target $target -port $port
         $workHash[$toolName]        = "$result"
 
-        $toolName                   = 'OMI-2'; $target = '84.255.75.2'; $port = 383
+        $toolName                   = 'Opsware-BTA-Eboks'; $target = '10.226.80.2'; $port = 3001
         $rc, $result                = get-IPPort -target $target -port $port
         $workHash[$toolName]        = "$result"
 
-        $toolName                   = 'OMI-3'; $target = '84.255.75.1'; $port = 3128
+        $toolName                   = 'Opsware-BTA-LMST'; $target = '10.233.78.1'; $port = 3001
         $rc, $result                = get-IPPort -target $target -port $port
         $workHash[$toolName]        = "$result"
 
-        $toolName                   = 'OMI-4'; $target = '84.255.75.2'; $port = 3128
+        $toolName                   = 'Opsware-BTA-LMST'; $target = '10.233.78.2'; $port = 3001
         $rc, $result                = get-IPPort -target $target -port $port
         $workHash[$toolName]        = "$result"
 
-        $toolName                   = 'UCMDB-1'; $target = '84.255.75.4'; $port = 2738
-        $rc, $result                = get-IPPort -target $target -port $port
-        $workHash[$toolName]        = "$result"
+        # $toolName                   = 'Opsware-3'; $target = '84.255.75.1'; $port = 1002
+        # $rc, $result                = get-IPPort -target $target -port $port
+        # $workHash[$toolName]        = "$result"
 
-        $toolName                   = 'UCMDB-2'; $target = '84.255.75.5'; $port = 2738
-        $rc, $result                = get-IPPort -target $target -port $port
-        $workHash[$toolName]        = "$result"
+        # $toolName                   = 'Opsware-4'; $target = '84.255.75.2'; $port = 1002
+        # $rc, $result                = get-IPPort -target $target -port $port
+        # $workHash[$toolName]        = "$result"
 
-        $toolName                   = 'ansible-1'; $target = '84.255.94.31'; $port = 8081
-        $rc, $result                = get-IPPort -target $target -port $port
-        $workHash[$toolName]        = "$result"
+        # $toolName                   = 'OMI-1'; $target = '84.255.75.1'; $port = 383
+        # $rc, $result                = get-IPPort -target $target -port $port
+        # $workHash[$toolName]        = "$result"
 
-        $toolName                   = 'ansible-2'; $target = '84.255.94.33'; $port = 8081
-        $rc, $result                = get-IPPort -target $target -port $port
-        $workHash[$toolName]        = "$result"
+        # $toolName                   = 'OMI-2'; $target = '84.255.75.2'; $port = 383
+        # $rc, $result                = get-IPPort -target $target -port $port
+        # $workHash[$toolName]        = "$result"
 
-        $toolName                   = 'ansible-3'; $target = 'localhost'; $port = 5985
-        $rc, $result                = get-IPPort -target $target -port $port
-        $workHash[$toolName]        = "$result"
+        # $toolName                   = 'OMI-3'; $target = '84.255.75.1'; $port = 3128
+        # $rc, $result                = get-IPPort -target $target -port $port
+        # $workHash[$toolName]        = "$result"
+
+        # $toolName                   = 'OMI-4'; $target = '84.255.75.2'; $port = 3128
+        # $rc, $result                = get-IPPort -target $target -port $port
+        # $workHash[$toolName]        = "$result"
+
+        # $toolName                   = 'UCMDB-1'; $target = '84.255.75.4'; $port = 2738
+        # $rc, $result                = get-IPPort -target $target -port $port
+        # $workHash[$toolName]        = "$result"
+
+        # $toolName                   = 'UCMDB-2'; $target = '84.255.75.5'; $port = 2738
+        # $rc, $result                = get-IPPort -target $target -port $port
+        # $workHash[$toolName]        = "$result"
+
+        # $toolName                   = 'ansible-1'; $target = '84.255.94.31'; $port = 8081
+        # $rc, $result                = get-IPPort -target $target -port $port
+        # $workHash[$toolName]        = "$result"
+
+        # $toolName                   = 'ansible-2'; $target = '84.255.94.33'; $port = 8081
+        # $rc, $result                = get-IPPort -target $target -port $port
+        # $workHash[$toolName]        = "$result"
+
+        # $toolName                   = 'ansible-3'; $target = 'localhost'; $port = 5985
+        # $rc, $result                = get-IPPort -target $target -port $port
+        # $workHash[$toolName]        = "$result"
 
         $result = "OK - get-ports step succeeded."
         $rc = $true
