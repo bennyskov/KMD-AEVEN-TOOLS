@@ -393,19 +393,19 @@ function f_get-ports {
         $rc, $result                = get-IPPort -target $target -port $port
         $workHash[$toolName]        = "$result"
 
-        $toolName                   = 'Opsware-BTA-Eboks'; $target = '10.226.80.1'; $port = 3001
+        $toolName                   = 'Opsware-BTA-Eboks-1'; $target = '10.226.80.1'; $port = 3001
         $rc, $result                = get-IPPort -target $target -port $port
         $workHash[$toolName]        = "$result"
 
-        $toolName                   = 'Opsware-BTA-Eboks'; $target = '10.226.80.2'; $port = 3001
+        $toolName                   = 'Opsware-BTA-Eboks-2'; $target = '10.226.80.2'; $port = 3001
         $rc, $result                = get-IPPort -target $target -port $port
         $workHash[$toolName]        = "$result"
 
-        $toolName                   = 'Opsware-BTA-LMST'; $target = '10.233.78.1'; $port = 3001
+        $toolName                   = 'Opsware-BTA-LMST-1'; $target = '10.233.78.1'; $port = 3001
         $rc, $result                = get-IPPort -target $target -port $port
         $workHash[$toolName]        = "$result"
 
-        $toolName                   = 'Opsware-BTA-LMST'; $target = '10.233.78.2'; $port = 3001
+        $toolName                   = 'Opsware-BTA-LMST-2'; $target = '10.233.78.2'; $port = 3001
         $rc, $result                = get-IPPort -target $target -port $port
         $workHash[$toolName]        = "$result"
 
