@@ -56,10 +56,14 @@
     # Uninstall
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------    
     - name: "SA.01.01 - check if install exists"
-      stat:
-        path: "{{ sagentdir }}agent_uninstall.bat" 
-      register: file_stat      
+      win_shell: '[bool](Test-Path "{{ sagentdir }}agent_uninstall.bat" -ErrorAction SilentlyContinue)'
+      ignore_errors: yes
+      register: win_uninstall_exists     
 
+    - name: "SA.01.02 - set_fact uninstall_exists if file exists"
+      set_fact:
+        uninstall_exists: "{{ 'True' in win_uninstall_exists.stdout }}"
+      
     - name: UNINSTALL block (conditional if uninstall exists)
       block:
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -104,8 +108,9 @@
         - name: "SA.02.08 - Delete temp C:/Program Files/Opsware/ agent directory"
           win_file:
             path: "C:/Program Files/Opsware/"
-            state: absent          
-      when: file_stat.stat.exists
+            state: absent
+
+      when: uninstall_exists
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     # INSTALL block
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
