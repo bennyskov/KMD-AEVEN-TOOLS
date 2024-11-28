@@ -113,7 +113,15 @@
         - name: "Display content in stdout"
           debug:
             msg: |-
-              "aeven_fstdout {{ file_content_fstdout.stdout }}"      
+              "aeven_fstdout {{ file_content_fstdout.stdout }}"
+
+        - name: "List {{ tmpdir }} AFTER"
+          run_once: true
+          win_shell: Get-ChildItem -Path {{ tmpdir }}
+          register: dir_of_tmpdir_after
+        - name: "list dir of {{ tmpdir }} at the AFTER"
+          debug:
+            var: dir_of_tmpdir_after.stdout_lines 
 
         - name: "Read content from {{ stdoutfile }}"
           run_once: true
