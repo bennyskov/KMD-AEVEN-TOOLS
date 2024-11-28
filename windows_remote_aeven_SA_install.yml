@@ -72,7 +72,7 @@
         - name: "SA.02.02 - stop agent service"
           ignore_errors: yes
           win_shell: "Get-Service -Name OpswareAgent | Stop-Service -Force -PassThru | Set-Service -StartupType disabled"
-          register: stop-service
+          register: stop_service
 
         - name: "SA.02.01 - kill any process running"
           ignore_errors: yes
@@ -101,6 +101,7 @@
             state: absent
 
       when: uninstall_exists
+      
       always:
         - name: "SA.02.08 - Display result from uninstall"
           debug:
