@@ -43,35 +43,35 @@
   gather_facts: false
   vars:
     tmpdir: "C:/Windows/Temp/opsware-agent-windows/"  
-    logfile: "sa-agent_install.log"  
-    stdoutfile: "sa-agent_stdout.log"  
+    logfile: "sa-agent_install.log"   # the one created by bat file
+    stdoutfile: "sa-agent_stdout.log" # the redirect
   tasks:
     - name: Copy, create, exec, fetch output
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
       # Delete & create & copy files to dir {{ tmpdir }}
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
       block:
-        - name: "Get PATH for machine"
+        - name: "SA.01 - Get PATH for machine"
           run_once: true
           raw: $ENV:PATH
           register: path_out
 
-        - name: "Output result"
+        - name: "SA.02 - Output result"
           debug:
             var: path_out.stdout_lines    
     
-        - name: "Delete {{ tmpdir }} directory on {{ hostlist }}"
+        - name: "SA.03 - Delete {{ tmpdir }} directory on {{ hostlist }}"
           run_once: true
           win_file:
             path: "{{ tmpdir }}"
             state: absent
 
-        - name: Create {{ tmpdir }} directory on {{ hostlist }}"
+        - name: "SA.04 - Create {{ tmpdir }} directory on {{ hostlist }}"
           win_file:
             path: "{{ tmpdir }}"
             state: directory
 
-        - name: copy multiple items
+        - name: "SA.05 - copy multiple items"
           win_copy: 
             src: "{{ item.src }}" 
             dest: "{{ item.dest }}"
@@ -83,30 +83,41 @@
             - src: opsware-agent-windows/
               dest: "{{ tmpdir }}" 
 
-        - name: "List {{ tmpdir }} BEFORE"
+        - name: "SA.06 - List {{ tmpdir }} BEFORE"
           run_once: true
           win_shell: Get-ChildItem -Path {{ tmpdir }}
           register: dir_of_tmpdir_before
-        - name: "list dir of {{ tmpdir }} at the BEFORE"
+        
+        - name: "SA.08 - list dir of {{ tmpdir }} at the BEFORE"
           debug:
             var: dir_of_tmpdir_before.stdout_lines 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # run installer
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: Run command
+        - name: "SA.09 - Run command"
           win_command: "{{ tmpdir }}sa_agent_install.bat > {{ tmpdir }}{{ stdoutfile }} 2>&1"
+          ignore_errors: yes      
           args:
             chdir: "{{ tmpdir }}"
           register: script_run
 
-        - name: Output list
+        - name: "SA.10 - Output list"
           debug:
             var: script_run.stdout_lines
+
+        - name: "SA.11 - List {{ tmpdir }} AFTER"
+          run_once: true
+          ignore_errors: yes      
+          win_shell: Get-ChildItem -Path {{ tmpdir }}
+          register: dir_of_tmpdir_after
+        - name: "SA.12 - list dir of {{ tmpdir }} at the AFTER"
+          debug:
+            var: dir_of_tmpdir_after.stdout_lines 
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # send stdoutfiles to ansible stdout
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: "Read content from {{ logfile }}"
+        - name: "SA.13 - Read content from {{ logfile }}"  # the one created by bat file
           run_once: true
           win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ logfile }}"
           register: file_content_fstdout
@@ -115,15 +126,8 @@
             msg: |-
               "aeven_fstdout {{ file_content_fstdout.stdout }}"
 
-        - name: "List {{ tmpdir }} AFTER"
-          run_once: true
-          win_shell: Get-ChildItem -Path {{ tmpdir }}
-          register: dir_of_tmpdir_after
-        - name: "list dir of {{ tmpdir }} at the AFTER"
-          debug:
-            var: dir_of_tmpdir_after.stdout_lines 
-
-        - name: "Read content from {{ stdoutfile }}"
+      
+        - name: "SA.14 - Read content from {{ stdoutfile }}" # the redirect
           run_once: true
           win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ stdoutfile }}"
           register: file_content_stdout
@@ -132,7 +136,7 @@
             msg: |-
               "aeven_logfile {{ file_content_stdout.stdout }}"      
 
-        - name: "List {{ tmpdir }} at the end"
+        - name: "SA.15 - List {{ tmpdir }} at the end"
           run_once: true
           win_shell: Get-ChildItem -Path {{ tmpdir }}
           register: dir_of_tmpdir_end
@@ -141,7 +145,7 @@
             var: dir_of_tmpdir_end.stdout_lines 
 
       always:
-        - name: Delete temp {{ tmpdir }} agent directory
+        - name: "SA.16 - Delete temp {{ tmpdir }} agent directory"
           win_file:
             path: "{{ tmpdir }}"
             state: absent
