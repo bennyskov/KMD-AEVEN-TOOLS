@@ -37,6 +37,9 @@
 # Installation playbook of Opsware agent on windows
 #
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# aeven_saagout    saagtfile: "sa-agent_stdout.log"   # the one created by bat file
+# aeven_rediout    redirfile: "sa-agent_rdiout.log"   # the redirect
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 - name: "Installation playbook of SA Opsware agent for Aeven on server {{ hostlist }}"
   hosts: "{{ hostlist }}"
   become: true
@@ -115,8 +118,8 @@
             var: dir_of_tmpdir_after.stdout_lines 
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        #  aeven_saagtout    saagtfile: "sa-agent_stdout.log"   # the one created by bat file
-        #  aeven_redirout    redirfile: "sa-agent_rdiout.log"   # the redirect
+        # aeven_saagout    saagtfile: "sa-agent_stdout.log"   # the one created by bat file
+        # aeven_rediout    redirfile: "sa-agent_rdiout.log"   # the redirect
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: "SA.13 - Read content from {{ saagtfile }}"  # the one created by bat file
@@ -127,7 +130,7 @@
         - name: "SA.14 - Display {{ saagtfile }} content"
           debug:
             msg: |-
-              "aeven_saagtout {{ file_content_saagtfile.stdout }}"
+              "aeven_saagout {{ file_content_saagtfile.stdout }}"
 
         - name: "SA.15 - Read content from {{ redirfile }}" # the redirect
           run_once: true
@@ -137,7 +140,7 @@
         - name: "SA.16 - Display {{ redirfile }} content"
           debug:
             msg: |-
-              "aeven_redirout {{ file_content_redirout.stdout }}"      
+              "aeven_rediout {{ file_content_redirout.stdout }}"      
 
         - name: "SA.17 - List {{ tmpdir }} at the end"
           run_once: true
