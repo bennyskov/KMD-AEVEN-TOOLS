@@ -70,16 +70,13 @@
         # run UNINSTALL
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: "SA.02.01 - stop watchdog"
-          win_shell: 'Get-Service -Name "*watchdog*" -ErrorAction SilentlyContinue)'
+          win_shell: "Get-WmiObject Win32_Process -filter { commandLine LIKE '%watchdog%' AND commandLine LIKE '%Opsware%' AND NOT commandLine LIKE '%Get-WmiObject%' } | ForEach-Object { $_.Terminate() }"
           ignore_errors: yes
           register: stop_watchdog     
         
         - name: "SA.02.02 - Remove read-only attribute from file"
           ignore_errors: yes
-          win_shell: 
-            cmd: |
-              Get-ChildItem -Path "C:/Program Files/Opsware/" -Recurse -File | ForEach-Object {
-              Set-ItemProperty -Path $_.FullName -Name IsReadOnly -Value $false }
+          win_shell: "Get-ChildItem -Path 'C:/PROGRA~1/Opsware/' -Recurse -File | ForEach-Object { Set-ItemProperty -Path $_.FullName -Name IsReadOnly -Value $false }"
           register: set_readonly
 
         - name: "SA.02.03 - Run uninstall command"
