@@ -229,7 +229,7 @@
 
         - name: "SA.03.23 - Delete {{ tmpdir }} directory"
           ignore_errors: yes
-          win_shell: 'Remove-Item -Path "{{ tmpdir }} " -Recurse -Force -ErrorAction SilentlyContinue'
+          win_shell: 'Remove-Item -Path "{{ tmpdir }}" -Recurse -Force -ErrorAction SilentlyContinue'
           register: delete_work
 
               
