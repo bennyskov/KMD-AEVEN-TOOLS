@@ -43,8 +43,8 @@
   gather_facts: false
   vars:
     tmpdir: "C:/Windows/Temp/opsware-agent-windows/"  
-    logfile: "sa-agent_install.log"   # the one created by bat file
-    stdoutfile: "sa-agent_stdout.log" # the redirect
+    saagtfile: "sa-agent_stdout.log"   # the one created by bat file
+    redirfile: "sa-agent_rdiout.log"   # the redirect
   tasks:
     - name: Copy, create, exec, fetch output
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -115,9 +115,10 @@
             var: dir_of_tmpdir_after.stdout_lines 
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # send rediroutfiles to ansible stdout
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #  aeven_saagtout    saagtfile: "sa-agent_stdout.log"   # the one created by bat file
+        #  aeven_redirout    redirfile: "sa-agent_rdiout.log"   # the redirect
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
         - name: "SA.13 - Read content from {{ saagtfile }}"  # the one created by bat file
           run_once: true
           win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ saagtfile }}"
@@ -128,7 +129,6 @@
             msg: |-
               "aeven_saagtout {{ file_content_saagtfile.stdout }}"
 
-          #  aeven_redirout    redirfile: "sa-agent_rdiout.log"   # the redirect
         - name: "SA.15 - Read content from {{ redirfile }}" # the redirect
           run_once: true
           win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ redirfile }}"
