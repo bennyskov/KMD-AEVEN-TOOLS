@@ -37,7 +37,7 @@
 # Installation playbook of Opsware agent on windows
 #
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-# aeven_saagout    saagtfile: "sa-agent_stdout.log"   # the one created by bat file
+# aeven_saagout    saagtfile: "sa-agent_install.log"   # the one created by bat file
 # aeven_rediout    redirfile: "sa-agent_rdiout.log"   # the redirect
 # aeven_uninout    uninsfile: "sa-agent_uninstall_stdout.log"  the one created by bat file (uninstall)
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -48,8 +48,8 @@
   vars:
     tmpdir: "C:/Windows/Temp/opsware-agent-windows/"  
     sagentdir: "C:/PROGRA~1/Opsware/agent/pylibs3/cog/uninstall/"  
-    saagtfile: "sa-agent_stdout.log"   # the one created by bat file
-    redirfile: "sa-agent_rdiout.log"   # the redirect
+    saagtfile: "sa-agent_install.log"          # the one created by bat file
+    redirfile: "sa-agent_rdiout.log"           # the redirect
     uninsfile: "sa-agent_uninstall_stdout.log" # the one created by bat file (uninstall)
   tasks:
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -169,7 +169,7 @@
             var: dir_of_tmpdir_after.stdout_lines 
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # aeven_saagout    saagtfile: "sa-agent_stdout.log"   # the one created by bat file
+        # aeven_saagout    saagtfile: "sa-agent_install.log"   # the one created by bat file
         # aeven_rediout    redirfile: "sa-agent_rdiout.log"   # the redirect
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
