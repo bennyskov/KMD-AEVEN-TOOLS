@@ -71,12 +71,12 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: "SA.02.02 - stop agent service"
           ignore_errors: yes
-          win_shell: "Get-Service -Name OpswareAgent | Stop-Service -Force -PassThru | Set-Service -StartupType disabled"
+          win_shell: "Get-Service -Name OpswareAgent | Stop-Service -Force -PassThru | Set-Service -StartupType disabled -ErrorAction SilentlyContinue"
           register: stop_service
 
         - name: "SA.02.01 - kill any process running"
           ignore_errors: yes
-          win_shell: "Get-WmiObject Win32_Process -filter { commandLine LIKE '%Opsware%' AND NOT commandLine LIKE '%Get-WmiObject%' } | ForEach-Object { $_.Terminate() }"
+          win_shell: "Get-WmiObject Win32_Process -filter { commandLine LIKE '%Opsware%' AND NOT commandLine LIKE '%Get-WmiObject%' } | ForEach-Object { $_.Terminate() } -ErrorAction SilentlyContinue"
           register: stop_watchdog     
         
         - name: "SA.02.03 - Run uninstall command"
@@ -87,12 +87,12 @@
         
         - name: "SA.02.04 - Delete C:/PROGRA~1/Opsware/ agent directory"
           ignore_errors: yes
-          win_shell: 'Remove-Item -Path "C:/PROGRA~1/Opsware/" -Recurse -Force'
+          win_shell: 'Remove-Item -Path "C:/PROGRA~1/Opsware/" -Recurse -Force -ErrorAction SilentlyContinue'
           register: delete_service
 
         - name: "SA.02.05 - List dir after uninstall"
           ignore_errors: yes
-          win_shell: 'Get-ChildItem -Path "C:/PROGRA~1/"'
+          win_shell: 'Get-ChildItem -Path "C:/PROGRA~1/" -ErrorAction SilentlyContinue'
           register: dir_at_end
         
         - name: "SA.02.06 - print dir"
@@ -143,7 +143,7 @@
               dest: "{{ tmpdir }}" 
 
         - name: "SA.03.06 - List {{ tmpdir }} BEFORE"
-          win_shell: Get-ChildItem -Path {{ tmpdir }}
+          win_shell: "Get-ChildItem -Path {{ tmpdir }} -ErrorAction SilentlyContinue"
           register: dir_of_tmpdir_before
         
         - name: "SA.03.08 - list dir of {{ tmpdir }} at the BEFORE"
@@ -164,7 +164,7 @@
 
         - name: "SA.03.11 - List {{ tmpdir }} AFTER"
           ignore_errors: yes      
-          win_shell: Get-ChildItem -Path {{ tmpdir }}
+          win_shell: "Get-ChildItem -Path {{ tmpdir }} -ErrorAction SilentlyContinue"
           register: dir_of_tmpdir_after
 
         - name: "SA.03.12 - list dir of {{ tmpdir }} at the AFTER"
@@ -179,7 +179,7 @@
 
         - name: "SA.03.13 - Read content from {{ redirfile }}" # the redirect
           ignore_errors: yes      
-          win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ redirfile }}"
+          win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ redirfile }} -ErrorAction SilentlyContinue"
           register: file_content_redirout
         
         - name: "SA.03.14 - Display {{ redirfile }} content"
@@ -189,7 +189,7 @@
 
         - name: "SA.03.15 - Read content from {{ saagtfile }}"  # the one created by bat file
           ignore_errors: yes      
-          win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ saagtfile }}"
+          win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ saagtfile }} -ErrorAction SilentlyContinue"
           register: file_content_saagtfile
         
         - name: "SA.03.16 - Display {{ saagtfile }} content"
@@ -222,8 +222,14 @@
               "mid_file_exists {{ win_check_mid.stdout }}"
 
       always:
-        - name: "SA.03.22 - Delete temp {{ tmpdir }} agent directory"
+        - name: "SA.03.22 - Delete {{ tmpdir }} directory"
           win_file:
             path: "{{ tmpdir }}"
             state: absent
+
+        - name: "SA.03.23 - Delete {{ tmpdir }} directory"
+          ignore_errors: yes
+          win_shell: 'Remove-Item -Path "{{ tmpdir }} " -Recurse -Force -ErrorAction SilentlyContinue'
+          register: delete_work
+
               
