@@ -87,9 +87,8 @@
         
         - name: "SA.02.04 - Delete C:/PROGRA~1/Opsware/ agent directory"
           ignore_errors: yes
-          win_file:
-            path: "C:/PROGRA~1/Opsware/"
-            state: absent
+          win_shell: 'Remove-Item -Path "C:/PROGRA~1/Opsware/" -Recurse -Force'
+          register: delete_service
 
         - name: "SA.02.05 - List dir after uninstall"
           ignore_errors: yes
