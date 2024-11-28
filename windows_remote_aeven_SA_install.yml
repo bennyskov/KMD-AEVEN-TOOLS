@@ -197,22 +197,32 @@
             msg: |-
               "aeven_saagout {{ file_content_saagtfile.stdout }}"
 
-        - name: "SA.03.17 - check if mid file exists"
-          win_shell: '[bool](Test-Path "C:/PROGRA~1/Opsware/etc/agent/mid" -ErrorAction SilentlyContinue)'
+        - name: "SA.03.17 - List dir to find mid file"
+          ignore_errors: yes      
+          win_shell: 'Get-ChildItem -Path "C:/PROGRA~1/COMMON~1/Opsware/etc/agent/" -ErrorAction SilentlyContinue'
+          register: dir_of_tmpdir_after
+
+        - name: "SA.03.18 - list dir of {{ tmpdir }} at the AFTER"
+          debug:
+            var: dir_of_tmpdir_after.stdout_lines 
+
+
+        - name: "SA.03.19 - check if mid file exists"
+          win_shell: '[bool](Test-Path "C:/PROGRA~1/COMMON~1/Opsware/etc/agent/mid" -ErrorAction SilentlyContinue)'
           ignore_errors: yes
           register: win_check_mid
 
-        - name: "SA.03.18 - win_check_mid"
+        - name: "SA.03.20 - win_check_mid"
           set_fact:
             mid_file_exists: "{{ 'True' in win_check_mid.stdout }}"
         
-        - name: "SA.03.19 - Display True/False check"
+        - name: "SA.03.21 - Display True/False check"
           debug:
             msg: |-
               "mid_file_exists {{ win_check_mid.stdout }}"
 
       always:
-        - name: "SA.03.20 - Delete temp {{ tmpdir }} agent directory"
+        - name: "SA.03.22 - Delete temp {{ tmpdir }} agent directory"
           win_file:
             path: "{{ tmpdir }}"
             state: absent
