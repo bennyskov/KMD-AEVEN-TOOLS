@@ -84,24 +84,24 @@
           args:
             chdir: "{{ sagentdir }}"
           register: script_run
-
-        - name: "SA.02.04 - List dir after uninstall"
+        
+        - name: "SA.02.04 - Delete C:/PROGRA~1/Opsware/ agent directory"
           ignore_errors: yes
-          win_shell: 'Get-ChildItem -Path "C:/Program Files/*"'
+          win_file:
+            path: "C:/PROGRA~1/Opsware/"
+            state: absent
+
+        - name: "SA.02.05 - List dir after uninstall"
+          ignore_errors: yes
+          win_shell: 'Get-ChildItem -Path "C:/PROGRA~1/"'
           register: dir_at_end
         
-        - name: "SA.02.05 - print dir"
+        - name: "SA.02.06 - print dir"
           debug:
             var: dir_at_end.stdout_lines
 
-        - name: "SA.02.06 - Delete temp C:/Program Files/Opsware/ agent directory"
-          ignore_errors: yes
-          win_file:
-            path: '"C:/Program Files/Opsware/"'
-            state: absent
-
       when: uninstall_exists
-      
+
       always:
         - name: "SA.02.08 - Display result from uninstall"
           debug:
