@@ -227,9 +227,9 @@
             path: "{{ tmpdir }}"
             state: absent
 
-        - name: "SA.03.23 - Delete {{ tmpdir }} directory"
-          ignore_errors: yes
-          win_shell: 'Remove-Item -Path "{{ tmpdir }}" -Recurse -Force'
-          register: delete_work
+        # - name: "SA.03.23 - Delete {{ tmpdir }} directory"
+        #   ignore_errors: yes
+        #   win_shell: 'Remove-Item -Path "{{ tmpdir }}" -Recurse -Force'
+        #   register: delete_work
 
               
