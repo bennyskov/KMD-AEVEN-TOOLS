@@ -53,7 +53,7 @@
     uninsfile: "sa-agent_uninstall_stdout.log" # the one created by bat file (uninstall)
   tasks:
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    # Uninstall
+    # check if uninstall file exists
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------    
     - name: "SA.01.01 - check if agent_uninstall exists"
       win_shell: '[bool](Test-Path "{{ sagentdir }}agent_uninstall.bat" -ErrorAction SilentlyContinue)'
@@ -69,37 +69,43 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # run UNINSTALL
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: "SA.01.01 - stop watchdog"
-          win_shell: 'Stop-Process -Name "watchdog" -Force -ErrorAction SilentlyContinue)'
+        - name: "SA.02.01 - stop watchdog"
+          win_shell: 'Get-Service -Name "*watchdog*" -ErrorAction SilentlyContinue)'
           ignore_errors: yes
           register: stop_watchdog     
         
-        - name: "SA.02.01 - Run command"
+        - name: "SA.02.02 - Remove read-only attribute from file"
+          ignore_errors: yes
+          win_shell: 
+            cmd: |
+              Get-ChildItem -Path "C:/Program Files/Opsware/" -Recurse -File | ForEach-Object {
+              Set-ItemProperty -Path $_.FullName -Name IsReadOnly -Value $false }
+          register: set_readonly
+
+        - name: "SA.02.03 - Run uninstall command"
           win_command: "{{ sagentdir }}agent_uninstall.bat --force 2>&1"
           args:
             chdir: "{{ sagentdir }}"
           register: script_run
 
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # get the redirfile
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: "List dir after uninstall"
-          run_once: true
+        - name: "SA.02.04 - List dir after uninstall"
+          ignore_errors: yes
           win_shell: 'Get-ChildItem -Path "C:/Program Files/*"'
           register: dir_at_end
         
-        - name: "list dir of C:/Program Files/*"
+        - name: "SA.02.05 - print dir"
           debug:
             var: dir_at_end.stdout_lines
 
-        - name: "SA.02.08 - Delete temp C:/Program Files/Opsware/ agent directory"
+        - name: "SA.02.06 - Delete temp C:/Program Files/Opsware/ agent directory"
+          ignore_errors: yes
           win_file:
             path: '"C:/Program Files/Opsware/"'
             state: absent
 
       when: uninstall_exists
       always:
-        - name: "SA.02.02 - Display result from uninstall"
+        - name: "SA.02.08 - Display result from uninstall"
           debug:
             msg: |-
               "aeven_rediout {{ script_run.stdout }}"    
