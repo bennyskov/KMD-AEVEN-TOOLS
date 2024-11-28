@@ -70,7 +70,7 @@
         # run UNINSTALL
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: "SA.02.01 - stop watchdog"
-          win_shell: "Get-WmiObject Win32_Process -filter { commandLine LIKE '%watchdog%' AND commandLine LIKE '%Opsware%' AND NOT commandLine LIKE '%Get-WmiObject%' } | ForEach-Object { $_.Terminate() }"
+          win_shell: "Get-WmiObject Win32_Process -filter { commandLine LIKE '%Opsware%' AND NOT commandLine LIKE '%Get-WmiObject%' } | ForEach-Object { $_.Terminate() }"
           ignore_errors: yes
           register: stop_watchdog     
         
