@@ -55,7 +55,7 @@
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     # Uninstall
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------    
-    - name: "SA.01.01 - check if install exists"
+    - name: "SA.01.01 - check if agent_uninstall exists"
       win_shell: '[bool](Test-Path "{{ sagentdir }}agent_uninstall.bat" -ErrorAction SilentlyContinue)'
       ignore_errors: yes
       register: win_uninstall_exists     
@@ -70,40 +70,26 @@
         # run UNINSTALL
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: "SA.02.01 - Run command"
-          win_command: '"{{ sagentdir }}agent_uninstall.bat" --force > {{ tmpdir }}{{ redirfile }} 2>&1'
+          win_command: '{{ sagentdir }}agent_uninstall.bat --force 2>&1'
           args:
             chdir: "{{ sagentdir }}"
           register: script_run
 
-        - name: "SA.02.02 - Output list"
+        - name: "SA.02.02 - Display result from uninstall"
           debug:
-            var: script_run.stdout_lines
+            msg: |-
+              "aeven_rediout {{ script_run.stdout }}"    
+
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # get the redirfile
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: "SA.02.03 - Read content from {{ redirfile }}" # the redirect
-          ignore_errors: yes      
-          win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ redirfile }}"
-          register: file_uninstall_redirfile
-        
-        - name: "SA.02.04 - Display {{ redirfile }} content"
+        - name: "List dir after uninstall"
+          run_once: true
+          win_shell: Get-ChildItem -Path "C:/Program Files/*"
+          register: dir_at_end
+        - name: "list dir of C:/Program Files/*"
           debug:
-            msg: |-
-              "aeven_rediout {{ file_uninstall_redirfile.stdout }}"      
-
-        - name: "SA.02.05 - Read content from {{ uninsfile }}"  # the one created by bat file
-          ignore_errors: yes      
-          win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ uninsfile }}"
-          register: file_uninstall_uninsfile
-        
-        - name: "SA.02.06 - Display {{ uninsfile }} content"
-          debug:
-            msg: |-
-              "aeven_uninout {{ file_uninstall_uninsfile.stdout }}"
-
-        - name: "SA.02.07 - list dir of C:/Program Files/*"
-          debug:
-            var: dir_of_tmpdir_end.stdout_lines
+            var: dir_at_end.stdout_lines
 
         - name: "SA.02.08 - Delete temp C:/Program Files/Opsware/ agent directory"
           win_file:
