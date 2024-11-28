@@ -47,7 +47,7 @@
   gather_facts: false
   vars:
     tmpdir: "C:/Windows/Temp/opsware-agent-windows/"  
-    sagentdir: "C:/Program Files/Opsware/agent/pylibs3/cog/uninstall/"  
+    sagentdir: "C:/PROGRA~1/Opsware/agent/pylibs3/cog/uninstall/"  
     saagtfile: "sa-agent_stdout.log"   # the one created by bat file
     redirfile: "sa-agent_rdiout.log"   # the redirect
     uninsfile: "sa-agent_uninstall_stdout.log" # the one created by bat file (uninstall)
@@ -70,34 +70,35 @@
         # run UNINSTALL
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: "SA.02.01 - Run command"
-          win_command: '{{ sagentdir }}agent_uninstall.bat --force 2>&1'
+          win_command: "{{ sagentdir }}agent_uninstall.bat --force 2>&1"
           args:
             chdir: "{{ sagentdir }}"
           register: script_run
-
-        - name: "SA.02.02 - Display result from uninstall"
-          debug:
-            msg: |-
-              "aeven_rediout {{ script_run.stdout }}"    
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # get the redirfile
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: "List dir after uninstall"
           run_once: true
-          win_shell: Get-ChildItem -Path "C:/Program Files/*"
+          win_shell: 'Get-ChildItem -Path "C:/Program Files/*"'
           register: dir_at_end
+        
         - name: "list dir of C:/Program Files/*"
           debug:
             var: dir_at_end.stdout_lines
 
         - name: "SA.02.08 - Delete temp C:/Program Files/Opsware/ agent directory"
           win_file:
-            path: "C:/Program Files/Opsware/"
+            path: '"C:/Program Files/Opsware/"'
             state: absent
 
       when: uninstall_exists
-    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+      always:
+        - name: "SA.02.02 - Display result from uninstall"
+          debug:
+            msg: |-
+              "aeven_rediout {{ script_run.stdout }}"    
+   # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     # INSTALL block
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     - name: INSTALL block
