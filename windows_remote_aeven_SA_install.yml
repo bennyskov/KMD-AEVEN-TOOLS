@@ -64,7 +64,6 @@
             var: path_out.stdout_lines    
     
         - name: "SA.03 - Delete {{ tmpdir }} directory on {{ hostlist }}"
-          run_once: true
           win_file:
             path: "{{ tmpdir }}"
             state: absent
@@ -87,7 +86,6 @@
               dest: "{{ tmpdir }}" 
 
         - name: "SA.06 - List {{ tmpdir }} BEFORE"
-          run_once: true
           win_shell: Get-ChildItem -Path {{ tmpdir }}
           register: dir_of_tmpdir_before
         
@@ -99,7 +97,6 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: "SA.09 - Run command"
           win_command: "{{ tmpdir }}sa_agent_install.bat > {{ tmpdir }}{{ redirfile }} 2>&1"
-          ignore_errors: yes      
           args:
             chdir: "{{ tmpdir }}"
           register: script_run
@@ -109,10 +106,10 @@
             var: script_run.stdout_lines
 
         - name: "SA.11 - List {{ tmpdir }} AFTER"
-          run_once: true
           ignore_errors: yes      
           win_shell: Get-ChildItem -Path {{ tmpdir }}
           register: dir_of_tmpdir_after
+
         - name: "SA.12 - list dir of {{ tmpdir }} at the AFTER"
           debug:
             var: dir_of_tmpdir_after.stdout_lines 
@@ -122,37 +119,28 @@
         # aeven_rediout    redirfile: "sa-agent_rdiout.log"   # the redirect
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-        - name: "SA.13 - Read content from {{ saagtfile }}"  # the one created by bat file
-          run_once: true
-          win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ saagtfile }}"
-          register: file_content_saagtfile
-        
-        - name: "SA.14 - Display {{ saagtfile }} content"
-          debug:
-            msg: |-
-              "aeven_saagout {{ file_content_saagtfile.stdout }}"
-
-        - name: "SA.15 - Read content from {{ redirfile }}" # the redirect
-          run_once: true
+        - name: "SA.13 - Read content from {{ redirfile }}" # the redirect
+          ignore_errors: yes      
           win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ redirfile }}"
           register: file_content_redirout
         
-        - name: "SA.16 - Display {{ redirfile }} content"
+        - name: "SA.14 - Display {{ redirfile }} content"
           debug:
             msg: |-
               "aeven_rediout {{ file_content_redirout.stdout }}"      
 
-        - name: "SA.17 - List {{ tmpdir }} at the end"
-          run_once: true
-          win_shell: Get-ChildItem -Path {{ tmpdir }}
-          register: dir_of_tmpdir_end
-
-        - name: "SA.18 - list dir of {{ tmpdir }} at the end"
+        - name: "SA.15 - Read content from {{ saagtfile }}"  # the one created by bat file
+          ignore_errors: yes      
+          win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ saagtfile }}"
+          register: file_content_saagtfile
+        
+        - name: "SA.16 - Display {{ saagtfile }} content"
           debug:
-            var: dir_of_tmpdir_end.stdout_lines 
+            msg: |-
+              "aeven_saagout {{ file_content_saagtfile.stdout }}"
 
       always:
-        - name: "SA.19 - Delete temp {{ tmpdir }} agent directory"
+        - name: "SA.17 - Delete temp {{ tmpdir }} agent directory"
           win_file:
             path: "{{ tmpdir }}"
             state: absent
