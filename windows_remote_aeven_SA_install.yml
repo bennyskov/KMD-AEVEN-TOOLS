@@ -171,6 +171,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # aeven_saagout    saagtfile: "sa-agent_install.log"   # the one created by bat file
         # aeven_rediout    redirfile: "sa-agent_rdiout.log"   # the redirect
+        # aeven_uninout    uninsfile: "sa-agent_uninstall_stdout.log"  the one created by bat file (uninstall)
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: "SA.03.13 - Read content from {{ redirfile }}" # the redirect
