@@ -55,6 +55,11 @@
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     # Uninstall
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------    
+    - name: "SA.01.01 - stop watchdog"
+      win_shell: 'Stop-Process -Name "watchdog" -Force -ErrorAction SilentlyContinue)'
+      ignore_errors: yes
+      register: stop_service     
+
     - name: "SA.01.01 - check if agent_uninstall exists"
       win_shell: '[bool](Test-Path "{{ sagentdir }}agent_uninstall.bat" -ErrorAction SilentlyContinue)'
       ignore_errors: yes
