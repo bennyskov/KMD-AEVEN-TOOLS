@@ -206,6 +206,10 @@
           debug:
             var: dir_of_tmpdir_after.stdout_lines 
 
+        - name: "SA.03.19 - start agent service"
+          ignore_errors: yes
+          win_shell: "Get-Service -Name OpswareAgent | Stop-Service -Force -PassThru | Set-Service -StartupType automatic | Start-Service -PassThru"
+          register: stop_service
 
         - name: "SA.03.19 - check if mid file exists"
           win_shell: '[bool](Test-Path "C:/PROGRA~1/COMMON~1/Opsware/etc/agent/mid")'
