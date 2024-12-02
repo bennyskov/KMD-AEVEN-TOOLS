@@ -115,6 +115,22 @@
           debug:
             msg: |-
               "aeven_foutxml {{ file6.stdout }}"
+
+
+        - name: "2.A2.10. Get-LocalGroup 'Read Only' to verify if group exists"
+          # win_shell: "[string](Get-WmiObject Win32_Volume -ErrorAction SilentlyContinue | Where-Object { $_.DriveType -eq 3 -and $_.DriveLetter }).Name"
+          win_shell: "(Get-WmiObject Win32_Volume -ErrorAction SilentlyContinue | Where-Object { $_.DriveType -eq 3 -and $_.DriveLetter }).Name"
+          ignore_errors: yes
+          register: win_driveletters_info
+          when: 
+            - data.username is match("pimadm_win_ro")
+            
+        - name: "2.A2.2. set facts of driveletters"
+          set_fact:
+            driveletters: "{{ win_driveletters_info.stdout }}"
+          when: 
+            - data.username is match("pimadm_win_ro")
+
       always:
         - name: Delete directory {{ tmpdir }} 
           win_file:
