@@ -126,6 +126,32 @@
           set_fact:
             driveletters: "{{ win_driveletters_info.stdout }}"
 
+        - name: Example task
+          win_shell: |
+            Write-Host "Processing {{ item }}"
+            {
+              $Path = $Drive.Root
+              $Acl = Get-Acl $Path
+              $DenyRule = New-Object System.Security.AccessControl.FileSystemAccessRule("pimadm_win_ro", "Write, Modify", "Deny")
+
+              # Check if the rule already exists
+              $ruleExists = $Acl.Access | Where-Object {
+                $_.IdentityReference -eq "pimadm_win_ro" -and
+                $_.FileSystemRights -eq "Write, Modify" -and
+                $_.AccessControlType -eq "Deny"
+              }
+
+              if (-not $ruleExists) {
+                # $Acl.SetAccessRule($DenyRule)
+                # Set-Acl $Path $Acl
+                Write-Output "Deny rule has been added."
+              } else {
+                Write-Output "Deny rule already exists."
+              }
+            }
+          loop: "{{ stdout_lines }}"
+          args:
+            no_profile: true
       # always:
       #   - name: Delete directory {{ tmpdir }} 
       #     win_file:
