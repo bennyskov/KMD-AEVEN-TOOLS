@@ -149,7 +149,7 @@
             } else {
                 write-host 'Deny rule already exists.'
             }
-          loop: "{{ driveletters }}"
+          loop: "{{ win_driveletters_info.stdout_lines }}"
           args:
             no_profile: true
       # always:
