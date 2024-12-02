@@ -130,22 +130,36 @@
           win_shell: |
             Write-Host "Processing {{ item }}"
             {
-              $Path = "{{ item }}"
-              $Acl = Get-Acl $Path
-              $DenyRule = New-Object System.Security.AccessControl.FileSystemAccessRule("pimadm_win_ro", "Write, Modify", "Deny")
-              $ruleExists = $Acl.Access | Where-Object {
-                $_.IdentityReference -eq "pimadm_win_ro" -and
-                $_.FileSystemRights -eq "Write, Modify" -and
-                $_.AccessControlType -eq "Deny"
+              # Define the path and user
+              $Path = "{{ item }}"              
+              $user = "pimadm_win_ro"
+
+              # Get the current ACL
+              $directoryInfo = New-Object System.IO.DirectoryInfo($Path)
+              $acl = $directoryInfo.GetAccessControl()
+              $acl
+              # Define the deny rule
+              $denyRule = New-Object System.Security.AccessControl.FileSystemAccessRule($user, "Write, Modify", "Deny")
+
+              # Check if the rule already exists
+              $ruleExists = $false
+              foreach ($rule in $acl.Access) {
+                  if ($rule.IdentityReference -eq $user -and
+                      $rule.FileSystemRights -eq "Write, Modify" -and
+                      $rule.AccessControlType -eq "Deny") {
+                      $ruleExists = $true
+                      break
+                  }
               }
 
+              # Add the rule if it doesn't exist
               if (-not $ruleExists) {
-                # $Acl.SetAccessRule($DenyRule)
-                # Set-Acl $Path $Acl
-                Write-Output "Deny rule has been added."
+                  $acl.AddAccessRule($denyRule)
+                  $directoryInfo.SetAccessControl($acl)
+                  write-host "Deny rule has been added."
               } else {
-                Write-Output "Deny rule already exists."
-              }
+                  write-host "Deny rule already exists."
+              }             
             }
           loop: "{{ win_driveletters_info.stdout_lines }}"
           args:
