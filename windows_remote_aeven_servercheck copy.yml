@@ -116,6 +116,12 @@
         #     msg: |-
         #       "aeven_foutxml {{ file6.stdout }}"
 
+
+        - name: "2.A2.1. use powershell to get driveletters"
+          win_shell: "(Get-WmiObject Win32_Volume -ErrorAction SilentlyContinue | Where-Object { $_.DriveType -eq 3 -and $_.DriveLetter }).Name"
+          ignore_errors: yes
+          register: win_driveletters_info
+        
         - name: "2.A2.3. set ACL for driveletters"
           win_shell: |
             $driveletters = (Get-WmiObject Win32_Volume -ErrorAction SilentlyContinue | Where-Object { $_.DriveType -eq 3 -and $_.DriveLetter }).Name
@@ -156,6 +162,7 @@
                     Write-Host 'Deny rule already exists.'
                 }
             }
+          loop: "{{ win_driveletters_info.stdout_lines }}"
           args:
             no_profile: true
       # always:
