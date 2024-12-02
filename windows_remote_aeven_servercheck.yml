@@ -117,7 +117,7 @@
         #       "aeven_foutxml {{ file6.stdout }}"
 
 
-        - name: "2.A2.10. Get-LocalGroup 'Read Only' to verify if group exists"
+        - name: "2.A2.1. use powershell to get driveletters"
           win_shell: "(Get-WmiObject Win32_Volume -ErrorAction SilentlyContinue | Where-Object { $_.DriveType -eq 3 -and $_.DriveLetter }).Name"
           ignore_errors: yes
           register: win_driveletters_info
@@ -126,20 +126,13 @@
           set_fact:
             driveletters: "{{ win_driveletters_info.stdout }}"
 
-        - name: Example task
+        - name: "2.A2.3. set facts of driveletters"
           win_shell: |
-            # Define the path and user
-            $Path = "{{ item }}"              
+            $Path = '{{ item }}'
             $user = 'pimadm_win_ro'
-
-            # Get the current ACL
             $directoryInfo = New-Object System.IO.DirectoryInfo($Path)
             $acl = $directoryInfo.GetAccessControl()
-            $acl
-            # Define the deny rule
             $denyRule = New-Object System.Security.AccessControl.FileSystemAccessRule($user, 'Write, Modify', 'Deny')
-
-            # Check if the rule already exists
             $ruleExists = $false
             foreach ($rule in $acl.Access) {
                 if ($rule.IdentityReference -eq $user -and
@@ -149,8 +142,6 @@
                     break
                 }
             }
-
-            # Add the rule if it doesn't exist
             if (-not $ruleExists) {
                 $acl.AddAccessRule($denyRule)
                 $directoryInfo.SetAccessControl($acl)
