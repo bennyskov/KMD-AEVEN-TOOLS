@@ -51,115 +51,73 @@
       # run check_for_persistent_route
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
       block:
-        # - name: Delete directory {{ tmpdir }} 
-        #   win_file:
-        #     path: "{{ tmpdir }}"
-        #     state: absent
+        - name: Delete directory {{ tmpdir }} 
+          win_file:
+            path: "{{ tmpdir }}"
+            state: absent
 
-        # - name: copy scripts
-        #   win_copy: 
-        #     src: scripts/
-        #     dest: "{{ tmpdir }}"
+        - name: copy scripts
+          win_copy: 
+            src: scripts/
+            dest: "{{ tmpdir }}"
 
-        # - name: Run powershell
-        #   win_shell: "{{ tmpdir }}{{ cmdexec }}"
-        #   args:
-        #     chdir: "{{ tmpdir }}"
-        #   register: running_program
-        # - name: "pass file1"
-        #   debug:
-        #     msg: |-
-        #       "aeven_fstdout {{ running_program.stdout }}"
-        
-        # - name: "Read file2"
-        #   run_once: true
-        #   win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_foutcsv }}"
-        #   register: file2
-        # - name: "pass file2"
-        #   debug:
-        #     msg: |-
-        #       "aeven_foutcsv {{ file2.stdout }}"
-
-        # - name: "Read file3"
-        #   run_once: true
-        #   win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fsrvcsv }}"
-        #   register: file3
-        # - name: "pass file3"
-        #   debug:
-        #     msg: |-
-        #       "aeven_fsrvcsv {{ file3.stdout }}"
-
-        # - name: "Read file4"
-        #   run_once: true
-        #   win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fsftcsv }}"
-        #   register: file4
-        # - name: "pass file4"
-        #   debug:
-        #     msg: |-
-        #       "aeven_fsftcsv {{ file4.stdout }}"
-        
-        # - name: "Read file5"
-        #   run_once: true
-        #   win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_foutjsn }}"
-        #   register: file5
-        # - name: "pass file5"
-        #   debug:
-        #     msg: |-
-        #       "aeven_foutjsn {{ file5.stdout }}"
-
-        # - name: "Read file6"
-        #   run_once: true
-        #   win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_foutxml }}"
-        #   register: file6
-        # - name: "pass file6"
-        #   debug:
-        #     msg: |-
-        #       "aeven_foutxml {{ file6.stdout }}"
-
-        - name: "2.A2.3. set ACL for driveletters"
-          win_shell: |
-            $driveletters = (Get-WmiObject Win32_Volume -ErrorAction SilentlyContinue | Where-Object { $_.DriveType -eq 3 -and $_.DriveLetter }).Name
-            foreach ($driveletter in $driveletters) {
-                Write-Host $driveletter
-                # Define the driveletter and user
-                $user = 'pimadm_win_ro'
-
-                # Get the current ACL
-                $directoryInfo = New-Object System.IO.DirectoryInfo($driveletter)
-                $acl = $directoryInfo.GetAccessControl()
-
-                # Define the deny rule
-                $denyRule = New-Object System.Security.AccessControl.FileSystemAccessRule($user, 'Write, Modify', 'Deny')
-
-                # Check if the rule already exists
-                $ruleExists = $false
-                foreach ($rule in $acl.Access) {
-                    $identity = $rule.IdentityReference.Value.Split('\')[-1]  # Extract the username part
-                    if ($identity -eq $user -and
-                        ($rule.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::Write) -and
-                        ($rule.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::Modify) -and
-                        $rule.AccessControlType -eq 'Deny') {
-                        $ruleExists = $true
-                        Write-Host "$identity == $user"
-                        break
-                    }
-                    Write-Host "$identity NOT EQ $user"
-                }
-
-                # Add the rule if it doesn't exist
-                if (-not $ruleExists) {
-                    $denyRule | Format-List
-                    $acl.AddAccessRule($denyRule)
-                    $directoryInfo.SetAccessControl($acl)
-                    Write-Host 'Deny rule has been added.'
-                } else {
-                    Write-Host 'Deny rule already exists.'
-                }
-            }
+        - name: Run powershell
+          win_shell: "{{ tmpdir }}{{ cmdexec }}"
           args:
-            no_profile: true
-      # always:
-      #   - name: Delete directory {{ tmpdir }} 
-      #     win_file:
-      #       path: "{{ tmpdir }}"
-      #       state: absent
+            chdir: "{{ tmpdir }}"
+          register: running_program
+        - name: "pass file1"
+          debug:
+            msg: |-
+              "aeven_fstdout {{ running_program.stdout }}"
+        
+        - name: "Read file2"
+          run_once: true
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_foutcsv }}"
+          register: file2
+        - name: "pass file2"
+          debug:
+            msg: |-
+              "aeven_foutcsv {{ file2.stdout }}"
+
+        - name: "Read file3"
+          run_once: true
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fsrvcsv }}"
+          register: file3
+        - name: "pass file3"
+          debug:
+            msg: |-
+              "aeven_fsrvcsv {{ file3.stdout }}"
+
+        - name: "Read file4"
+          run_once: true
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fsftcsv }}"
+          register: file4
+        - name: "pass file4"
+          debug:
+            msg: |-
+              "aeven_fsftcsv {{ file4.stdout }}"
+        
+        - name: "Read file5"
+          run_once: true
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_foutjsn }}"
+          register: file5
+        - name: "pass file5"
+          debug:
+            msg: |-
+              "aeven_foutjsn {{ file5.stdout }}"
+
+        - name: "Read file6"
+          run_once: true
+          win_shell: "Get-Content -LiteralPath {{ tmpdir }}{{ aeven_foutxml }}"
+          register: file6
+        - name: "pass file6"
+          debug:
+            msg: |-
+              "aeven_foutxml {{ file6.stdout }}"
+              
+      always:
+        - name: Delete directory {{ tmpdir }} 
+          win_file:
+            path: "{{ tmpdir }}"
+            state: absent
