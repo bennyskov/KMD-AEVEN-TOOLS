@@ -37,6 +37,7 @@
 # Installation playbook of Opsware agent on windows
 #
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# aeven_fstdout    stdout_file: "tool_aeven_servercheck_ITM_[date And Time]_staradc3001_stdout"   # created by frwk_toolsview.py NOT IN PLAYBOOK
 # aeven_saagout    saagtfile: "sa-agent_install.log"   # the one created by bat file
 # aeven_rediout    redirfile: "sa-agent_rdiout.log"   # the redirect
 # aeven_uninout    uninsfile: "sa-agent_uninstall_stdout.log"  the one created by bat file (uninstall)
@@ -69,16 +70,17 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # run UNINSTALL
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: "SA.02.02 - stop agent service"
-          ignore_errors: yes
-          win_shell: "Get-Service -Name OpswareAgent | Stop-Service -Force -PassThru | Set-Service -StartupType disabled"
-          register: stop_service
-
         - name: "SA.02.01 - kill any process running"
           ignore_errors: yes
           win_shell: "Get-WmiObject Win32_Process -filter { commandLine LIKE '%Opsware%' AND NOT commandLine LIKE '%Get-WmiObject%' } | ForEach-Object { $_.Terminate() }"
           register: stop_watchdog     
         
+        - name: "SA.02.02 - stop agent service"
+          ignore_errors: yes
+          # win_shell: "Get-Service -Name OpswareAgent | Stop-Service -Force -PassThru | Set-Service -StartupType disabled"
+          win_shell: "Get-Service -Name OpswareAgent | Stop-Service -Force -PassThru"
+          register: stop_service
+
         - name: "SA.02.03 - Run uninstall command"
           win_command: "{{ sagentdir }}agent_uninstall.bat --force 2>&1"
           args:
@@ -152,7 +154,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # run installer
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: "SA.03.09 - Run command"
+        - name: "Run sa_agent_install.bat"
           win_command: "{{ tmpdir }}sa_agent_install.bat > {{ tmpdir }}{{ redirfile }} 2>&1"
           args:
             chdir: "{{ tmpdir }}"
@@ -208,7 +210,7 @@
 
         - name: "SA.03.19 - start agent service"
           ignore_errors: yes
-          win_shell: "Get-Service -Name OpswareAgent | Stop-Service -Force -PassThru | Set-Service -StartupType automatic | Start-Service -PassThru"
+          win_shell: "Get-Service -Name OpswareAgent | Stop-Service -Force -PassThru | Start-Service"
           register: stop_service
 
         - name: "SA.03.19 - check if mid file exists"

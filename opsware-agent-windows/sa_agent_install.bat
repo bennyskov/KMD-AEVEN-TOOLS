@@ -33,7 +33,7 @@ Rem ************************************************************
 set INSTALL_LOG=C:\Windows\Temp\opsware-agent-windows\sa-agent_install.log
 set INSTALL_PATH=C:\Windows\Temp\opsware-agent-windows
 set INSTALL_PARAMETERS= -f -r --force_new_device --force_full_hw_reg --crypto_dir %INSTALL_PATH% --logfile %INSTALL_LOG% --loglevel info --opsw_gw_addr 
-CD /D %INSTALL_PATH%
+CD /D %WORKDIR%
 
 cls
 echo.

@@ -29,7 +29,22 @@
     - set_fact:
         ansible_become_method: runas
         ansible_become_user: system
-        
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# now working on {{ hostlist }} host
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+#
+# server configuration collect
+#
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# aeven_fstdout    stdout_file: "tool_aeven_servercheck_ITM_[date And Time]_staradc3001_stdout"   # created by frwk_toolsview.py NOT IN PLAYBOOK
+# aeven_foutcsv    aeven_foutcsv: "servercheck_aeven_foutcsv.csv"   # the csv file of collected
+# aeven_foutjsn    aeven_foutjsn: "servercheck_aeven_foutjsn.json"  # the json file of collected
+# aeven_foutxml    aeven_foutxml: "servercheck_aeven_foutxml.xml"   # the xml file of collected
+# aeven_fsrvcsv    aeven_fsrvcsv: "servercheck_aeven_fsrvcsv.csv"   # filtered window services
+# aeven_fsftall    aeven_fsftall: "servercheck_aeven_fsftall.csv"   # ALL window services
+# aeven_fsftcsv    aeven_fsftcsv: "servercheck_aeven_fsftcsv.csv"   # filtered installed programs 
+# aeven_fsrvall    aeven_fsrvall: "servercheck_aeven_fsrvall.csv"   # ALL installed programs 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 - name: Get script result on windows nodes
   hosts:  "{{ hostlist }}"
   become: true
