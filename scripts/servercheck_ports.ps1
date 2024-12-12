@@ -159,10 +159,9 @@ $messageAarray += $message
 $toolName   = 'ansible-3'; $target = 'localhost'; $port = 5985
 $message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
-
 $messageAarray
 $scriptdir                  = "C:/Windows/Temp/servercheck/"
-$portFilename               = "${scriptdir}/servercheck_aeven_portcheck.csv"
+$portFilename               = "${scriptdir}/servercheck_aeven_portchk.csv"
 if ([bool](Test-Path $scriptdir)) {
     $messageAarray | Out-File -FilePath $portFilename -Encoding utf8 -ErrorAction SilentlyContinue
 }

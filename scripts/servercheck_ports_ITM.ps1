@@ -105,7 +105,7 @@ $csvObjects | foreach-object {
     }
 }
 $scriptdir = "C:/Windows/Temp/servercheck/"
-$portFilename = "${scriptdir}/servercheck_aeven_portcheck_ITM.csv"
+$portFilename = "${scriptdir}/servercheck_aeven_portitm.csv"
 $newlist | Format-Table * | Out-string -Width 300
 if ([bool](Test-Path $scriptdir)) {
     $newlist | Export-Csv $portFilename -NoTypeInformation -Encoding UTF8 -Delimiter ';'
