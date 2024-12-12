@@ -1,17 +1,17 @@
-- name: Create OS groups
+- name: 'A.0.1 Create OS groups'
   hosts: '{{ hostlist }}'
   become: false
   gather_facts: false
   connection: local
   tasks:
-    - name: Create OS group
+    - name: 'A.0.2 Create OS group'
       group_by:
         key: 'machine_{{ ostype }}'
       changed_when: false
       when: ostype is defined
       delegate_to: localhost
 
-- name: Socks tunnel setup
+- name: 'A.0.3 Socks tunnel setup'
   hosts: 'machine_windows'
   gather_facts: false
   tasks:
@@ -25,7 +25,6 @@
         acc_id: '{{ blueid_shortcode }}'
         transaction_id: '{{ tower_job_id }}'
         trans_num: '{{ tower_job_id }}'
-
     - set_fact:
         ansible_become_method: runas
         ansible_become_user: system
@@ -44,115 +43,97 @@
 # aeven_fsftall    aeven_fsftall: "servercheck_aeven_fsftall.csv"   # ALL window services
 # aeven_fsftcsv    aeven_fsftcsv: "servercheck_aeven_fsftcsv.csv"   # filtered installed programs
 # aeven_fsrvall    aeven_fsrvall: "servercheck_aeven_fsrvall.csv"   # ALL installed programs
+# aeven_portchk    aeven_portchk: 'servercheck_aeven_portchk.csv'   # portcheck aeven tools
+# aeven_portitm    aeven_portitm: 'servercheck_aeven_portitm.csv'   # portcheck for ITM
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: Get script result on windows nodes
+- name: 'A.1.0 Iterate over files and read content'
   hosts: '{{ hostlist }}'
-  become: true
   run_once: true
   ignore_errors: yes
   gather_facts: false
   vars:
     tmpdir: 'C:/Windows/Temp/servercheck/'
     cmdexec: 'servercheck.ps1'
-    cmdexecPort: 'servercheck.ps1'
-    cmdexecPortITM: 'servercheck.ps1'
-    aeven_fstdout: 'servercheck_aeven_fstdout.log'
-    aeven_foutcsv: 'servercheck_aeven_foutcsv.csv'
-    aeven_fsrvcsv: 'servercheck_aeven_fsrvcsv.csv'
-    aeven_fsftcsv: 'servercheck_aeven_fsftcsv.csv'
-    aeven_foutjsn: 'servercheck_aeven_foutjsn.json'
-    aeven_foutxml: 'servercheck_aeven_foutxml.xml'
-    aeven_fsrvall: 'servercheck_aeven_fsrvall.csv'
-    aeven_fsftall: 'servercheck_aeven_fsftall.csv'
-    aeven_portchk: 'servercheck_aeven_portchk.csv'
-    aeven_portitm: 'servercheck_aeven_portitm.csv'
-    # NT_filesToDownload : ['servercheck_aeven_foutxml.xml','servercheck_aeven_foutcsv.csv','servercheck_aeven_foutjsn.json','servercheck_aeven_fsftcsv.csv','servercheck_aeven_fsrvcsv.csv','servercheck_aeven_fsrvall.csv','servercheck_aeven_fsftall.csv','servercheck_aeven_portcheck.csv','servercheck_aeven_portcheck_ITM.csv']
-    # - name: Copy list of files to local directory
-    #   hosts: localhost
-    #   vars:
-    #     dirFrom: /path/to/source/
-    #     dirTo: /path/to/destination/
-    #     files_to_copy: ['file1.txt', 'file2.txt', 'file3.txt']
-
-    #   tasks:
-    #     - name: Copy files to local directory
-    #       copy:
-    #         src: "{{ dirFrom }}{{ item }}"
-    #         dest: "{{ dirTo }}"
-    #       loop: "{{ files_to_copy }}
+    cmdexecPort: 'servercheck_ports.ps1'
+    cmdexecPortITM: 'servercheck_ports_ITM.ps1'
+    files_to_read:
+      aeven_fstdout: 'servercheck_aeven_fstdout.log'
+      aeven_foutcsv: 'servercheck_aeven_foutcsv.csv'
+      aeven_fsrvcsv: 'servercheck_aeven_fsrvcsv.csv'
+      aeven_fsftcsv: 'servercheck_aeven_fsftcsv.csv'
+      aeven_foutjsn: 'servercheck_aeven_foutjsn.json'
+      aeven_foutxml: 'servercheck_aeven_foutxml.xml'
+      aeven_fsrvall: 'servercheck_aeven_fsrvall.csv'
+      aeven_fsftall: 'servercheck_aeven_fsftall.csv'
+      aeven_portchk: 'servercheck_aeven_portchk.csv'
+      aeven_portitm: 'servercheck_aeven_portitm.csv'
   tasks:
-    - name: run check_for_persistent_route
+    - name: 'A.1.1 run servercheck and collect files'
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-      # run check_for_persistent_route
+      # run servercheck and collect files
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
       block:
-        - name: Delete directory {{ tmpdir }}
+        - name: 'A.1.2 Delete directory {{ tmpdir }}'
           win_file:
             path: '{{ tmpdir }}'
             state: absent
 
-        - name: copy scripts
+        - name: 'A.1.3 copy github scripts'
           win_copy:
             src: scripts/
             dest: '{{ tmpdir }}'
-
-        - name: Run powershell
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # run servercheck.ps1
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: 'A.1.4 Run {{ cmdexec }}'
           win_shell: '{{ tmpdir }}{{ cmdexec }}'
           args:
             chdir: '{{ tmpdir }}'
           register: running_program
-        - name: 'pass file1'
+        - name: 'A.1.5 pass stdout'
           debug:
-            msg: |-
-              "aeven_fstdout {{ running_program.stdout }}"
-
-        - name: 'Read file2'
-          run_once: true
-          win_shell: 'Get-Content -LiteralPath {{ tmpdir }}{{ aeven_foutcsv }}'
-          register: file2
-        - name: 'pass file2'
+            msg: 'aeven_fstdout {{ running_program.stdout }}'
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # run cmdexecPort
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: 'A.1.6 Run {{ cmdexecPort }}'
+          win_shell: '{{ tmpdir }}{{ cmdexecPort }}'
+          args:
+            chdir: '{{ tmpdir }}'
+          register: running_program
+        - name: '"A.1.7 pass stdout'
           debug:
-            msg: |-
-              "aeven_foutcsv {{ file2.stdout }}"
-
-        - name: 'Read file3'
-          run_once: true
-          win_shell: 'Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fsrvcsv }}'
-          register: file3
-        - name: 'pass file3'
+            msg: 'aeven_fstdout {{ running_program.stdout }}'
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # run servercheck_ports_ITM
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: 'A.1.8 Run {{ cmdexecPortITM }}'
+          win_shell: '{{ tmpdir }}{{ cmdexecPortITM }}'
+          args:
+            chdir: '{{ tmpdir }}'
+          register: running_program
+        - name: 'A.1.9 pass stdout'
           debug:
-            msg: |-
-              "aeven_fsrvcsv {{ file3.stdout }}"
+            msg: 'aeven_fstdout {{ running_program.stdout }}'
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # loop Read files and get debug content
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: 'A.1.9 Read files and debug content'
+          win_shell: 'Get-Content -LiteralPath {{ tmpdir }}{{ item.value }}'
+          register: file_content
+          loop: '{{ files_to_read | dict2items }}'
+          loop_control:
+            label: '{{ item.key }}'
 
-        - name: 'Read file4'
-          run_once: true
-          win_shell: 'Get-Content -LiteralPath {{ tmpdir }}{{ aeven_fsftcsv }}'
-          register: file4
-        - name: 'pass file4'
+        - name: 'A.1.2 file content to msg'
           debug:
-            msg: |-
-              "aeven_fsftcsv {{ file4.stdout }}"
+            msg: 'Content of {{ item.item.key }}: {{ item.stdout }}'
+          loop: '{{ file_content.results }}'
+          loop_control:
+            label: '{{ item.item.key }}'
 
-        - name: 'Read file5'
-          run_once: true
-          win_shell: 'Get-Content -LiteralPath {{ tmpdir }}{{ aeven_foutjsn }}'
-          register: file5
-        - name: 'pass file5'
-          debug:
-            msg: |-
-              "aeven_foutjsn {{ file5.stdout }}"
-
-        - name: 'Read file6'
-          run_once: true
-          win_shell: 'Get-Content -LiteralPath {{ tmpdir }}{{ aeven_foutxml }}'
-          register: file6
-        - name: 'pass file6'
-          debug:
-            msg: |-
-              "aeven_foutxml {{ file6.stdout }}"
-
-      always:
-        - name: Delete directory {{ tmpdir }}
-          win_file:
-            path: '{{ tmpdir }}'
-            state: absent
+      # always:
+      #   - name: Delete directory {{ tmpdir }}
+      #     win_file:
+      #       path: '{{ tmpdir }}'
+      #       state: absent
