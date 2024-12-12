@@ -37,23 +37,21 @@ Remove-Variable * -ErrorAction SilentlyContinue
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 function get-IPPort {
     param (
-        [string]$toolName,
-        [string]$target,
-        [int]$port
+        $target_IP,
+        [int]$target_port
     )
-    $now = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
     $TCPtimeout = 100
     $tcpobject = New-Object System.Net.Sockets.TcpClient
     try {
-        $connect = $tcpobject.BeginConnect($target, $port, $null, $null)
+        $connect = $tcpobject.BeginConnect($target_IP, $target_port, $null, $null)
         $wait = $connect.AsyncWaitHandle.WaitOne($TCPtimeout, $false)
         if (!$wait) {
             $tcpobject.Close()
-            $message = "timeout - closed"
+            $result = "timeout - closed"
         } else {
             $tcpobject.EndConnect($connect) | Out-Null
             $tcpobject.Close()
-            $message = "success - open"
+            $result = "success - open"
         }
     } catch {
         $tcpobject.Close()
@@ -62,108 +60,54 @@ function get-IPPort {
         if ($errorDetails) {
             Write-Host "Error details: $($errorDetails.Exception)"
         }
-        $message = "error - closed ($message)"
+        $result = "error - closed ($result)"
     }
-    [string]$target = $target
-    [string]$port = $port
-    [string]$message = $message
-    [string]$hostname = $env:COMPUTERNAME.ToLower()
 
-    $NetworkAdapterConfiguration= Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Filter IPENABLED=TRUE
-    [string]$IPAddress = $NetworkAdapterConfiguration.IPAddress[0]
-    [string]$IPSubnet = $NetworkAdapterConfiguration.IPSubnet
-    [string]$IPGateway = $NetworkAdapterConfiguration.DefaultIPGateway
-    $message   = ( "{0,-23} ; {1,-20}  ; {2,-20} ; {3,-20} ; {4,-20} ; {5,-20} ; {6,-20} ; {7,-20}; {8,23}" -f $hostname, $IPAddress, $IPSubnet, $IPGateway, $toolName, $target, $port, $message, $now)
-    return $message
+    return $result
 }
-$messageAarray = @()
-# MSA             : 84.255.75.1:3001,84.255.75.2:3001
-# BTA DFK/KRFO    : 10.233.70.1:3001,10.233.70.2:3001
-# BTA Eboks       : 10.226.80.1:3001,10.226.80.2:3001
-# BTA LMST        : 10.233.78.1:3001,10.233.78.2:3001
-$message   = ( "{0,-23} ; {1,-20}  ; {2,-20} ; {3,-20} ; {4,-20} ; {5,-20} ; {6,-20} ; {7,-20}; {8,-23}" -f "hostname", "IPAddress", "IPSubnet", "IPGateway", "toolName", "target", "port", "message", "test Time")
-$messageAarray += $message
-
-$toolName  = 'Opsware-MSA-1'; $target = '84.255.75.1'; $port = 3001
-$message   = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$toolName   = 'Opsware-MSA-2'; $target = '84.255.75.2'; $port = 3001
-$message    = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$toolName   = 'Opsware-BTA-DFK-1'; $target = '10.233.70.1'; $port = 3001
-$message    = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$toolName   = 'Opsware-BTA-DFK-2'; $target = '10.233.70.2'; $port = 3001
-$message    = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$toolName   = 'Opsware-BTA-Eboks-1'; $target = '10.226.80.1'; $port = 3001
-$message    = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$toolName   = 'Opsware-BTA-Eboks-2'; $target = '10.226.80.2'; $port = 3001
-$message    = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$toolName   = 'Opsware-BTA-LMST-1'; $target = '10.233.78.1'; $port = 3001
-$message    = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$toolName   = 'Opsware-BTA-LMST-2'; $target = '10.233.78.2'; $port = 3001
-$message    = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$toolName   = 'Opsware-3'; $target = '84.255.75.1'; $port = 1002
-$message    = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$toolName   = 'Opsware-4'; $target = '84.255.75.2'; $port = 1002
-$message    = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$toolName   = 'OMI-1'; $target = '84.255.75.1'; $port = 383
-$message    = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$toolName   = 'OMI-2'; $target = '84.255.75.2'; $port = 383
-$message    = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$toolName   = 'OMI-3'; $target = '84.255.75.1'; $port = 3128
-$message    = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$toolName   = 'OMI-4'; $target = '84.255.75.2'; $port = 3128
-$message    = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$toolName   = 'UCMDB-1'; $target = '84.255.75.4'; $port = 2738
-$message    = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$toolName   = 'UCMDB-2'; $target = '84.255.75.5'; $port = 2738
-$message    = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$toolName   = 'ansible-1'; $target = '84.255.94.31'; $port = 8081
-$message    = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$toolName   = 'ansible-2'; $target = '84.255.94.33'; $port = 8081
-$message    = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$toolName   = 'ansible-3'; $target = 'localhost'; $port = 5985
-$message    = get-IPPort -toolName $toolName -target $target -port $port
-$messageAarray += $message
-
-$messageAarray
-$scriptdir                  = "C:/Windows/Temp/servercheck/"
-$portFilename               = "${scriptdir}/servercheck_aeven_portcheck.csv"
+$target_tool='ITM'
+$target_port=3660
+$from_hostname = $env:COMPUTERNAME.ToLower()
+$NetworkAdapterConfiguration= Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Filter IPENABLED=TRUE
+[string]$from_IPAddress = $NetworkAdapterConfiguration.IPAddress[0]
+[string]$from_IPSubnet = $NetworkAdapterConfiguration.IPSubnet
+[string]$from_IPGateway = $NetworkAdapterConfiguration.DefaultIPGateway
+$scriptdir = "C:/Windows/Temp/servercheck/"
+$newlist = @()
+$csvObjects = Import-Csv -Path "${scriptdir}hub_rtems_2024.csv" -Delimiter ';'
+$csvObjects | foreach-object {
+    $target_Ci = $_.rtemsCi
+	$target_Ci = $target_Ci.Trim()
+	$target_Ci = $target_Ci.ToLower()
+	$target_IP = $_.rtemsIP
+	$rtemsPairs = $_.rtemsPairs
+	$rtemsEnvir = $_.rtemsEnvir
+	$rtemsShore = $_.rtemsShore
+    if ( $target_Ci -imatch "^kmdlnxrls.*" ) {
+        $now = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
+        $result = get-IPPort -target_IP $target_IP -target_port $target_port
+        $new = @()
+        $new = New-Object System.Object
+        $new | add-member -membertype noteproperty -name from_hostname          -value $from_hostname -force
+        $new | add-member -membertype noteproperty -name from_IPAddress         -value $from_IPAddress -force
+        $new | add-member -membertype noteproperty -name from_IPSubnet          -value $from_IPSubnet -force
+        $new | add-member -membertype noteproperty -name from_IPGateway         -value $from_IPGateway -force
+        $new | add-member -membertype noteproperty -name target_port            -value $target_port -force
+        $new | add-member -membertype noteproperty -name target_Ci              -value $target_Ci -force
+        $new | add-member -membertype noteproperty -name target_IP              -value $target_IP -force
+        $new | add-member -membertype noteproperty -name target_tool            -value $target_tool -force
+        $new | add-member -membertype noteproperty -name result                 -value $result -force
+        $new | add-member -membertype noteproperty -name ITM_envir              -value $rtemsEnvir -force
+        $new | add-member -membertype noteproperty -name ITM_near_onshore       -value $rtemsShore -force
+        $new | add-member -membertype noteproperty -name ITM_pairs              -value $rtemsPairs -force
+        $new | add-member -membertype noteproperty -name test_Time              -value $now -force
+        $newlist += $new
+    }
+}
+$scriptdir = "C:/Windows/Temp/servercheck/"
+$portFilename = "${scriptdir}/servercheck_aeven_portcheck_ITM.csv"
+$newlist | Format-Table * | Out-string -Width 300
 if ([bool](Test-Path $scriptdir)) {
-    $messageAarray | Out-File -FilePath $portFilename -Encoding utf8 -ErrorAction SilentlyContinue
+    $newlist | Export-Csv $portFilename -NoTypeInformation -Encoding UTF8 -Delimiter ';'
 }
 exit($exitcode)

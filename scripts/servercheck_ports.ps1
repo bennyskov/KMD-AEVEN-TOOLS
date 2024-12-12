@@ -85,79 +85,79 @@ $message   = ( "{0,-23} ; {1,-20}  ; {2,-20} ; {3,-20} ; {4,-20} ; {5,-20} ; {6,
 $messageAarray += $message
 
 $toolName  = 'Opsware-MSA-1'; $target = '84.255.75.1'; $port = 3001
-$message   = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message   = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $toolName   = 'Opsware-MSA-2'; $target = '84.255.75.2'; $port = 3001
-$message    = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $toolName   = 'Opsware-BTA-DFK-1'; $target = '10.233.70.1'; $port = 3001
-$message    = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $toolName   = 'Opsware-BTA-DFK-2'; $target = '10.233.70.2'; $port = 3001
-$message    = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $toolName   = 'Opsware-BTA-Eboks-1'; $target = '10.226.80.1'; $port = 3001
-$message    = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $toolName   = 'Opsware-BTA-Eboks-2'; $target = '10.226.80.2'; $port = 3001
-$message    = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $toolName   = 'Opsware-BTA-LMST-1'; $target = '10.233.78.1'; $port = 3001
-$message    = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $toolName   = 'Opsware-BTA-LMST-2'; $target = '10.233.78.2'; $port = 3001
-$message    = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $toolName   = 'Opsware-3'; $target = '84.255.75.1'; $port = 1002
-$message    = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $toolName   = 'Opsware-4'; $target = '84.255.75.2'; $port = 1002
-$message    = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $toolName   = 'OMI-1'; $target = '84.255.75.1'; $port = 383
-$message    = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $toolName   = 'OMI-2'; $target = '84.255.75.2'; $port = 383
-$message    = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $toolName   = 'OMI-3'; $target = '84.255.75.1'; $port = 3128
-$message    = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $toolName   = 'OMI-4'; $target = '84.255.75.2'; $port = 3128
-$message    = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $toolName   = 'UCMDB-1'; $target = '84.255.75.4'; $port = 2738
-$message    = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $toolName   = 'UCMDB-2'; $target = '84.255.75.5'; $port = 2738
-$message    = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $toolName   = 'ansible-1'; $target = '84.255.94.31'; $port = 8081
-$message    = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $toolName   = 'ansible-2'; $target = '84.255.94.33'; $port = 8081
-$message    = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $toolName   = 'ansible-3'; $target = 'localhost'; $port = 5985
-$message    = get-IPPort -toolName $toolName target $target -target $target -port $port
+$message    = get-IPPort -toolName $toolName -target $target -port $port
 $messageAarray += $message
 
 $messageAarray
