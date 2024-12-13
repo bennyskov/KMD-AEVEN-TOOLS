@@ -56,8 +56,8 @@
     cmdexec: 'servercheck.ps1'
     cmdexecPort: 'servercheck_ports.ps1'
     cmdexecPortITM: 'servercheck_ports_ITM.ps1'
+    aeven_fstdout: 'servercheck_aeven_fstdout.log'
     files_to_read:
-      aeven_fstdout: 'servercheck_aeven_fstdout.log'
       aeven_foutcsv: 'servercheck_aeven_foutcsv.csv'
       aeven_fsrvcsv: 'servercheck_aeven_fsrvcsv.csv'
       aeven_fsftcsv: 'servercheck_aeven_fsftcsv.csv'
@@ -118,16 +118,16 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # loop Read files and get debug content
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: 'A.1.9 Read files and debug content'
+        - name: 'A.1.10 Read files and debug content'
           win_shell: 'Get-Content -LiteralPath {{ tmpdir }}{{ item.value }}'
           register: file_content
           loop: '{{ files_to_read | dict2items }}'
           loop_control:
             label: '{{ item.key }}'
 
-        - name: 'A.1.2 file content to msg'
+        - name: 'A.1.11 file content to msg'
           debug:
-            msg: 'Content of {{ item.item.key }}: {{ item.stdout }}'
+            msg: '{{ item.item.key }} : {{ item.stdout }}'
           loop: '{{ file_content.results }}'
           loop_control:
             label: '{{ item.item.key }}'
