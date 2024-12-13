@@ -92,45 +92,45 @@
           register: running_cmdexec
         - name: 'A.1.5 pass stdout'
           debug:
-            aeven_fstdout: 'aeven_fstdout {{ running_cmdexec.stdout }}'
-        # # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # # run cmdexecPort
-        # # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # - name: 'A.1.6 Run {{ cmdexecPort }}'
-        #   win_shell: '{{ tmpdir }}{{ cmdexecPort }} 2>&1'
-        #   args:
-        #     chdir: '{{ tmpdir }}'
-        #   register: running_cmdexecPort
-        # - name: '"A.1.7 pass stdout'
-        #   debug:
-        #     msg: 'aeven_fstdout {{ running_cmdexecPort.stdout }}'
-        # # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # # run servercheck_ports_ITM
-        # # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # - name: 'A.1.8 Run {{ cmdexecPortITM }}'
-        #   win_shell: '{{ tmpdir }}{{ cmdexecPortITM }} 2>&1'
-        #   args:
-        #     chdir: '{{ tmpdir }}'
-        #   register: running_cmdexecPortITM
-        # - name: 'A.1.9 pass stdout'
-        #   debug:
-        #     msg: 'aeven_fstdout {{ running_cmdexecPortITM.stdout }}'
-        # # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # # loop Read files and get debug content
-        # # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # - name: 'A.1.10 Read files and debug content'
-        #   win_shell: 'Get-Content -LiteralPath {{ tmpdir }}{{ item.value }}'
-        #   register: file_content
-        #   loop: '{{ files_to_read | dict2items }}'
-        #   loop_control:
-        #     label: '{{ item.key }}'
+            msg: 'aeven_fstdout {{ running_cmdexec.stdout }}'
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # run cmdexecPort
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: 'A.1.6 Run {{ cmdexecPort }}'
+          win_shell: '{{ tmpdir }}{{ cmdexecPort }} 2>&1'
+          args:
+            chdir: '{{ tmpdir }}'
+          register: running_cmdexecPort
+        - name: '"A.1.7 pass stdout'
+          debug:
+            msg: 'aeven_fstdout {{ running_cmdexecPort.stdout }}'
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # run servercheck_ports_ITM
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: 'A.1.8 Run {{ cmdexecPortITM }}'
+          win_shell: '{{ tmpdir }}{{ cmdexecPortITM }} 2>&1'
+          args:
+            chdir: '{{ tmpdir }}'
+          register: running_cmdexecPortITM
+        - name: 'A.1.9 pass stdout'
+          debug:
+            msg: 'aeven_fstdout {{ running_cmdexecPortITM.stdout }}'
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # loop Read files and get debug content
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: 'A.1.10 Read files and debug content'
+          win_shell: 'Get-Content -LiteralPath {{ tmpdir }}{{ item.value }}'
+          register: file_content
+          loop: '{{ files_to_read | dict2items }}'
+          loop_control:
+            label: '{{ item.key }}'
 
-        # - name: 'A.1.11 file content to msg'
-        #   debug:
-        #     msg: '{{ item.item.key }} : {{ item.stdout }}'
-        #   loop: '{{ file_content.results }}'
-        #   loop_control:
-        #     label: '{{ item.item.key }}'
+        - name: 'A.1.11 file content to msg'
+          debug:
+            msg: '{{ item.item.key }} : {{ item.stdout }}'
+          loop: '{{ file_content.results }}'
+          loop_control:
+            label: '{{ item.item.key }}'
 
       # always:
       #   - name: Delete directory {{ tmpdir }}
