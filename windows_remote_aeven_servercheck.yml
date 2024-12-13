@@ -92,7 +92,7 @@
           register: running_cmdexec
         - name: 'A.1.5 pass stdout'
           debug:
-            msg: 'aeven_fstdout {{ running_cmdexec.stdout }}'
+            msg: 'aeven_fstdout ==>|{{ running_cmdexec.stdout }}'
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # run cmdexecPort
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -103,7 +103,7 @@
           register: running_cmdexecPort
         - name: '"A.1.7 pass stdout'
           debug:
-            msg: 'aeven_fstdout {{ running_cmdexecPort.stdout }}'
+            msg: 'aeven_fstdout ==>|{{ running_cmdexecPort.stdout }}'
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # run servercheck_ports_ITM
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -114,7 +114,7 @@
           register: running_cmdexecPortITM
         - name: 'A.1.9 pass stdout'
           debug:
-            msg: 'aeven_fstdout {{ running_cmdexecPortITM.stdout }}'
+            msg: 'aeven_fstdout ==>|{{ running_cmdexecPortITM.stdout }}'
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # loop Read files and get debug content
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -127,7 +127,7 @@
 
         - name: 'A.1.11 file content to msg'
           debug:
-            msg: '{{ item.item.key }} : {{ item.stdout }}'
+            msg: '{{ item.item.key }} ==>|{{ item.stdout }}'
           loop: '{{ file_content.results }}'
           loop_control:
             label: '{{ item.item.key }}'
