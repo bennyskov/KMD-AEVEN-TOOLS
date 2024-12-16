@@ -28,9 +28,9 @@ current_datetime=$(date +"%Y-%m-%d %H:%M:%S")
 echo "DATETIME : $current_datetime"
 echo "USER: $(id -u -n)"
 echo "SCRIPT VERSION: $SCRIPT_VERSION"
-INSTALL_LOG="/var/opsware-agent-linux/sa_agent_install.log"
-INSTALL_PATH="/var/opsware-agent-linux/"
-INSTALL_WORK="/var/"
+INSTALL_LOG="/var/tmp/opsware-agent-linux/sa_agent_install.log"
+INSTALL_PATH="/var/tmp/opsware-agent-linux/"
+INSTALL_WORK="/var/tmp/"
 INSTALL_PARAMETERS=" -f -r --force_new_device --force_full_hw_reg --crypto_dir $INSTALL_PATH --logfile $INSTALL_LOG --loglevel info --opsw_gw_addr $OPSW_GW_ADDR --workdir $INSTALL_WORK "
 # ./opsware-agent-90.0.96031.0-linux-RHEL8-X86_64 -f -r --force_new_device --force_full_hw_reg --crypto_dir /var/opsware-agent-linux --logfile /var/opsware-agent-linux/sa_agent_install.log --loglevel info --opsw_gw_addr 84.255.75.1:3001,84.255.75.2:3001 --workdir /var
 AGENT_INSTALLER=""
@@ -161,6 +161,22 @@ if [ -f $AGENT_INSTALLER ]; then
 	ocfg="/etc/opt/opsware/agent/agent_custom.args"
 	echo "# Custom configuration values for agent">$ocfg
 	echo cogbot.tmp_dir: /var/opt/opsware/tmp>>$ocfg
+	mkdir -p /var/opt/opsware/tmp
+	chmod 0744 /var/opt/opsware/tmp
+	cat $ocfg
+	service opsware-agent restart
+
+	exit 0
+fi
+cogbot.tmp_dir: /var/opt/opsware/tmp>>$ocfg
+	mkdir -p /var/opt/opsware/tmp
+	chmod 0744 /var/opt/opsware/tmp
+	cat $ocfg
+	service opsware-agent restart
+
+	exit 0
+fi
+cogbot.tmp_dir: /var/opt/opsware/tmp>>$ocfg
 	mkdir -p /var/opt/opsware/tmp
 	chmod 0744 /var/opt/opsware/tmp
 	cat $ocfg
