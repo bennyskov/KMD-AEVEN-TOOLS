@@ -26,7 +26,7 @@ Remove-Variable * -ErrorAction SilentlyContinue
 #
 #
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-# servercheck_ports.ps1  :   collect server information data
+# servercheck_ports_aeven_win.ps1  :   collect server information data
 #
 # 2023-04-30  Initial release ( Benny.Skov@kyndryl.dk )
 #
