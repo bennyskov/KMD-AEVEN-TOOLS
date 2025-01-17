@@ -157,29 +157,22 @@
           register: file_stat_uninstall_sh
 
         - name: Run UNINSTALL
-          ignore_errors: yes
           shell: sh {{ agentdir }}agent_uninstall.sh --force > {{ vardir }}{{ uninstall_stdout }} 2>&1
           args:
             chdir: '{{ agentdir }}'
-          register: script_uninstall_stdout_lines
+          register: uninstall_stdout
           when: file_stat_uninstall_sh.stat.exists
 
-        - name: 'Read content from stdout if not catched by pipe'
-          debug:
-            var: script_uninstall_stdout_lines.stdout_lines
-          when: file_stat_uninstall_sh.stat.exists
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # send {{ uninstall_stdout }} to ansible stdout
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: 'Check if the {{ uninstall_stdout }} exists'
-          ignore_errors: yes
           stat:
             path: '{{ vardir }}{{ uninstall_stdout }}'
           register: file_stat_uninstall_stdoutfile
 
         - name: 'Read content from {{ uninstall_stdout }}'
-          ignore_errors: yes
           shell: cat "{{ vardir }}{{ uninstall_stdout }}"
           register: sa_agent_uninstall_stdout_log
           when: file_stat_uninstall_stdoutfile.stat.exists
@@ -197,7 +190,7 @@
           shell: sh {{ vardir }}sa_agent_install.sh > {{ vardir }}{{ stdoutfile }} 2>&1
           args:
             chdir: '{{ vardir }}'
-          register: script_install_stdout_lines
+          register: stdoutfile
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # list {{ vardir }}
@@ -242,13 +235,11 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: 'Check if the {{ stdoutfile }} exists'
-          ignore_errors: yes
           stat:
             path: '{{ vardir }}{{ stdoutfile }}'
           register: file_stat_install_stdout
 
         - name: 'Read content from {{ stdoutfile }}'
-          ignore_errors: yes
           shell: cat "{{ vardir }}{{ stdoutfile }}"
           register: sa_agent_install_stdout_log
           when: file_stat_install_stdout.stat.exists
@@ -263,14 +254,11 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         - name: 'Check if the {{ logfile }} exists'
-          ignore_errors: yes
-          become: true
           stat:
             path: '{{ vardir }}{{ logfile }}'
           register: file_stat_install_logfile
 
         - name: 'Read content from {{ logfile }}'
-          ignore_errors: yes
           shell: cat "{{ vardir }}{{ logfile }}"
           register: aeven_logfile_log
           when: file_stat_install_logfile.stat.exists
