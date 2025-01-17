@@ -18,15 +18,17 @@ ID=`id -u`
 #OS=$(uname -s | tr A-Z a-z)
 # Variables
 # ************************************************************
-# for Shared customer_id enabel below 
+# for Shared customer_id enabel below
 # ************************************************************
-#OPSW_GW_ADDR=152.73.224.35:3001,152.73.224.36:3001 
+#OPSW_GW_ADDR=152.73.224.35:3001,152.73.224.36:3001
+#OPSW_GW_ADDR=10.226.80.1:3001,10.226.80.2:3001  EBOKS
+#OPSW_GW_ADDR=84.225.75.1:3001,84.225.75.2:3001 defaults
 # ************************************************************
 #
 # ************************************************************
-# for KMD use below gateway and cusomer 
+# for KMD use below gateway and cusomer
 # ************************************************************
-OPSW_GW_ADDR=84.225.75.1:3001,84.225.75.2:3001 
+OPSW_GW_ADDR=10.226.80.1:3001,10.226.80.2:3001
 # ************************************************************
 echo "HOSTNAME: $HOSTNAME"
 current_datetime=$(date +"%Y-%m-%d %H:%M:%S")
@@ -105,7 +107,7 @@ case "$OS" in
 		elif [ "$MAJOR_VERSION" = "12" ]; then
 			export AGENT_INSTALLER=$INSTALL_PATH"SLESL12/opsware-agent-90.0.96031.0-linux-SLES-12-X86_64"
 		elif [ "$MAJOR_VERSION" = "11" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"SLESL11/opsware-agent-80.0.92926.0-linux-SLES-11-X86_64"		
+			export AGENT_INSTALLER=$INSTALL_PATH"SLESL11/opsware-agent-80.0.92926.0-linux-SLES-11-X86_64"
 		else
 			echo "Unsupported OS or version."
 			exit 0
@@ -127,12 +129,12 @@ case "$OS" in
 		elif [ "$MAJOR_VERSION" = "16" ]; then
 			export AGENT_INSTALLER=$INSTALL_PATH"Ubuntu16.04/opsware-agent-90.0.96031.0-linux-UBUNTU-16.04-X86_64"
 		elif [ "$MAJOR_VERSION" = "14" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"Ubuntu14.04/opsware-agent-90.0.96031.0-linux-UBUNTU-14.04-X86_64"		
+			export AGENT_INSTALLER=$INSTALL_PATH"Ubuntu14.04/opsware-agent-90.0.96031.0-linux-UBUNTU-14.04-X86_64"
 		else
 			echo "Unsupported OS or version."
 			exit 0
-		fi		
-		;;	
+		fi
+		;;
 	*)
 		echo "Unsupported OS or version."
 		exit 0
