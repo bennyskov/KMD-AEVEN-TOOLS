@@ -72,9 +72,9 @@
   vars:
     agentdir: '/opt/opsware/agent/bin/'
     vardir: '/var/tmp/opsware-agent-linux/'
-    logfile: 'sa-agent_install.log'
-    stdoutfile: 'sa-agent_stdout.log'
-    uninstall_stdout: 'sa-agent_uninstall_stdout.log'
+    logfile: 'sa_agent_install.log'
+    stdoutfile: 'sa_agent_stdout.log'
+    uninstall_stdout: 'sa_agent_uninstall_stdout.log'
   tasks:
     - name: Copy, create, exec file
       block:
