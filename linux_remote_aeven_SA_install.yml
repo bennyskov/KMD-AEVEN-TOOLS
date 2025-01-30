@@ -161,7 +161,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: 'Check if the sa_agent_install.sh exists'
           stat:
-            path: '{{ agentdir }}sa_agent_install.sh'
+            path: '{{ tmpdir }}sa_agent_install.sh'
           register: file_stat_install
 
         - name: Run INSTALL
@@ -189,7 +189,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: 'Check if the sa_agent_install_log exists'
           stat:
-            path: '{{ agentdir }}{{ logfile }}'
+            path: '{{ tmpdir }}{{ logfile }}'
           register: stat_sa_agent_install_log
 
         - name: 'Read content from sa_agent_install_log'
