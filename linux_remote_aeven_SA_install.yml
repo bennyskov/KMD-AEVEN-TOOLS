@@ -105,35 +105,35 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # list {{ tmpdir }}
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: 'Check if tmpdir exists'
+        - name: 'Check if tmpdir exists before'
           stat:
             path: '{{ tmpdir }}'
           register: check_tmpdir
 
-        - name: 'List {{ tmpdir }}'
+        - name: 'List {{ tmpdir }} before'
           shell: 'ls -lrta {{ tmpdir }}*'
           register: script_tmpdir_before
           when: check_tmpdir.stat.exists
 
-        - name: 'send content to ansible'
+        - name: 'send content to ansible before'
           debug:
-            var: check_tmpdir.stdout_lines
+            var: script_tmpdir_before.stdout_lines
           when: check_tmpdir.stat.exists
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # list {{ agentdir }}
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: 'Check if agentdir exists'
+        - name: 'Check if agentdir exists before'
           stat:
             path: '{{ agentdir }}'
           register: check_agentdir
 
-        - name: 'List {{ agentdir }}'
+        - name: 'List {{ agentdir }} before'
           shell: 'ls -lrta {{ agentdir }}'
           register: list_agentdir_out
           when: check_agentdir.stat.exists
 
-        - name: 'send content to ansible'
+        - name: 'send content to ansible before'
           debug:
             var: list_agentdir_out.stdout_lines
           when: check_agentdir.stat.exists
@@ -208,7 +208,7 @@
           shell: 'ls -lrta {{ tmpdir }}*'
           register: script_after_run
 
-        - name: 'send content to ansible'
+        - name: 'send content to ansible after'
           debug:
             var: script_after_run.stdout_lines
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
