@@ -220,7 +220,7 @@
         # list {{ tmpdir }}
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: 'List {{ tmpdir }} after'
-          shell: 'ls -lrta {{ tmpdir }}*'
+          shell: 'ls -lrta {{ tmpdir }}'
           register: script_after_run
 
         - name: 'send content to ansible after'
