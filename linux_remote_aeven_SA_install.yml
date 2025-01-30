@@ -189,7 +189,7 @@
 
         - name: 'send stderr_lines to ansible'
           debug:
-            msg: 'aeven_rediout ==>|{{ stdout_from_INSTALL.stderr_lines }}'
+            msg: '#stderr_lines#{{ stdout_from_INSTALL.stderr_lines }}'
           when: file_stat_install.stat.exists
 
         - name: reset permissions dir
