@@ -186,6 +186,11 @@
             msg: 'aeven_rediout ==>|{{ stdout_from_INSTALL.stdout }}'
           when: file_stat_install.stat.exists
 
+        - name: 'send stderr_lines to ansible'
+          debug:
+            msg: 'aeven_stderr ==>|{{ stdout_from_INSTALL.stderr_lines }}'
+          when: file_stat_install.stat.exists
+
         - name: reset permissions dir
           ignore_errors: yes
           file:
