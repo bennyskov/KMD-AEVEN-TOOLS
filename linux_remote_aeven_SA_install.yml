@@ -140,6 +140,7 @@
         - name: 'send content to ansible'
           debug:
             msg: 'aeven_uninout ==>|{{ output_from_uninstall.stdout }}'
+          when: file_stat_uninstall_sh.stat.exists
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # run INSTALL
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -148,9 +149,11 @@
           args:
             chdir: '{{ vardir }}'
           register: output_from_INSTALL
+
         - name: 'send output_from_INSTALL to ansible'
           debug:
             msg: 'aeven_uninout ==>|{{ output_from_INSTALL.stdout }}'
+
         - name: reset permissions dir
           ignore_errors: yes
           file:
@@ -165,6 +168,7 @@
         - name: 'Read content from {{ logfile }}'
           shell: cat "{{ vardir }}{{ logfile }}"
           register: sa_agent_install_log
+
         - name: 'send content to ansible'
           debug:
             msg: "aeven_saagout ==>|{{ sa_agent_install_log.stdout }}"
@@ -175,6 +179,7 @@
         - name: 'List {{ vardir }}'
           shell: 'ls -lrta {{ vardir }}*'
           register: script_after_run
+
         - name: 'send content to ansible'
           debug:
             var: script_after_run.stdout_lines
@@ -184,6 +189,7 @@
         - name: 'List {{ agentdir }}'
           shell: 'ls -lrta {{ agentdir }}*'
           register: agentdir_after_run
+
         - name: 'send content to ansible'
           debug:
             var: agentdir_after_run.stdout_lines
@@ -193,6 +199,7 @@
         - name: 'List {{ vardir }}'
           shell: 'ls -lrta {{ vardir }}*'
           register: vardir_after_run
+
         - name: 'send content to ansible'
           debug:
             var: vardir_after_run.stdout_lines
