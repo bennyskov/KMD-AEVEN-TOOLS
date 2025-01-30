@@ -51,6 +51,7 @@
     - name: 'List /var/'
       shell: 'ls -lrta /var/'
       register: script_tmp
+
     - name: Output list tmp
       debug:
         var: script_tmp.stdout_lines
@@ -84,6 +85,7 @@
           file:
             path: '{{ tmpdir }}'
             state: absent
+
         - name: copy multiple items
           copy:
             src: '{{ item.src }}'
@@ -94,14 +96,20 @@
               dest: '{{ tmpdir }}'
             - src: opsware-agent-linux/
               dest: '{{ tmpdir }}'
-        - name: Set permissions for dir
+
+        - name: Recursively set permissions
           ignore_errors: yes
-          file:
-            path: '{{ tmpdir }}'
-            state: directory
-            mode: 0777
+          find:
+            paths: '{{ tmpdir }}'
             recurse: yes
-            force: yes
+          register: files
+
+        - name: Set permissions
+          file:
+            path: "{{ item.path }}"
+            mode: '0777'
+          loop: "{{ files.files }}"
+
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # list {{ tmpdir }}
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
