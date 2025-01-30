@@ -97,18 +97,20 @@
             - src: opsware-agent-linux/
               dest: '{{ tmpdir }}'
 
-        - name: Recursively set permissions
+        - name: Set permissions for dir
           ignore_errors: yes
-          find:
-            paths: '{{ tmpdir }}'
-            recurse: yes
-          register: files
-
-        - name: Set permissions
           file:
-            path: "{{ item.path }}"
+            path: '/var/tmp/'
             mode: '0777'
-          loop: "{{ files.files }}"
+
+        - name: Set permissions for dir recurse
+          ignore_errors: yes
+          file:
+            path: '{{ tmpdir }}'
+            state: directory
+            mode: 0777
+            recurse: yes
+            force: yes
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # list {{ tmpdir }}
