@@ -72,7 +72,8 @@
   gather_facts: false
   vars:
     agentdir: '/opt/opsware/agent/bin/'
-    tmpdir: '/var/tmp/opsware-agent-linux/'
+    tmpdir_orig: '/var/tmp/opsware-agent-linux/'
+    tmpdir: '/opt/IBM/ITM/tmp/opsware-agent-linux/'
     logfile: 'sa_agent_install.log'
   tasks:
     - name: Copy, create, exec file
@@ -100,7 +101,7 @@
         - name: Set permissions for dir
           ignore_errors: yes
           file:
-            path: '/var/tmp/'
+            path: '{{ tmpdir }}'
             mode: '0777'
 
         - name: Set permissions for dir recurse
@@ -220,7 +221,7 @@
         # list {{ tmpdir }}
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: 'List {{ tmpdir }} after'
-          shell: 'ls -lrta {{ tmpdir }}'
+          shell: 'ls -lrta {{ tmpdir }}*'
           register: script_after_run
 
         - name: 'send content to ansible after'
