@@ -215,7 +215,7 @@
 
         - name: 'send content to ansible'
           debug:
-            msg: "aeven_saagout ==>|{{ aeven_saagout.stdout }}"
+            msg: "#aeven_saagout#{{ aeven_saagout.stdout }}"
           when: stat_sa_agent_install_log.stat.exists
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # list {{ tmpdir }}
