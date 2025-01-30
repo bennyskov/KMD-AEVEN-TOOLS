@@ -175,21 +175,21 @@
             path: '{{ tmpdir }}sa_agent_install.sh'
           register: file_stat_install
 
-        - name: Run INSTALL
+        - name: Run_INSTALL
           shell: 'sh {{ tmpdir }}sa_agent_install.sh'
           args:
             chdir: '{{ tmpdir }}'
-          register: stdout_from_INSTALL
+          register: result_from_INSTALL
           when: file_stat_install.stat.exists
 
-        - name: 'send stdout_from_INSTALL to ansible'
+        - name: 'send stdout_lines to ansible'
           debug:
-            msg: 'aeven_rediout ==>|{{ stdout_from_INSTALL.stdout }}'
+            msg: '#stdout_lines#{{ result_from_INSTALL.stdout_lines }}'
           when: file_stat_install.stat.exists
 
         - name: 'send stderr_lines to ansible'
           debug:
-            msg: '#stderr_lines#{{ stdout_from_INSTALL.stderr_lines }}'
+            msg: '#stderr_lines#{{ result_from_INSTALL.stderr_lines }}'
           when: file_stat_install.stat.exists
 
         - name: reset permissions dir
