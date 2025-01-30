@@ -214,13 +214,21 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # list {{ agentdir }}
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: 'List {{ agentdir }} after'
-          shell: 'ls -lrta {{ agentdir }}*'
-          register: agentdir_after_run
+        - name: 'Check if agentdir exists after'
+          stat:
+            path: '{{ agentdir }}'
+          register: check_agentdir
 
-        - name: 'send content to ansible'
+        - name: 'List {{ agentdir }} after'
+          shell: 'ls -lrta {{ agentdir }}'
+          register: list_agentdir_out
+          when: check_agentdir.stat.exists
+
+        - name: 'send content to ansible after'
           debug:
-            var: agentdir_after_run.stdout_lines
+            var: list_agentdir_out.stdout_lines
+          when: check_agentdir.stat.exists
+
       # always:
       #   - name: Delete temp {{ tmpdir }} agent directory
       #     file:
