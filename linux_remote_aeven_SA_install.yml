@@ -35,11 +35,11 @@
   hosts: localhost
   gather_facts: true
   tasks:
-    - name: Debug facts
-      debug:
-        msg: 'Debug ansible_facts ==>|{{ ansible_facts }}'
-      tags:
-        - debug_facts
+    # - name: Debug facts
+    #   debug:
+    #     msg: 'Debug ansible_facts ==>|{{ ansible_facts }}'
+    #   tags:
+    #     - debug_facts
 
     - name: 'List homedir files'
       shell: 'ls -lrta'
@@ -116,6 +116,7 @@
         # list {{ agentdir }}
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: 'List {{ agentdir }}'
+          ignore_errors: yes
           shell: 'ls -lrta {{ agentdir }}'
           register: list_agentdir_out
         - name: 'send content to ansible'
@@ -128,12 +129,14 @@
           stat:
             path: '{{ agentdir }}agent_uninstall.sh'
           register: file_stat_uninstall_sh
+
         - name: Run UNINSTALL
           shell: sh {{ agentdir }}agent_uninstall.sh --force
           args:
             chdir: '{{ agentdir }}'
           register: output_from_uninstall
           when: file_stat_uninstall_sh.stat.exists
+
         - name: 'send content to ansible'
           debug:
             msg: 'aeven_uninout ==>|{{ output_from_uninstall.stdout }}'
