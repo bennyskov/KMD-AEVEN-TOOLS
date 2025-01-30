@@ -71,7 +71,7 @@
   gather_facts: false
   vars:
     agentdir: '/opt/opsware/agent/bin/'
-    vardir: '/var/tmp/opsware-agent-linux/'
+    tmpdir: '/var/tmp/opsware-agent-linux/'
     logfile: 'sa_agent_install.log'
   tasks:
     - name: Copy, create, exec file
@@ -79,10 +79,10 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # Delete & create & copy files to dir /tmp/opsware-agent-linux/
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: 'Delete {{ vardir }} directory on {{ hostlist }}'
+        - name: 'Delete {{ tmpdir }} directory on {{ hostlist }}'
           ignore_errors: yes
           file:
-            path: '{{ vardir }}'
+            path: '{{ tmpdir }}'
             state: absent
         - name: copy multiple items
           copy:
@@ -91,73 +91,95 @@
             mode: 0777
           loop:
             - src: scripts/
-              dest: '{{ vardir }}'
+              dest: '{{ tmpdir }}'
             - src: opsware-agent-linux/
-              dest: '{{ vardir }}'
+              dest: '{{ tmpdir }}'
         - name: Set permissions for dir
           ignore_errors: yes
           file:
-            path: '{{ vardir }}'
+            path: '{{ tmpdir }}'
             state: directory
             mode: 0777
             recurse: yes
             force: yes
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # list {{ vardir }}
+        # list {{ tmpdir }}
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: 'List {{ vardir }}'
-          ignore_errors: yes
-          shell: 'ls -lrta {{ vardir }}*'
-          register: script_vardir_before
+        - name: 'Check if tmpdir exists'
+          stat:
+            path: '{{ tmpdir }}'
+          register: check_tmpdir
+
+        - name: 'List {{ tmpdir }}'
+          shell: 'ls -lrta {{ tmpdir }}*'
+          register: script_tmpdir_before
+          when: check_tmpdir.stat.exists
+
         - name: 'send content to ansible'
           debug:
-            var: script_vardir_before.stdout_lines
+            var: check_tmpdir.stdout_lines
+          when: check_tmpdir.stat.exists
+
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # list {{ agentdir }}
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: 'Check if agentdir exists'
+          stat:
+            path: '{{ agentdir }}'
+          register: check_agentdir
+
         - name: 'List {{ agentdir }}'
-          ignore_errors: yes
           shell: 'ls -lrta {{ agentdir }}'
           register: list_agentdir_out
+          when: check_agentdir.stat.exists
+
         - name: 'send content to ansible'
           debug:
             var: list_agentdir_out.stdout_lines
+          when: check_agentdir.stat.exists
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # run UNINSTALL
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: 'Check if the agent_uninstall.sh exists'
           stat:
             path: '{{ agentdir }}agent_uninstall.sh'
-          register: file_stat_uninstall_sh
+          register: file_stat_uninstall
 
         - name: Run UNINSTALL
           shell: sh {{ agentdir }}agent_uninstall.sh --force
           args:
             chdir: '{{ agentdir }}'
           register: output_from_uninstall
-          when: file_stat_uninstall_sh.stat.exists
+          when: file_stat_uninstall.stat.exists
 
         - name: 'send content to ansible'
           debug:
             msg: 'aeven_uninout ==>|{{ output_from_uninstall.stdout }}'
-          when: file_stat_uninstall_sh.stat.exists
+          when: file_stat_uninstall.stat.exists
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # run INSTALL
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: Run INSTALL
-          shell: 'sh {{ vardir }}sa_agent_install.sh'
-          args:
-            chdir: '{{ vardir }}'
-          register: output_from_INSTALL
+        - name: 'Check if the sa_agent_install.sh exists'
+          stat:
+            path: '{{ agentdir }}sa_agent_install.sh'
+          register: file_stat_install
 
-        - name: 'send output_from_INSTALL to ansible'
+        - name: Run INSTALL
+          shell: 'sh {{ tmpdir }}sa_agent_install.sh'
+          args:
+            chdir: '{{ tmpdir }}'
+          register: stdout_from_INSTALL
+          when: file_stat_install.stat.exists
+
+        - name: 'send stdout_from_INSTALL to ansible'
           debug:
-            msg: 'aeven_uninout ==>|{{ output_from_INSTALL.stdout }}'
+            msg: 'aeven_rediout ==>|{{ stdout_from_INSTALL.stdout }}'
+          when: file_stat_install.stat.exists
 
         - name: reset permissions dir
           ignore_errors: yes
           file:
-            path: '{{ vardir }}'
+            path: '{{ tmpdir }}'
             state: directory
             mode: 0777
             recurse: yes
@@ -165,19 +187,25 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # aeven_saagout    saagtfile: "sa_agent_install.log"   # the one created by bat file
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: 'Read content from {{ logfile }}'
-          shell: cat "{{ vardir }}{{ logfile }}"
-          register: sa_agent_install_log
+        - name: 'Check if the sa_agent_install_log exists'
+          stat:
+            path: '{{ agentdir }}{{ logfile }}'
+          register: stat_sa_agent_install_log
+
+        - name: 'Read content from sa_agent_install_log'
+          shell: cat "{{ tmpdir }}{{ logfile }}"
+          register: aeven_saagout
+          when: stat_sa_agent_install_log.stat.exists
 
         - name: 'send content to ansible'
           debug:
-            msg: "aeven_saagout ==>|{{ sa_agent_install_log.stdout }}"
-          when: stat_install_logfile.stat.exists
+            msg: "aeven_saagout ==>|{{ aeven_saagout.stdout }}"
+          when: stat_sa_agent_install_log.stat.exists
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # list {{ vardir }}
+        # list {{ tmpdir }}
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: 'List {{ vardir }}'
-          shell: 'ls -lrta {{ vardir }}*'
+        - name: 'List {{ tmpdir }} after'
+          shell: 'ls -lrta {{ tmpdir }}*'
           register: script_after_run
 
         - name: 'send content to ansible'
@@ -186,25 +214,15 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # list {{ agentdir }}
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: 'List {{ agentdir }}'
+        - name: 'List {{ agentdir }} after'
           shell: 'ls -lrta {{ agentdir }}*'
           register: agentdir_after_run
 
         - name: 'send content to ansible'
           debug:
             var: agentdir_after_run.stdout_lines
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # list {{ vardir }}
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: 'List {{ vardir }}'
-          shell: 'ls -lrta {{ vardir }}*'
-          register: vardir_after_run
-
-        - name: 'send content to ansible'
-          debug:
-            var: vardir_after_run.stdout_lines
       # always:
-      #   - name: Delete temp {{ vardir }} agent directory
+      #   - name: Delete temp {{ tmpdir }} agent directory
       #     file:
-      #       path: "{{ vardir }}"
+      #       path: "{{ tmpdir }}"
       #       state: absent
