@@ -139,6 +139,23 @@
             path: '{{ agentdir }}'
           register: check_agentdir
 
+        - name: Set permissions for dir
+          ignore_errors: yes
+          file:
+            path: '{{ agentdir }}'
+            mode: '0755'
+          when: check_agentdir.stat.exists
+
+        - name: Set permissions for dir recurse
+          ignore_errors: yes
+          file:
+            path: '{{ agentdir }}'
+            state: directory
+            mode: 0755
+            recurse: yes
+            force: yes
+          when: check_agentdir.stat.exists
+
         - name: 'List {{ agentdir }} before'
           shell: 'ls -lrta {{ agentdir }}'
           register: list_agentdir_out
@@ -148,6 +165,7 @@
           debug:
             var: list_agentdir_out.stdout_lines
           when: check_agentdir.stat.exists
+
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # run UNINSTALL
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
