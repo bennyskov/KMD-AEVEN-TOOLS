@@ -74,7 +74,7 @@ $NetworkAdapterConfiguration= Get-WmiObject -Class Win32_NetworkAdapterConfigura
 [string]$from_IPGateway = $NetworkAdapterConfiguration.DefaultIPGateway
 $scriptdir = "C:/Windows/Temp/servercheck/"
 $newlist = @()
-$csvObjects = Import-Csv -Path "${scriptdir}hub_rtems_2024.csv" -Delimiter ';'
+$csvObjects = Import-Csv -Path "${scriptdir}hub_rtems_2025.csv" -Delimiter ';'
 $csvObjects | foreach-object {
     $target_Ci = $_.rtemsCi
 	$target_Ci = $target_Ci.Trim()
