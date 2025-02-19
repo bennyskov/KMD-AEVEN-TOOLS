@@ -55,7 +55,7 @@
     tmpdir: 'C:/Windows/Temp/servercheck/'
     cmdexec: 'servercheck.ps1'
     cmdexecPort: 'servercheck_ports_aeven_win.ps1'
-    cmdexecPortITM: 'servercheck_ports_ITM.ps1'
+    cmdexecPortITM: 'servercheck_ports_aeven_win.ps1'
     aeven_fstdout: 'servercheck_aeven_fstdout.log'
     files_to_read:
       aeven_foutcsv: 'servercheck_aeven_foutcsv.csv'
@@ -104,7 +104,7 @@
           debug:
             msg: 'aeven_fstdout ==>|{{ running_cmdexecPort.stdout }}'
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # run servercheck_ports_ITM
+        # run servercheck_ports_aeven_win.ps1
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: 'A.1.8 Run {{ cmdexecPortITM }}'
           win_shell: '{{ tmpdir }}{{ cmdexecPortITM }} 2>&1'
