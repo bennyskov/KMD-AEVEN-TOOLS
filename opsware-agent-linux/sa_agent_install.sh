@@ -51,18 +51,21 @@ detect_os() {
         . /etc/os-release
         OS=$NAME
         VERSION=$VERSION_ID
+		MAJOR_VERSION=$(echo "$VERSION" | cut -d '.' -f 1)
     elif [ -f /etc/lsb-release ]; then
         . /etc/lsb-release
         OS=$DISTRIB_ID
         VERSION=$DISTRIB_RELEASE
+		MAJOR_VERSION=$(echo "$VERSION" | cut -d '.' -f 1)
 	elif [ "$(uname)" = "AIX" ]; then
         OS="AIX"
         VERSION=$(oslevel)
+		MAJOR_VERSION=$(echo "$VERSION" | cut -d '.' -f 0-2)
     else
         OS="Unknown"
         VERSION="Unknown"
+		MAJOR_VERSION=$(echo "$VERSION" | cut -d '.' -f 1)
     fi
-	MAJOR_VERSION=$(echo "$VERSION" | cut -d '.' -f 1)
 }
 detect_os
 
@@ -96,10 +99,14 @@ case "$OS" in
 		fi
 		;;
 	*AIX*)
-		if [ "$MAJOR_VERSION" = "7" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"AIX7/opsware-agent-90.0.96031.0-AIX7-X86_64"
-		elif [ "$MAJOR_VERSION" = "6" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"AIX6/opsware-agent-90.0.96031.0-AIX6-X86_64"
+		if [ "$MAJOR_VERSION" = "6.1" ]; then
+			export AGENT_INSTALLER=$INSTALL_PATH"AIX6.1/opsware-agent-90.0.96031.0-aix-6.1"
+		elif [ "$MAJOR_VERSION" = "7.1" ]; then
+			export AGENT_INSTALLER=$INSTALL_PATH"AIX7.1/opsware-agent-90.0.96031.0-aix-7.1"
+		elif [ "$MAJOR_VERSION" = "7.2" ]; then
+			export AGENT_INSTALLER=$INSTALL_PATH"AIX7.2/opsware-agent-90.0.96031.0-aix-7.2"
+		elif [ "$MAJOR_VERSION" = "7.3" ]; then
+			export AGENT_INSTALLER=$INSTALL_PATH"AIX7.3/opsware-agent-90.0.96031.0-aix-7.3"
 		else
 			echo "Unsupported OS or version."
 			exit 0
