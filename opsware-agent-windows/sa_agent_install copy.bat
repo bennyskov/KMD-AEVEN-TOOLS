@@ -1,4 +1,3 @@
-
 @echo off
 setlocal EnableDelayedExpansion
 
@@ -13,19 +12,11 @@ Rem   Date        By      Review          Vers.   Change
 Rem   ==========  ====    ======          =====   ==================================================
 Rem   2024-09-04  XHMA    XXXX            1.0     Intial for SA agent installation
 Rem   2024-10-02  JAF     YYYY            1.1     Changed install to KMD
-Rem   2025-02-27  bs      YYYY            1.2     added parm
+Rem
 Rem
 
-set VERSION=1.2
-cls
-if [%1]==[] (
-    echo.
-    echo OPSW_GW_ADDR parm is missing. please add address like: 152.73.224.35:3001,152.73.224.36:3001
-	goto end
-)
-set OPSW_GW_ADDR=%1
-echo OPSW_GW_ADDR %OPSW_GW_ADDR% will be used by installer
-@echo off
+set VERSION=1.0
+
 Rem ************************************************************
 Rem for Shared customer_id enabel below
 Rem ************************************************************
