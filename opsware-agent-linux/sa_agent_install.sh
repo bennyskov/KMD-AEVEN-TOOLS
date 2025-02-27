@@ -16,6 +16,16 @@ SCRIPT_VERSION="1.0"
 ID=`id -u`
 [ $ID -eq 0 ] || { echo "$0 needs root(or sudo to root) permissions to run" ; exit 1 ; }
 #OS=$(uname -s | tr A-Z a-z)
+# Check if parameter is provided
+if [ -z "$1" ]; then
+    echo "Error: OPSW_GW_ADDR parameter is missing"
+    echo "Usage: $0 <gateway_address>"
+    echo "Example: $0 152.73.224.35:3001,152.73.224.36:3001"
+    exit 1
+fi
+
+OPSW_GW_ADDR="$1"
+echo "Using gateway address: $OPSW_GW_ADDR"
 # Variables
 # ************************************************************
 # for Shared customer_id enabel below
@@ -29,7 +39,7 @@ ID=`id -u`
 #  ************************************************************
 # for KMD use below gateway and cusomer
 # ************************************************************
-OPSW_GW_ADDR=10.35.10.1:3001,10.35.10.2:3001
+# OPSW_GW_ADDR=10.35.10.1:3001,10.35.10.2:3001
 # ************************************************************
 echo "HOSTNAME: $HOSTNAME"
 current_datetime=$(date +"%Y-%m-%d %H:%M:%S")
