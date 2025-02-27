@@ -75,6 +75,7 @@
     tmpdir_orig: '/var/tmp/opsware-agent-linux/'
     tmpdir: '/opt/IBM/ITM/tmp/opsware-agent-linux/'
     logfile: 'sa_agent_install.log'
+    opsw_gw_ipaddress: '{{ opsw_gw_ipaddress_param }}'
   tasks:
     - name: Copy, create, exec file
       block:
@@ -203,7 +204,7 @@
           register: file_stat_install
 
         - name: Run_INSTALL
-          shell: 'sh {{ tmpdir }}sa_agent_install.sh'
+          shell: 'sh {{ tmpdir }}sa_agent_install.sh {{ opsw_gw_ipaddress }}'
           args:
             chdir: '{{ tmpdir }}'
           register: result_from_INSTALL
