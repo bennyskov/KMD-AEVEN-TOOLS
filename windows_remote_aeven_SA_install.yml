@@ -52,6 +52,7 @@
     saagtfile: 'sa-agent_install.log' # the one created by bat file
     redirfile: 'sa-agent_rdiout.log' # the redirect
     uninsfile: 'sa-agent_uninstall_stdout.log' # the one created by bat file (uninstall)
+    opsw_gw_ipaddress: '{{ opsw_gw_ipaddress_param }}'
   tasks:
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     # check if uninstall file exists
@@ -154,7 +155,7 @@
         # run installer
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: 'Run sa_agent_install.bat'
-          win_command: '{{ tmpdir }}sa_agent_install.bat > {{ tmpdir }}{{ redirfile }} 2>&1'
+          win_command: '{{ tmpdir }}sa_agent_install.bat {{ opsw_gw_ipaddress }} > {{ tmpdir }}{{ redirfile }} 2>&1'
           args:
             chdir: '{{ tmpdir }}'
           register: script_run
