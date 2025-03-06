@@ -61,9 +61,9 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: copy files
           copy:
-          src: 'opsware-agent-linux/sa_redirect_tmp.sh'
-          dest: '{{ tmpdir }}'
-          mode: 0777
+            src: 'opsware-agent-linux/sa_redirect_tmp.sh'
+            dest: '{{ tmpdir }}'
+            mode: 0777
 
         - name: Set permissions for dir
           ignore_errors: yes
