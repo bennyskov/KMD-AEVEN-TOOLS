@@ -1,0 +1,83 @@
+- name: Create OS groups
+  hosts: '{{ hostlist }}'
+  become: false
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: Create OS group
+      group_by:
+        key: 'machine_{{ ostype }}'
+      changed_when: false
+      when: ostype is defined
+      delegate_to: localhost
+
+- name: Socks tunnel setup
+  hosts: '{{ hostlist }}'
+  gather_facts: false
+  tasks:
+    - include_role:
+        name: ansible-role-event-socks-tunnel
+        apply:
+          check_mode: false
+          run_once: true
+          delegate_to: localhost
+      vars:
+        acc_id: '{{ blueid_shortcode }}'
+        transaction_id: '{{ tower_job_id }}'
+        trans_num: '{{ tower_job_id }}'
+
+    - set_fact:
+        ansible_become_user: root
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# working on LOCALHOST
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+- name: gather_facts LOCALHOST
+  hosts: localhost
+  gather_facts: true
+  tasks:
+
+    - name: 'List homedir files'
+      ignore_errors: yes
+      shell: 'ls -lrt'
+      register: script_homedir
+
+    - name: Output list homedir
+      debug:
+        var: script_homedir.stdout_lines
+
+    - name: 'List /tmp/'
+      ignore_errors: yes
+      shell: 'ls -lrt /tmp/'
+      register: script_tmp
+
+    - name: Output list tmp
+      debug:
+        var: script_tmp.stdout_lines
+
+    - meta: clear_host_errors
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # run sa_redirect_tmp.sh
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: 'Check if the sa_redirect_tmp.sh exists'
+      ignore_errors: yes
+      stat:
+        path: '{{ tmpdir }}sa_redirect_tmp.sh'
+      register: file_stat_redirect
+
+    - name: 'Run sa_redirect_tmp'
+      ignore_errors: yes
+      shell: 'sh {{ tmpdir }}sa_redirect_tmp.sh 2>&1'
+      args:
+        chdir: '{{ tmpdir }}'
+      register: result_from_redirect
+
+    - name: 'send stdout_lines to ansible - redirect'
+      ignore_errors: yes
+      debug:
+        msg: '#stdout_lines#{{ result_from_redirect.stdout_lines }}'
+      when: file_stat_redirect.stat.exists
+
+    - name: 'send stderr_lines to ansible - redirect'
+      ignore_errors: yes
+      debug:
+        msg: '#stderr_lines#{{ result_from_redirect.stderr_lines }}'
