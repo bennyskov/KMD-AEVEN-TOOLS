@@ -6,4 +6,4 @@ mkdir -p /var/opt/opsware/tmp
 chmod 0744 /var/opt/opsware/tmp
 cat $ocfg
 [ -f /sbin/service ] && /sbin/service opsware-agent restart || /bin/systemctl restart opsware-agent.service
-echo sa_redirect_tmp completed.
+echo sa_redirect_tmp completed.   
