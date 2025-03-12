@@ -97,14 +97,28 @@
             recurse: yes
             force: yes
 
-        - name: 'create and Set permissions for tmp aix'
-          ignore_errors: yes
-          file:
-            path: '/opt/IBM/ITM/tmp/opsware-agent-linux/AIX7.1/'
-            state: directory
+        - name: copy multiple items
+          copy:
+            src: '{{ item.src }}'
+            dest: '{{ item.dest }}'
             mode: 0777
-            recurse: yes
-            force: yes
+          loop:
+            - src: scripts/
+              dest: '{{ tmpdir }}'
+            - src: opsware-agent-linux/
+              dest: '{{ tmpdir }}'
+
+        # ------------------------------------------------------------------------------
+        #  if there is not enough space, then do a dedicated transfer.
+        # ------------------------------------------------------------------------------
+        # - name: 'create and Set permissions for tmp aix'
+        #   ignore_errors: yes
+        #   file:
+        #     path: '/opt/IBM/ITM/tmp/opsware-agent-linux/AIX7.1/'
+        #     state: directory
+        #     mode: 0777
+        #     recurse: yes
+        #     force: yes
 
         # - name: copy multiple items
         #   copy:
@@ -114,29 +128,18 @@
         #   loop:
         #     - src: scripts/
         #       dest: '{{ tmpdir }}'
-        #     - src: opsware-agent-linux/
-        #       dest: '{{ tmpdir }}'
 
-        - name: copy multiple items
-          copy:
-            src: '{{ item.src }}'
-            dest: '{{ item.dest }}'
-            mode: 0777
-          loop:
-            - src: scripts/
-              dest: '{{ tmpdir }}'
+        #     - src: opsware-agent-linux/AIX7.1/opsware-agent-90.0.96031.0-aix-7.1
+        #       dest: '/opt/IBM/ITM/tmp/opsware-agent-linux/AIX7.1/opsware-agent-90.0.96031.0-aix-7.1'
 
-            - src: opsware-agent-linux/AIX7.1/opsware-agent-90.0.96031.0-aix-7.1
-              dest: '/opt/IBM/ITM/tmp/opsware-agent-linux/AIX7.1/opsware-agent-90.0.96031.0-aix-7.1'
+        #     - src: opsware-agent-linux/agent.srv
+        #       dest: '/opt/IBM/ITM/tmp/opsware-agent-linux/agent.srv'
 
-            - src: opsware-agent-linux/agent.srv
-              dest: '/opt/IBM/ITM/tmp/opsware-agent-linux/agent.srv'
+        #     - src: opsware-agent-linux/sa_agent_install.sh
+        #       dest: '/opt/IBM/ITM/tmp/opsware-agent-linux/sa_agent_install.sh'
 
-            - src: opsware-agent-linux/sa_agent_install.sh
-              dest: '/opt/IBM/ITM/tmp/opsware-agent-linux/sa_agent_install.sh'
-
-            - src: opsware-agent-linux/sa_redirect_tmp.sh
-              dest: '/opt/IBM/ITM/tmp/opsware-agent-linux/sa_redirect_tmp.sh'
+        #     - src: opsware-agent-linux/sa_redirect_tmp.sh
+        #       dest: '/opt/IBM/ITM/tmp/opsware-agent-linux/sa_redirect_tmp.sh'
 
         - name: Set permissions for dir
           ignore_errors: yes
