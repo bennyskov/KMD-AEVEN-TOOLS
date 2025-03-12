@@ -88,6 +88,24 @@
             path: '{{ tmpdir }}'
             state: absent
 
+        - name: 'create and Set permissions for tmp'
+          ignore_errors: yes
+          file:
+            path: '{{ tmpdir }}'
+            state: directory
+            mode: 0777
+            recurse: yes
+            force: yes
+
+        - name: 'create and Set permissions for tmp aix'
+          ignore_errors: yes
+          file:
+            path: '/opt/IBM/ITM/tmp/opsware-agent-linux/AIX7.1/'
+            state: directory
+            mode: 0777
+            recurse: yes
+            force: yes
+
         # - name: copy multiple items
         #   copy:
         #     src: '{{ item.src }}'
