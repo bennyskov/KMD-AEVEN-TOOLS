@@ -82,11 +82,22 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # Delete & create & copy files to dir /tmp/opsware-agent-linux/
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # - name: 'Delete {{ tmpdir }} directory on {{ hostlist }}'
-        #   ignore_errors: yes
-        #   file:
-        #     path: '{{ tmpdir }}'
-        #     state: absent
+        - name: 'Delete {{ tmpdir }} directory on {{ hostlist }}'
+          ignore_errors: yes
+          file:
+            path: '{{ tmpdir }}'
+            state: absent
+
+        # - name: copy multiple items
+        #   copy:
+        #     src: '{{ item.src }}'
+        #     dest: '{{ item.dest }}'
+        #     mode: 0777
+        #   loop:
+        #     - src: scripts/
+        #       dest: '{{ tmpdir }}'
+        #     - src: opsware-agent-linux/
+        #       dest: '{{ tmpdir }}'
 
         - name: copy multiple items
           copy:
@@ -96,8 +107,18 @@
           loop:
             - src: scripts/
               dest: '{{ tmpdir }}'
-            - src: opsware-agent-linux/
-              dest: '{{ tmpdir }}'
+
+            - src: opsware-agent-linux/AIX7.1/opsware-agent-90.0.96031.0-aix-7.1
+              dest: '/opt/IBM/ITM/tmp/opsware-agent-linux/AIX7.1/opsware-agent-90.0.96031.0-aix-7.1'
+
+            - src: opsware-agent-linux/agent.srv
+              dest: '/opt/IBM/ITM/tmp/opsware-agent-linux/agent.srv'
+
+            - src: opsware-agent-linux/sa_agent_install.sh
+              dest: '/opt/IBM/ITM/tmp/opsware-agent-linux/sa_agent_install.sh'
+
+            - src: opsware-agent-linux/sa_redirect_tmp.sh
+              dest: '/opt/IBM/ITM/tmp/opsware-agent-linux/sa_redirect_tmp.sh'
 
         - name: Set permissions for dir
           ignore_errors: yes
