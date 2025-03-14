@@ -1,0 +1,104 @@
+- name: Create OS groups
+  hosts: '{{ hostlist }}'
+  become: false
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: Create OS group
+      group_by:
+        key: 'machine_{{ ostype }}'
+      changed_when: false
+      when: ostype is defined
+      delegate_to: localhost
+
+- name: Socks tunnel setup
+  hosts: 'machine_windows'
+  gather_facts: false
+  tasks:
+    - include_role:
+        name: ansible-role-event-socks-tunnel
+        apply:
+          check_mode: false
+          run_once: true
+          delegate_to: localhost
+      vars:
+        acc_id: '{{ blueid_shortcode }}'
+        transaction_id: '{{ tower_job_id }}'
+        trans_num: '{{ tower_job_id }}'
+
+    - set_fact:
+        ansible_become_method: runas
+        ansible_become_user: system
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# now working on {{ hostlist }} host
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+#
+# uninstall playbook of Opsware agent on windows
+#
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+- name: 'uninstall playbook of SA Opsware agent {{ hostlist }}'
+  hosts: '{{ hostlist }}'
+  become: true
+  gather_facts: false
+  vars:
+    agentdir: 'C:/Program Files/Opsware/agent/pylibs3/cog/uninstall/'
+    tmpdir: 'C:/Windows/Temp/'
+    stdoutfile: 'sa-agent_uninstall_stdout.log'
+  tasks:
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Uninstall
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Uninstall block
+      block:
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # run uninstall using ccmsetup
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: Run command
+          win_command: 'ccmsetup.exe /uninstall 2>&1'
+          args:
+            chdir: '{{ agentdir }}'
+          register: script_run
+
+        - name: Output list
+          debug:
+            var: script_run.stdout_lines
+ # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # run uninstall using Ccmclean.exe
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: Run command
+          win_command: 'Ccmclean.exe 2>&1'
+          args:
+            chdir: '{{ agentdir }}'
+          register: script_run
+
+        - name: Output list
+          debug:
+            var: script_run.stdout_lines
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # send stdoutfiles to ansible stdout
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+        - name: 'Read content from {{ stdoutfile }}'
+          run_once: true
+          win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ stdoutfile }}"
+          register: file_content_uninstall_stdout
+        - name: 'Display content in stdout'
+          debug:
+            msg: |-
+              "aeven_fstdout {{ file_content_uninstall_stdout.stdout }}"
+
+        - name: 'List {{ tmpdir }} at the end'
+          run_once: true
+          win_shell: Get-ChildItem -Path "C:/Program Files/*"
+          register: dir_of_tmpdir_end
+
+        - name: 'list dir of C:/Program Files/*'
+          debug:
+            var: dir_of_tmpdir_end.stdout_lines
+
+      always:
+        - name: Delete temp C:/Program Files/Opsware/ agent directory
+          win_file:
+            path: 'C:/Program Files/Opsware/'
+            state: absent
