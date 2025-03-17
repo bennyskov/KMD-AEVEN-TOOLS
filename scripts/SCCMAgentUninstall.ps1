@@ -35,6 +35,60 @@ $ReturnArray = @{}
 #
 #>
 # ----------------------------------------------------------------------------------------------------------------------------
+#region begining - INIT
+# ----------------------------------------------------------------------------------------------------------------------------
+$begin = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
+$step = 0
+$windir = "$env:WINDIR/Temp"
+$scriptName = $myinvocation.mycommand.Name
+$scriptpath = $myinvocation.mycommand.Path
+
+$scriptName = [System.Text.RegularExpressions.Regex]::Replace($scriptName, ".ps1", "")
+$scriptDir = [System.Text.RegularExpressions.Regex]::Replace($scriptpath, "\\", "/")
+$scriptarray = $scriptDir.split("/")
+$scriptDir = $scriptarray[0..($scriptarray.Count-2)] -join "/"
+"scriptName:       " + $scriptName
+"scriptDir:        " + $scriptDir
+
+$project = "de-tooling"
+$function = "SCCMAgentUninstall"
+${tempDir} = "${scriptDir}/${project}/${function}/"
+$logfile = "${scriptDir}/${project}/${function}/${scriptName}.log"
+if (-not (Test-Path -Path ${tempDir})) {
+    try {
+        New-Item -Path ${tempDir} -ItemType Directory -Force | Out-Null
+        $icaclsCmd = "icacls `"${tempDir}`" /grant `"Users`":`(OI`)`(CI`)F"
+        $result = Invoke-Expression $icaclsCmd
+        $text = "Created directory ${tempDir} and set permissions"; Lognewline -logstring $text
+    }
+    catch {
+        $text = "Error creating directory ${tempDir}: $_"; Lognewline -logstring $text
+    }
+}
+$hostname = hostname
+$hostname = $hostname.ToLower()
+$x64 = (Get-WmiObject -Class Win32_OperatingSystem).OSArchitecture -like '64-bit'
+$hostIp = Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Filter IPENABLED=TRUE | Select-Object IPAddress | select-object -expandproperty IPAddress | select-object -first 1
+$ccmsetup = $env:WINDIR + '/ccmsetup/'
+$result = Get-WmiObject Win32_Process -Filter "name = 'ccmsetup.exe'" | Select-Object ProcessId, CommandLine | ? { $_.CommandLine -like "*ccmsetup.exe*" } | % { Stop-Process -Id $_.ProcessId -Force -PassThru -ErrorAction Stop -Verbose }
+"begin:             " + $begin
+"hostname:          " + $hostname
+"scriptName:        " + $scriptName
+"logfile:           " + $logfile
+"scriptDir:         " + $scriptDir
+"tempDir:           " + ${tempDir}
+"checkSame:         " + $checkSame
+"hostIp:            " + $hostIp
+"Powershell ver:    " + $psvers
+"ccmsetup:          " + $ccmsetup
+"windir:            " + $windir
+"x64:               " + $x64
+"result:            " + $result
+"------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+$text = "Set initial parms"; $step++; Logline -logstring $text -step $step
+Lognewline -logstring "OK"
+Exit(0)
+# ----------------------------------------------------------------------------------------------------------------------------
 # functions
 # ----------------------------------------------------------------------------------------------------------------------------
 Function Logline
@@ -89,7 +143,7 @@ function remove-host([string]$filename, [string]$hostname) {
     $ErrorActionPreference = 'Continue'
 }
 
-function print-hosts([string]$filename) {
+function print_hostfile([string]$filename) {
     $c = Get-Content $filename
 
     foreach ($line in $c) {
@@ -97,54 +151,7 @@ function print-hosts([string]$filename) {
     }
 }
 #endregion
-# ----------------------------------------------------------------------------------------------------------------------------
-#region begining - INIT
-# ----------------------------------------------------------------------------------------------------------------------------
-$begin          = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
-$step           = 0
-$windir         = "$env:WINDIR/Temp"
-$scriptpath     = $myinvocation.mycommand.Path
-"scriptpath:         " + $scriptpath
 
-$scriptName     = $myinvocation.mycommand.Name
-$scriptName     = [System.Text.RegularExpressions.Regex]::Replace($scriptName,".ps1","")
-$scriptDir      = [System.Text.RegularExpressions.Regex]::Replace($scriptpath,"\\","/")
-# $scriptarray    = $scriptDir.split("/")
-$project        = "KMD-AEVEN-TOOLS"
-$function       = "SCCMAgentUninstall"
-${tempDir}        = "${scriptDir}/${project}/${function}/"
-$logfile        = "${scriptDir}/${project}/${function}/${scriptName}.log"
-if (-not (Test-Path -Path ${tempDir})) {
-    try {
-        New-Item -Path ${tempDir} -ItemType Directory -Force | Out-Null
-        $icaclsCmd = "icacls `"${tempDir}`" /grant `"Users`":`(OI`)`(CI`)F"
-        $result = Invoke-Expression $icaclsCmd
-        $text = "Created directory ${tempDir} and set permissions";Lognewline -logstring $text
-    } catch {
-        $text = "Error creating directory ${tempDir}: $_";Lognewline -logstring $text
-    }
-}
-${tempDir}        = "C:/temp/"
-$hostname       = hostname
-$hostname       = $hostname.ToLower()
-$x64            = (Get-WmiObject -Class Win32_OperatingSystem).OSArchitecture -like '64-bit'
-$hostIp         = Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Filter IPENABLED=TRUE | Select-Object IPAddress |select-object -expandproperty IPAddress | select-object -first 1
-$ccmsetup       = $env:WINDIR+'/ccmsetup/'
-$result         = Get-WmiObject Win32_Process -Filter "name = 'ccmsetup.exe'" | Select-Object ProcessId,CommandLine | ?{$_.CommandLine -like "*ccmsetup.exe*"} | %{Stop-Process -Id $_.ProcessId -Force -PassThru -ErrorAction Stop -Verbose}
-"hostname:          " + $hostname
-"scriptName:        " + $scriptName
-"logfile:           " + $logfile
-"scriptDir:         " + $scriptDir
-"tempDir:           " + ${tempDir}
-"checkSame:         " + $checkSame
-"hostIp:            " + $hostIp
-"Powershell ver:    " + $psvers
-"ccmsetup:          " + $ccmsetup
-"windir:            " + $windir
-"------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
-# $text = "Set initial parms";$step++;Logline -logstring $text -step $step
-# Lognewline -logstring "OK"
-exit 0
 # $localdir       = [System.Text.RegularExpressions.Regex]::Replace($scriptpath,".$scriptName","")
 
 # $wintemp        = "${tempDir}/KMD-AEVEN-TOOLS/SCCMAgentUninstall/${scriptName}.log"
@@ -292,7 +299,7 @@ exit 0
 # $null = add-host $hostsFile -ip 84.255.67.200 -hostname "kmdwinccm003.adminkmd.local kmdwinccm003 # SCCM PaaS" -ErrorAction SilentlyContinue
 # # $null = add-host $hostsFile -ip 84.255.126.40 -hostname "kmdwinccm004.adminkmd.local kmdwinccm004 # SCCM Classic" -ErrorAction SilentlyContinue
 # # $null = add-host $hostsFile -ip 84.255.94.50 -hostname "kmdwinccm005.adminkmd.local kmdwinccm005 # SCCM FMO" -ErrorAction SilentlyContinue
-# # print-hosts $hostsFile
+# # print_hostfile $hostsFile
 # #endregion
 # # ----------------------------------------------------------------------------------------------------------------------------
 # #region set parm
