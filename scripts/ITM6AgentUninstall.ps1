@@ -78,11 +78,10 @@ remove-item -Path $logfile -Force -ErrorAction SilentlyContinue
 # ----------------------------------------------------------------------------------------------------------------------------
 #region functions
 # ----------------------------------------------------------------------------------------------------------------------------
-Function Logline
-{
-Param ([string]$logstring,$step)
+Function Logline {
+    Param ([string]$logstring, $step)
     $now = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
-    $text = ( "{0,-23} : $hostname : step {1:d4} : {2,-75} : {3}" -f $now,$step,$logstring,"" )
+    $text = ( "{0,-23} : $hostname : step {1:d4} : {2}" -f $now, $step, $logstring)
     Add-content -LiteralPath $Logfile -value $text
     Write-Host $text
 }
@@ -139,44 +138,110 @@ function Test-CleanupRegistry {
         return $true
     }
 }
-function Test-CleanupProductFiles {
-    $isAllDoneOK = $true
-    $filesNotRemoved = @()
-    $clientPaths = @(
-        "C:/IBM/ITM/",
-        "C:/PROGRA~1\IBM\tivoli\common\CIT",
-        "C:/PROGRA~1\IBM\tivoli\common\cfg",
-        "C:/ProgramData/BigFix/"
+function Remove-BlockedPath {
+    param (
+        [string]$path,
+        [string]$blockedFilePath = $null,
+        [int]$depth = 0
     )
 
-    $text = "cleanup all product files, if uninstall didnt do it"; $step++; Logline -logstring $text -step $step
-    foreach ($path in $clientPaths) {
-        if ( Test-Path $path ) {
-            try {
-                $text = "Force removing directory: $path"; Logline -logstring $text
-                Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
+    if ($depth -gt 3) {
+        $text = "Maximum retry depth reached for path: $path"; Logline -logstring $text -step $step
+        return $false
+    }
+
+    # Try to delete the path
+    try {
+        $text = "Attempting to remove: $path (depth: $depth)"; Logline -logstring $text -step $step
+        Remove-Item -Path $path -Recurse -Force -ErrorAction Stop
+        $text = "Successfully removed: $path"; Logline -logstring $text -step $step
+        return $true
+    }
+    catch {
+        # Extract blocked file path if not already known
+        if (-not $blockedFilePath) {
+            $errorMsg = $_.ToString()
+            $filePathMatch = [regex]::Match($errorMsg, "Cannot remove item (.*?): The process cannot access the file")
+            if ($filePathMatch.Success) {
+                $blockedFilePath = $filePathMatch.Groups[1].Value
+                $text = "Found blocked file: $blockedFilePath"; Logline -logstring $text -step $step
             }
-            catch {
-                $text = "Error removing $path : $_"; Logline -logstring $text
+        }
+
+        if ($blockedFilePath) {
+            # Run handle on blocked file
+            $handleCmd = "${binDir}/handle `"$blockedFilePath`" -accepteula -nobanner"
+            $handleResult = & cmd /C $handleCmd 2>&1
+            Logline -logstring "Handle result: $handleResult" -step $step
+
+            # Parse handle output
+            $handleRegex = [regex]::Match($handleResult, "pid:\s*(\d+).*?type:\s*File\s*([0-9A-F]+):")
+            if ($handleRegex.Success) {
+                $processId = $handleRegex.Groups[1].Value.Trim()
+                $handleId = $handleRegex.Groups[2].Value.Trim()
+
+                # Close handle
+                $cmdexec = "${binDir}/handle -c $handleId -y -p ${processId} -accepteula -nobanner"
+                Logline -logstring "Executing: $cmdexec" -step $step
+                $closeResult = & cmd /C $cmdexec 2>&1
+                Logline -logstring $closeResult -step $step
+
+                # Recursive call to retry deletion
+                return Remove-BlockedPath -path $path -blockedFilePath $null -depth ($depth + 1)
+            }
+        }
+
+        $text = "Failed to remove: $path - $_"; Logline -logstring $text -step $step
+        return $false
+    }
+}
+function Test-CleanupProductFiles {
+    Param ([int32]$step)
+
+    $isAllDoneOK = $true
+    $filesNotRemoved = @()
+
+    $dirPaths = @(
+        "C:/Temp/scanner_logs",
+        "C:/Temp/jre",
+        "C:/Temp/report",
+        "C:/Temp/exclude_config.txt",
+        "C:/Temp/Get-Win-Disks-and-Partitions.ps1",
+        "C:/Temp/log4j2-scanner-2.6.5.jar",
+        "C:/salt",
+        "C:/IBM/ITM/TMAITM6_x64/logs"
+    )
+    # "D:/scripts/tview/build/logs/systems"
+
+    $text = "cleanup all product files, if uninstall didnt do it"; $step++; Logline -logstring $text -step $step
+    foreach ($path in $dirPaths) {
+        $path = [System.Text.RegularExpressions.Regex]::Replace($path, "\\", "/")
+        if (Test-Path $path) {
+            $text = "Attempting to remove directory: $path"; Logline -logstring $text -step $step
+            $result = Remove-BlockedPath -path $path
+            if (-not $result) {
                 $filesNotRemoved += $path
                 $isAllDoneOK = $false
             }
         }
-    }
-    if ( $isAllDoneOK ) {
-        $filesExist = Test-Path "C:/IBM/ITM/"
-        return -not ($filesExist)
-    } else {
-        if ( $filesNotRemoved.Count -gt 0 ) {
-            foreach ($path in $filesNotRemoved) {
-                $cmdexec = '${scriptDir}/handle "${path}" -accepteula -nobannerr'
-                $result = & cmd /C $cmdexec 2>&1
-                Logline -logstring $result -step $step
-                # python.exe         pid: 10920  type: File           770: D:\scripts\tview\build\logs\activities\debugfile\tool_launch_activities_2025-03-17_07-57-06_078402_kmdwinitm001_stdout.log
+        else {
+            $text = "Path does not exist: $path"; Logline -logstring $text -step $step
+        }
+
+        if ( $isAllDoneOK ) {
+            $result = 'success. All Agents files are removed'
+            Logline -logstring $result -step $step
+        }
+        else {
+            if ( $filesNotRemoved.Count -gt 0 ) {
+                $text = "filesNotRemoved=" + $filesNotRemoved.Count; Logline -logstring $text -step $step
+                foreach ($path in $filesNotRemoved) {
+                    Logline -logstring $line -step $step
+                }
             }
         }
     }
-
+    return $isAllDoneOK
 }
 function Test-IsAgentsStopped {
     $serviceExists = $(Get-Service | Where-Object { $_.Name -match '^k.*' -and $_.DisplayName -match 'Monitoring agent' } -ErrorAction SilentlyContinue).Name
@@ -207,40 +272,45 @@ function Uninstall-ProductAgent {
         Logline -logstring $result -step $step
     }
 
-
-
-
-    $text = "stop Method 1: Stop all ITM6 agents using Stop-Service"; $step++; Logline -logstring $text -step $step
-    $servicesToStop = Get-Service | Where-Object { $_.Name -match '^k.*' -and $_.DisplayName -match 'Monitoring agent'  } -ErrorAction SilentlyContinue
-    $servicesToStop | Stop-Service -Force
-    Start-Sleep -Seconds 10
-    foreach ($service in $servicesToStop) {
-        $service | Set-Service -StartupType Disabled
-        $service | Stop-Service -force
-        $result = $service | Get-Service
-        Logline -logstring $result -step $step
+    if ( Test-IsAgentsStopped -eq $false ) {
+        $text = "stop Method 1: Stop all ITM6 agents using Stop-Service"; $step++; Logline -logstring $text -step $step
+        $servicesToStop = Get-Service | Where-Object { $_.Name -match '^k.*' -and $_.DisplayName -match 'Monitoring agent'  } -ErrorAction SilentlyContinue
+        $servicesToStop | Stop-Service -Force
+        Start-Sleep -Seconds 10
+        foreach ($service in $servicesToStop) {
+            $service | Set-Service -StartupType Disabled
+            $service | Stop-Service -force
+            $result = $service | Get-Service
+            Logline -logstring $result -step $step
+        }
     }
 
-    $text = "stop Method 2: Stop ITM6 using WMI AND then terminate"; $step++; Logline -logstring $text -step $step
-    $ReturnValue = $(Get-WmiObject Win32_Process | Where-Object commandLine -match '^C:\\IBM.ITM\\.*\\K*' | ForEach-Object { $_.Terminate() }).ReturnValue
-    if ($ReturnValue) {
-        foreach ($rc in $ReturnValue) {
-            if ( -not $rc -eq 0 ) {
-                write-host "rc=$rc"
+    if ( Test-IsAgentsStopped -eq $false ) {
+        $text = "stop Method 2: Stop ITM6 using WMI AND then terminate"; $step++; Logline -logstring $text -step $step
+        $ReturnValue = $(Get-WmiObject Win32_Process | Where-Object commandLine -match '^C:\\IBM.ITM\\.*\\K*' | ForEach-Object { $_.Terminate() }).ReturnValue
+        if ($ReturnValue) {
+            foreach ($rc in $ReturnValue) {
+                if ( -not $rc -eq 0 ) {
+                    write-host "terminating service rc=$rc"
+                }
             }
         }
     }
-    $servicesToStop = Get-Service | Where-Object { $_.Name -match '^k.*' -and $_.DisplayName -match 'Monitoring agent' }
-    foreach ($service in $servicesToStop) {
-        $service | Set-Service -StartupType Disabled
-        $service | Stop-Service -force
-        $result = $service | Get-Service
-        Logline -logstring "$result"
-    }
-    Start-Sleep -Seconds 10
-    if ( Test-IsAgentsStopped -eq $false ) {
 
-        $text = "Method 3: Stop ITM6 using net stop service"; $step++; Logline -logstring $text -step $step
+    if ( Test-IsAgentsStopped -eq $false ) {
+        $text = "disable services: Stop all ITM6 agents using Stop-Service"; $step++; Logline -logstring $text -step $step
+        $servicesToStop = Get-Service | Where-Object { $_.Name -match '^k.*' -and $_.DisplayName -match 'Monitoring agent' }
+        foreach ($service in $servicesToStop) {
+            $service | Set-Service -StartupType Disabled
+            $service | Stop-Service -force
+            $result = $service | Get-Service
+            Logline -logstring "$result"
+        }
+        Start-Sleep -Seconds 10
+    }
+
+    if ( Test-IsAgentsStopped -eq $false ) {
+        $text = "stop Method 3: Stop ITM6 using net stop service"; $step++; Logline -logstring $text -step $step
         $servicesToStop = $(Get-Service | Where-Object { $_.Name -match '^k.*' -and $_.DisplayName -match 'Monitoring agent' }).Name
         foreach ($serviceName in $servicesToStop) {
             $cmdexec = "net stop $serviceName"
@@ -252,86 +322,82 @@ function Uninstall-ProductAgent {
         Logline -logstring "$result"
     }
 
-    $text = "Method 2: Use WMIC (for older systems)"; $step++; Logline -logstring $text -step $step
-    Logline -logstring "begin"
-    try {
-        $text = "Attempting uninstall via WMI";Logline -logstring $text
-        $result = Invoke-Expression "wmic product where 'name like ""Configuration Manager Client""' call uninstall /nointeractive"
-        $text = "WMI uninstall attempted";Logline -logstring $text
-    } catch {
-        $text = "WMI uninstall error: $_";Logline -logstring $text
-    }
-
-    $text = "Method 3: MsiExec for direct uninstall (if other methods fail)"; $step++; Logline -logstring $text -step $step
-    Logline -logstring "begin"
-    try {
-        $clientMsi = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*Configuration Manager Client*" }
-        if ($clientMsi) {
-            $text = "Uninstalling via MSI: $($clientMsi.Name)";Logline -logstring $text
-            $result = $clientMsi.Uninstall()
-            $text = "MSI uninstall result: $($result.ReturnValue)";Logline -logstring $text
-        }
-    } catch {
-        $text = "MSI uninstall error: $_";Logline -logstring $text
-    }
-
-    $text = "uninstall ITM6 Agents"; $step++; Logline -logstring $text -step $step
-    $possiblePaths = @(
-        "${scriptDir}/ITMRmvAll.exe"
-    )
-
-    foreach ($path in $possiblePaths) {
-        if (Test-Path $path) {
-            $program = $path
-            break
+    if ( Test-IsAgentsStopped -eq $false ) {
+        $text = "Method 4: Use WMIC (for older systems)"; $step++; Logline -logstring $text -step $step
+        Logline -logstring "begin"
+        try {
+            $text = "Attempting uninstall via WMI";Logline -logstring $text
+            $result = Invoke-Expression "wmic product where 'name like ""Configuration Manager Client""' call uninstall /nointeractive"
+            $text = "WMI uninstall attempted";Logline -logstring $text
+        } catch {
+            $text = "WMI uninstall error: $_";Logline -logstring $text
         }
     }
-    if (Test-Path "$program") {
-        $text = " ITMRmvAll"; Logline -logstring $text
-        $cmdexec = @("start", "/WAIT", "/MIN", "`"${program}`"", "-batchrmvall", "-removegskit")
-        Logline -logstring "begin" $cmdexec
-        $result = & cmd /C $cmdexec 2>&1
-        $rc = $?
-        if ( $rc ) {
-            Logline -logstring "Success. rc=$rc result=$result"
+
+    if ( Test-IsAgentsStopped -eq $false ) {
+        $text = "uninstall ITM6 Agents"; $step++; Logline -logstring $text -step $step
+        $possiblePaths = @(
+            "${scriptDir}/ITMRmvAll.exe"
+        )
+        foreach ($path in $possiblePaths) {
+            if (Test-Path $path) {
+                $program = $path
+                break
+            }
         }
-        else {
-            Logline -logstring "Failed. rc=$rc result=$result"
+        if (Test-Path "$program") {
+            $text = " ITMRmvAll"; Logline -logstring $text
+            $cmdexec = @("start", "/WAIT", "/MIN", "`"${program}`"", "-batchrmvall", "-removegskit")
+            Logline -logstring "begin" $cmdexec
+            $result = & cmd /C $cmdexec 2>&1
+            $rc = $?
+            if ( $rc ) {
+                Logline -logstring "Success. rc=$rc result=$result"
+            }
+            else {
+                Logline -logstring "Failed. rc=$rc result=$result"
+            }
+            $text = "ITMRmvAll exit code: $($result.ExitCode)"; Logline -logstring $text
         }
-        $text = "ITMRmvAll exit code: $($result.ExitCode)"; Logline -logstring $text
     }
 
-
-
-
-    $text = "Check if uninstallation was successful"; $step++; Logline -logstring $text -step $step
-    Logline -logstring "begin"
-    $success = -not (Test-Path "$env:WinDir\CCM\CcmExec.exe")
-    if ($success) {
-        $text = "SCCM client uninstallation appears successful";Logline -logstring $text
-    } else {
-        $text = "SCCM client may still be installed. Consider using -Force parameter";Logline -logstring $text
+    if ( Test-IsAgentsStopped -eq $false ) {
+        $text = "uninstall via MsiExec for direct uninstall (if other methods fail)"; $step++; Logline -logstring $text -step $step
+        try {
+            $clientMsi = Get-WmiObject -Class Win32_Product | Where-Object { $_.Description -like "*Monitoring agent*" }
+            if ($clientMsi) {
+                $text = "Uninstalling via MSI: $($clientMsi.Name)"; Logline -logstring $text
+                $result = $clientMsi.Uninstall()
+                $text = "MSI uninstall result: $($result.ReturnValue)"; Logline -logstring $text
+            }
+        }
+        catch {
+            $text = "MSI uninstall error: $_"; Logline -logstring $text
+        }
     }
 
-    if (-not $NoReboot -and (Test-Path HKLM:\SYSTEM\CurrentControlSet\Control\Session` Manager\PendingFileRenameOperations)) {
-        $text = "System restart required to complete uninstallation"; Logline -logstring $text
-        Restart-Computer -Force
-    }
-
-    return $success
+    # if (-not $NoReboot -and (Test-Path HKLM:\SYSTEM\CurrentControlSet\Control\Session` Manager\PendingFileRenameOperations)) {
+    #     $text = "System restart required to complete uninstallation"; Logline -logstring $text
+    #     Restart-Computer -Force
+    # }
+    # return $success
 }
 #endregion
 # ----------------------------------------------------------------------------------------------------------------------------
-#region begin
+#region run Uninstall-ProductAgent
 # ----------------------------------------------------------------------------------------------------------------------------
-$text = "call function Uninstall-ProductAgent"; $step++; Logline -logstring $text -step $step
+$text = "run Uninstall-ProductAgent"; $step++; Logline -logstring $text -step $step
 Uninstall-ProductAgent -Force
-Logline -logstring "OK"
+#endregion
+# ----------------------------------------------------------------------------------------------------------------------------
+#region run Test-CleanupProductFiles.
+# ----------------------------------------------------------------------------------------------------------------------------
+$text = "run Test-CleanupProductFiles"; $step++; Logline -logstring $text -step $step
+$result = Test-CleanupProductFiles -step $step
 #endregion
 # ----------------------------------------------------------------------------------------------------------------------------
 #region cleanup after us.
 # ----------------------------------------------------------------------------------------------------------------------------
-$text = "call function Uninstall-ProductAgent"; $step++; Logline -logstring $text -step $step
 Remove-Item -Recurse -Path "$scriptDir" -ErrorAction SilentlyContinue
 Logline -logstring "OK"
 #endregion
