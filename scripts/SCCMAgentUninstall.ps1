@@ -28,7 +28,12 @@ Remove-Variable * -ErrorAction SilentlyContinue
 #
 #
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-# SCCMAgentUninstall.ps1  :   complete uninstall of SCCM, also legacy versions
+# SCCMAgentUninstall.ps1  :      project de-tooling
+#
+# Objective:
+# for this script is to do a complete uninstall of SCCM agent and all legacy versions, if any on a given server.
+# also check and uninstall if any legacy versions. But do not uninstall if a opentext version exists on server.
+# the script is uploaded to a server and started remotely by a automation tool like ansible
 #
 # 2025-03-13  Initial release ( Benny.Skov@kyndryl.dk )
 #
@@ -49,9 +54,8 @@ $scriptDir      = [System.Text.RegularExpressions.Regex]::Replace($scriptpath, "
 $scriptarray    = $scriptDir.split("/")
 $scriptDir      = $scriptarray[0..($scriptarray.Count-2)] -join "/"
 $project        = "de-tooling"
-$function       = "SCCMAgentUninstall"
-$tempDir        = "${scriptDir}/${project}/${function}/"
-$logfile        = "${scriptDir}/${project}/${function}/${scriptName}.log"
+$tempDir        = "${scriptDir}"
+$logfile        = "${scriptDir}/${scriptName}.log"
 if (-not (Test-Path -Path ${tempDir})) {
     try {
         New-Item -Path ${tempDir} -ItemType Directory -Force | Out-Null
@@ -64,7 +68,7 @@ if (-not (Test-Path -Path ${tempDir})) {
     }
 }
 remove-item -Path $logfile -Force -ErrorAction SilentlyContinue
-
+"------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
 "begin:             " + $begin
 "hostname:          " + $hostname
 "hostIp:            " + $hostIp
@@ -133,13 +137,21 @@ function print_hostfile([string]$filename) {
         Write-Host $line
     }
 }
+function Test-SCCMUninstalled {
+    $filesExist = Test-Path "$env:WinDir\CCM\CcmExec.exe"
+    $serviceExists = Get-Service "CcmExec" -ErrorAction SilentlyContinue
+    $processExists = Get-Process "CcmExec" -ErrorAction SilentlyContinue
+
+    return -not ($filesExist -or $serviceExists -or $processExists)
+}
 #endregion
 $text = "Set initial parms"; $step++; Logline -logstring $text -step $step
 Lognewline -logstring "OK"
 
 function Uninstall-SCCMAgent {
     param(
-        [switch]$Force
+        [switch]$Force,
+        [switch]$NoReboot
     )
 
     $hostsFile = "${windir}\system32\Drivers\etc\hosts"
@@ -276,6 +288,11 @@ function Uninstall-SCCMAgent {
         $text = "SCCM client uninstallation appears successful";Lognewline -logstring $text
     } else {
         $text = "SCCM client may still be installed. Consider using -Force parameter";Lognewline -logstring $text
+    }
+
+    if (-not $NoReboot -and (Test-Path HKLM:\SYSTEM\CurrentControlSet\Control\Session` Manager\PendingFileRenameOperations)) {
+        $text = "System restart required to complete uninstallation"; Lognewline -logstring $text
+        Restart-Computer -Force
     }
 
     return $success

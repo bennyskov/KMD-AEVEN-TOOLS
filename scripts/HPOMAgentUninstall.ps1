@@ -28,7 +28,14 @@ Remove-Variable * -ErrorAction SilentlyContinue
 #
 #
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-# SCCMAgentUninstall.ps1  :   complete uninstall of SCCM, also legacy versions
+# HPOMAgentUninstall.ps1  :      project de-tooling
+#
+#
+# Objective:
+# for this script is to do a complete uninstall of HPOM agent and all legacy versions, if any on a given server.
+# also check and uninstall if any legacy versions. But do not uninstall if a opentext version exists on server.
+# the script is uploaded to a server and started remotely by a automation tool like ansible
+#
 #
 # 2025-03-13  Initial release ( Benny.Skov@kyndryl.dk )
 #
@@ -49,9 +56,8 @@ $scriptDir      = [System.Text.RegularExpressions.Regex]::Replace($scriptpath, "
 $scriptarray    = $scriptDir.split("/")
 $scriptDir      = $scriptarray[0..($scriptarray.Count-2)] -join "/"
 $project        = "de-tooling"
-$function       = "SCCMAgentUninstall"
-$tempDir        = "${scriptDir}/${project}/${function}/"
-$logfile        = "${scriptDir}/${project}/${function}/${scriptName}.log"
+$tempDir        = "${scriptDir}"
+$logfile        = "${scriptDir}/${scriptName}.log"
 if (-not (Test-Path -Path ${tempDir})) {
     try {
         New-Item -Path ${tempDir} -ItemType Directory -Force | Out-Null
@@ -64,7 +70,7 @@ if (-not (Test-Path -Path ${tempDir})) {
     }
 }
 remove-item -Path $logfile -Force -ErrorAction SilentlyContinue
-
+"------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
 "begin:             " + $begin
 "hostname:          " + $hostname
 "hostIp:            " + $hostIp
@@ -133,11 +139,17 @@ function print_hostfile([string]$filename) {
         Write-Host $line
     }
 }
+function Test-HPOMAgentUninstalled {
+    $agentExists = Test-Path "C:/PROGRA~1/HP/HP BTO Software"
+    $serviceExists = Get-Service "ovctrl" -ErrorAction SilentlyContinue
+
+    return -not ($agentExists -or $serviceExists)
+}
 #endregion
 $text = "Set initial parms"; $step++; Logline -logstring $text -step $step
 Lognewline -logstring "OK"
 
-function Uninstall-SCCMAgent {
+function Uninstall-HPOMAgent {
     param(
         [switch]$Force
     )
@@ -164,7 +176,18 @@ function Uninstall-SCCMAgent {
 
     $text = "uninstall ovc agent"; $step++; Logline -logstring $text -step $step
     Lognewline -logstring "begin"
-    $program = "C:/PROGRA~1/HP/HP BTO Software/bin/win64/OpC/install/oainstall.vbs"
+    $possiblePaths = @(
+        "C:/PROGRA~1/HP/HP BTO Software/bin/win64/OpC/install/oainstall.vbs",
+        "C:/Program Files/HP/HP BTO Software/bin/win64/OpC/install/oainstall.vbs",
+        "C:/Program Files (x86)/HP/HP BTO Software/bin/win64/OpC/install/oainstall.vbs"
+    )
+
+    foreach ($path in $possiblePaths) {
+        if (Test-Path $path) {
+            $program = $path
+            break
+        }
+    }
     if (Test-Path "$program") {
         $text = " oainstall"; Lognewline -logstring $text
         $cmdexec = @("cscript", "`"${program}`"", "-remove", "-force")
@@ -223,18 +246,27 @@ function Uninstall-SCCMAgent {
 
     return $success
 }
+
+
+    if (Test-HPOMAgentUninstalled) {
+        $text = "HP Operations Manager Agent uninstall successful"; Lognewline -logstring $text
+        $success = $true
+    } else {
+        $text = "HP Operations Manager Agent may not be completely uninstalled"; Lognewline -logstring $text
+        $success = $false
+    }
 #endregion
 # ----------------------------------------------------------------------------------------------------------------------------
 #region begin
 # ----------------------------------------------------------------------------------------------------------------------------
-$text = "call function Uninstall-UCMDBagent"; $step++; Logline -logstring $text -step $step
+$text = "call function Uninstall-HPOMAgent"; $step++; Logline -logstring $text -step $step
 Lognewline -logstring "begin"
-Uninstall-UCMDBagent -Force
+Uninstall-HPOMAgent -Force
 #endregion
 # ----------------------------------------------------------------------------------------------------------------------------
 #region cleanup
 # ----------------------------------------------------------------------------------------------------------------------------
-Remove-Item -Recurse -Path "$scriptDir" -ErrorAction SilentlyContinue
+Remove-Item -Path $scriptpath -ErrorAction SilentlyContinue
 #endregion
 # ----------------------------------------------------------------------------------------------------------------------------
 # The End

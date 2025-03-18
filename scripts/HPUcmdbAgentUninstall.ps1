@@ -28,8 +28,12 @@ Remove-Variable * -ErrorAction SilentlyContinue
 #
 #
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-# SCCMAgentUninstall.ps1  :   complete uninstall of SCCM, also legacy versions
+# HPUcmdbAgentUninstall.ps1  :   project de-tooling
 #
+# Objective:
+# for this script is to do a complete uninstall of HP Universal Discovery Agent and all legacy versions, if any on a given server.
+# Also do a check and uninstall if any legacy versions. But do not uninstall if a opentext version exists on server.
+# the script is uploaded to a server and started remotely by a automation tool like ansible
 # 2025-03-13  Initial release ( Benny.Skov@kyndryl.dk )
 #
 #>
@@ -48,10 +52,8 @@ $scriptName     = [System.Text.RegularExpressions.Regex]::Replace($scriptName, "
 $scriptDir      = [System.Text.RegularExpressions.Regex]::Replace($scriptpath, "\\", "/")
 $scriptarray    = $scriptDir.split("/")
 $scriptDir      = $scriptarray[0..($scriptarray.Count-2)] -join "/"
-$project        = "de-tooling"
-$function       = "SCCMAgentUninstall"
-$tempDir        = "${scriptDir}/${project}/${function}/"
-$logfile        = "${scriptDir}/${project}/${function}/${scriptName}.log"
+$tempDir        = "${scriptDir}"
+$logfile        = "${scriptDir}/${scriptName}.log"
 if (-not (Test-Path -Path ${tempDir})) {
     try {
         New-Item -Path ${tempDir} -ItemType Directory -Force | Out-Null
@@ -64,7 +66,7 @@ if (-not (Test-Path -Path ${tempDir})) {
     }
 }
 remove-item -Path $logfile -Force -ErrorAction SilentlyContinue
-
+"------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
 "begin:             " + $begin
 "hostname:          " + $hostname
 "hostIp:            " + $hostIp
