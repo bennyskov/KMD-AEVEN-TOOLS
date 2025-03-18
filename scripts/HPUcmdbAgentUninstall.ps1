@@ -45,24 +45,22 @@ $step           = 0
 $hostname       = hostname
 $hostname       = $hostname.ToLower()
 $hostIp         = Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Filter IPENABLED=TRUE | Select-Object IPAddress | select-object -expandproperty IPAddress | select-object -first 1
-$windir         = "$env:WINDIR/Temp"
 $scriptName     = $myinvocation.mycommand.Name
-$scriptpath     = $myinvocation.mycommand.Path
+$scriptPath     = $myinvocation.mycommand.Path
 $scriptName     = [System.Text.RegularExpressions.Regex]::Replace($scriptName, ".ps1", "")
-$scriptDir      = [System.Text.RegularExpressions.Regex]::Replace($scriptpath, "\\", "/")
+$scriptDir      = [System.Text.RegularExpressions.Regex]::Replace($scriptPath, "\\", "/")
 $scriptarray    = $scriptDir.split("/")
 $scriptDir      = $scriptarray[0..($scriptarray.Count-2)] -join "/"
-$tempDir        = "${scriptDir}"
 $logfile        = "${scriptDir}/${scriptName}.log"
-if (-not (Test-Path -Path ${tempDir})) {
+if (-not (Test-Path -Path ${scriptDir})) {
     try {
-        New-Item -Path ${tempDir} -ItemType Directory -Force | Out-Null
-        $icaclsCmd = "icacls `"${tempDir}`" /grant `"Users`":`(OI`)`(CI`)F"
+        New-Item -Path ${scriptDir} -ItemType Directory -Force | Out-Null
+        $icaclsCmd = "icacls `"${scriptDir}`" /grant `"Users`":`(OI`)`(CI`)F"
         $result = Invoke-Expression $icaclsCmd
-        $text = "Created directory ${tempDir} and set permissions"; Lognewline -logstring $text
+        $text = "Created directory ${scriptDir} and set permissions"; Lognewline -logstring $text
     }
     catch {
-        $text = "Error creating directory ${tempDir}: $_"; Lognewline -logstring $text
+        $text = "Error creating directory ${scriptDir}: $_"; Lognewline -logstring $text
     }
 }
 remove-item -Path $logfile -Force -ErrorAction SilentlyContinue
@@ -70,13 +68,9 @@ remove-item -Path $logfile -Force -ErrorAction SilentlyContinue
 "begin:             " + $begin
 "hostname:          " + $hostname
 "hostIp:            " + $hostIp
-"windir:            " + $windir
 "scriptName:        " + $scriptName
-"scriptpath:        " + $scriptpath
+"scriptPath:        " + $scriptPath
 "scriptDir:         " + $scriptDir
-"project:           " + $project
-"function:          " + $function
-"tempDir:           " + $tempDir
 "logfile:           " + $logfile
 "Powershell ver:    " + $psvers
 "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
