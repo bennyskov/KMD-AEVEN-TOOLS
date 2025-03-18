@@ -141,7 +141,7 @@ function Test-CleanupRegistry {
 }
 function Test-CleanupProductFiles {
     $isAllDoneOK = $true
-    $filesNotRemoved = {}
+    $filesNotRemoved = @()
     $clientPaths = @(
         "C:/IBM/ITM/",
         "C:/PROGRA~1\IBM\tivoli\common\CIT",
@@ -158,14 +158,25 @@ function Test-CleanupProductFiles {
             }
             catch {
                 $text = "Error removing $path : $_"; Logline -logstring $text
-
-                opsw_gw_addr['BTA_ATP_1']       = '10.35.10.1'
+                $filesNotRemoved += $path
                 $isAllDoneOK = $false
             }
         }
     }
-    $filesExist = Test-Path "C:/IBM/ITM/"
-    return -not ($filesExist)
+    if ( $isAllDoneOK ) {
+        $filesExist = Test-Path "C:/IBM/ITM/"
+        return -not ($filesExist)
+    } else {
+        if ( $filesNotRemoved.Count -gt 0 ) {
+            foreach ($path in $filesNotRemoved) {
+                $cmdexec = '${scriptDir}/handle "${path}" -accepteula -nobannerr'
+                $result = & cmd /C $cmdexec 2>&1
+                Logline -logstring $result -step $step
+                # python.exe         pid: 10920  type: File           770: D:\scripts\tview\build\logs\activities\debugfile\tool_launch_activities_2025-03-17_07-57-06_078402_kmdwinitm001_stdout.log
+            }
+        }
+    }
+
 }
 function Test-IsAgentsStopped {
     $serviceExists = $(Get-Service | Where-Object { $_.Name -match '^k.*' -and $_.DisplayName -match 'Monitoring agent' } -ErrorAction SilentlyContinue).Name
@@ -265,7 +276,6 @@ function Uninstall-ProductAgent {
     }
 
     $text = "uninstall ITM6 Agents"; $step++; Logline -logstring $text -step $step
-    Logline -logstring "begin"
     $possiblePaths = @(
         "${scriptDir}/ITMRmvAll.exe"
     )
