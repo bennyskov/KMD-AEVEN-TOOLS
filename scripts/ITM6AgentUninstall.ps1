@@ -1,5 +1,25 @@
 ﻿"------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
 Remove-Variable * -ErrorAction SilentlyContinue
+$ErrorActionPreference = 'Continue'
+$defaultErrorActionPreference = $ErrorActionPreference
+# $ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Inquire'
+# $ErrorActionPreference = 'Ignore '
+# $ErrorActionPreference = 'SilentlyContinue'
+# $ErrorActionPreference = 'Continue'
+
+function Restore-ErrorActionPreference {
+    $global:ErrorActionPreference = $defaultErrorActionPreference
+    Write-Host "ErrorActionPreference restored to: $ErrorActionPreference"
+}
+
+# Register cleanup function to run even if script terminates unexpectedly
+trap {
+    Restore-ErrorActionPreference
+    break
+}
+
+# Continue with script...
 [int]$psvers = $PSVersionTable.PSVersion | select-object -ExpandProperty major
 <# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #
@@ -64,7 +84,7 @@ if (-not (Test-Path -Path ${scriptDir})) {
         $text = "Error creating directory ${scriptDir}: $_"; Logline -logstring $text -step $step
     }
 }
-remove-item -Path $logfile -Force -ErrorAction SilentlyContinue
+remove-item -Path $logfile -Force -ErrorAction Stop
 Function Logline {
     Param ([string]$logstring, $step)
     $now = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
@@ -97,7 +117,7 @@ function Test-lastUninstall {
         $result = Get-WmiObject Win32_Process -Filter "name = '${uninstName}'" | Select-Object ProcessId, CommandLine | Where-Object { $_.CommandLine -like "*ITMRmvAll.exe*" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -PassThru -ErrorAction Stop -Verbose }
         Logline -logstring $result -step $step
 
-        Start-Sleep -Seconds 10
+        # Start-Sleep -Seconds 10
 
         if ( [bool](Get-WmiObject Win32_Process -Filter "name = '${uninstName}'") ) {
             $text = "${uninstName} is still running. We try stopping it using psKill"; Logline -logstring $result -step $step
@@ -106,7 +126,7 @@ function Test-lastUninstall {
             $result = & cmd /C $cmdexec 2>&1
             Logline -logstring $result -step $step
 
-            Start-Sleep -Seconds 10
+            # Start-Sleep -Seconds 10
 
             if ( [bool](Get-WmiObject Win32_Process -Filter "name = '${uninstName}'") ) {
                 $text = "${uninstName} is still running. We must break now"; Logline -logstring $result -step $step
@@ -124,70 +144,75 @@ function Stop-ProductAgent {
         [switch]$disable,
         [int32]$step
         )
+    try {
+        $IsAgentsStopped = $false
 
-    $IsAgentsStopped = $false
-
-    if ( -not $IsAgentsStopped ) {
-        $text = "stop Method 1: Stop all ${DisplayName} agents using Stop-Service"; $step++; Logline -logstring $text -step $step
-        $servicesToStop = Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' } -ErrorAction SilentlyContinue
-        $servicesToStop | Stop-Service -Force
-        Start-Sleep -Seconds 10
-        foreach ($service in $servicesToStop) {
-            if ( $disable ) { $service | Set-Service -StartupType Disabled }
-            $service | Stop-Service -force
-            $result = $service | Get-Service
-            Logline -logstring $result -step $step
+        if ( -not $IsAgentsStopped ) {
+            $text = "stop Method 1: Stop all ${DisplayName} agents using Stop-Service"; $step++; Logline -logstring $text -step $step
+            $servicesToStop = Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' } -ErrorAction Stop
+            $servicesToStop | Stop-Service -Force
+            Start-Sleep -Seconds 10
+            foreach ($service in $servicesToStop) {
+                if ( $disable ) { $service | Set-Service -StartupType Disabled }
+                $service | Stop-Service -force
+                $result = $service | Get-Service
+                Logline -logstring $result -step $step
+            }
+            if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
         }
-        if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
-    }
 
-    if ( -not $IsAgentsStopped ) {
-        $text = "stop Method 2: Stop ${DisplayName} using WMI Terminate"; $step++; Logline -logstring $text -step $step
-        $ReturnValue = $(Get-WmiObject Win32_Process | Where-Object CommandLine -match '${CommandLine}' | ForEach-Object { $_.Terminate() }).ReturnValue
-        if ($ReturnValue) {
-            foreach ($rc in $ReturnValue) {
-                if ( -not $rc -eq 0 ) {
-                    Logline -logstring "terminating service rc=$rc" -step $step
+        if ( -not $IsAgentsStopped ) {
+            $text = "stop Method 2: Stop ${DisplayName} using WMI Terminate"; $step++; Logline -logstring $text -step $step
+            $ReturnValue = $(Get-WmiObject Win32_Process | Where-Object CommandLine -match '${CommandLine}' | ForEach-Object { $_.Terminate() }).ReturnValue
+            if ($ReturnValue) {
+                foreach ($rc in $ReturnValue) {
+                    if ( -not $rc -eq 0 ) {
+                        Logline -logstring "terminating service rc=$rc" -step $step
+                    }
                 }
             }
+            if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
         }
-        if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
-    }
 
-    if ( -not $IsAgentsStopped ) {
-        $text = "stop Method 3: Stop ${DisplayName} using 'net stop service'"; $step++; Logline -logstring $text -step $step
-        $servicesToStop = $(Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' }).Name
-        foreach ($service in $servicesToStop) {
-            $cmdexec = "net stop $service"
-            $result = & cmd /C $cmdexec 2>&1
-            Logline -logstring "$result"
+        if ( -not $IsAgentsStopped ) {
+            $text = "stop Method 3: Stop ${DisplayName} using 'net stop service'"; $step++; Logline -logstring $text -step $step
+            $servicesToStop = $(Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' }).Name
+            foreach ($service in $servicesToStop) {
+                $cmdexec = "net stop $service"
+                $result = & cmd /C $cmdexec 2>&1
+                Logline -logstring "$result"
+            }
+            if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
         }
-        if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
-    }
 
-    if ( -not $IsAgentsStopped ) {
-        $text = "stop Method 4: Stop ${DisplayName} using 'psKill service'"; $step++; Logline -logstring $text -step $step
-        $servicesToKill = Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' } -ErrorAction SilentlyContinue
-        foreach ($service in $servicesToKill) {
-            $text = "${service} is still running. We try stopping it using psKill"; Logline -logstring $result -step $step
-            $cmdexec = "${scriptDir}/psKill -t $service -accepteula -nobanner"
-            Logline -logstring $cmdexec -step $step
-            $result = & cmd /C $cmdexec 2>&1
-            Logline -logstring $result -step $step
+        if ( -not $IsAgentsStopped ) {
+            $text = "stop Method 4: Stop ${DisplayName} using 'psKill service'"; $step++; Logline -logstring $text -step $step
+            $servicesToKill = Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' } -ErrorAction Stop
+            foreach ($service in $servicesToKill) {
+                $text = "${service} is still running. We try stopping it using psKill"; Logline -logstring $result -step $step
+                $cmdexec = "${scriptDir}/psKill -t $service -accepteula -nobanner"
+                Logline -logstring $cmdexec -step $step
+                $result = & cmd /C $cmdexec 2>&1
+                Logline -logstring $result -step $step
+            }
+            if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
         }
-        if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
-    }
 
-    if ( -not $IsAgentsStopped ) {
-        $text = "stop and disable services"; $step++; Logline -logstring $text -step $step
-        $servicesToStop = Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' }
-        foreach ($service in $servicesToStop) {
-            if ( $disable ) { $service | Set-Service -StartupType Disabled }
-            $service | Stop-Service -force
-            $result = $service | Get-Service | format-table -autosize | Out-string -Width 300
-            Logline -logstring "$result"
+        if ( -not $IsAgentsStopped ) {
+            $text = "stop and disable services"; $step++; Logline -logstring $text -step $step
+            $servicesToStop = Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' }
+            foreach ($service in $servicesToStop) {
+                if ( $disable ) { $service | Set-Service -StartupType Disabled }
+                $service | Stop-Service -force
+                $result = $service | Get-Service | format-table -autosize | Out-string -Width 300
+                Logline -logstring "$result"
+            }
+            if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
         }
-        if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
+    }
+    catch {
+        $errorMsg = $_.ToString()
+        Logline -logstring $errorMsg -step $step
     }
     return $IsAgentsStopped
 }
@@ -261,7 +286,7 @@ function Test-CleanupRegistry {
         if (Test-Path $key) {
             try {
                 $text = "Removing registry key: $key"; Logline -logstring $text -step $step
-                Remove-Item -Path $key -Recurse -Force -ErrorAction SilentlyContinue
+                Remove-Item -Path $key -Recurse -Force -ErrorAction Stop
                 $isAllRegistryGone = $true
             } catch {
                 $text = "Error removing registry key $key : $_"; Logline -logstring $text -step $step
@@ -378,8 +403,8 @@ function Test-CleanupProductFiles {
 }
 function Test-IsAgentsStopped {
 
-    $serviceExists = $(Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' } -ErrorAction SilentlyContinue).Name
-    $processExists = $(Get-Process | Where-Object { $_.ProcessName -match '${ServiceName}' -and $_.Description -match '${DisplayName}' } -ErrorAction SilentlyContinue).ProcessName
+    $serviceExists = $(Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' } -ErrorAction Stop).Name
+    $processExists = $(Get-Process | Where-Object { $_.ProcessName -match '${ServiceName}' -and $_.Description -match '${DisplayName}' } -ErrorAction Stop).ProcessName
     $serviceExists | format-table -autosize | Out-string -Width 300
     $processExists | format-table -autosize | Out-string -Width 300
 
@@ -393,10 +418,10 @@ function Test-IsAllGone {
         [int32]$step
         )
 
-    $isFilesGone        = [bool]$(Test-Path "C:/IBM/ITM/*" -ErrorAction SilentlyContinue)
-    $isRegistryGone     = [bool]$(Test-Path "HKLM:\SOFTWARE\Candle" -ErrorAction SilentlyContinue)
-    $serviceExists      = [bool]$(Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' } -ErrorAction SilentlyContinue)
-    $processExists      = [bool]$(Get-Process | Where-Object { $_.ProcessName -match '${ServiceName}' -and $_.Description -match '${DisplayName}' } -ErrorAction SilentlyContinue)
+    $isFilesGone        = [bool]$(Test-Path "C:/IBM/ITM/*" -ErrorAction Stop)
+    $isRegistryGone     = [bool]$(Test-Path "HKLM:\SOFTWARE\Candle" -ErrorAction Stop)
+    $serviceExists      = [bool]$(Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' } -ErrorAction Stop)
+    $processExists      = [bool]$(Get-Process | Where-Object { $_.ProcessName -match '${ServiceName}' -and $_.Description -match '${DisplayName}' } -ErrorAction Stop)
 
     return -not ($isFilesGone -or $isRegistryGone -or $serviceExists -or $processExists)
 }
@@ -421,7 +446,6 @@ if ( $continue ) {
     $text = "run Test-lastUninstall"; $step++; Logline -logstring $text -step $step
     $continue = Test-lastUninstall -uninstName ${uninstName} -step $step
 }
-exit
 #endregion
 # ----------------------------------------------------------------------------------------------------------------------------
 #region run Stop-ProductAgent
@@ -430,6 +454,7 @@ if ( $continue ) {
     $text = "run Stop-ProductAgent"; $step++; Logline -logstring $text -step $step
     $continue = Stop-ProductAgent -ServiceName $ServiceName -DisplayName $DisplayName -CommandLine $CommandLine -step $step -disable
 }
+exit 0
 #endregion
 # ----------------------------------------------------------------------------------------------------------------------------
 #region run Uninstall-ProductAgent
@@ -458,7 +483,7 @@ if ( $continue ) {
 # ----------------------------------------------------------------------------------------------------------------------------
 #region cleanup after us.
 # ----------------------------------------------------------------------------------------------------------------------------
-Remove-Item -Recurse -Path "$scriptDir" -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Path "$scriptDir" -ErrorAction Stop
 #endregion
 # ----------------------------------------------------------------------------------------------------------------------------
 #region final test.
