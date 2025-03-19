@@ -65,6 +65,13 @@ if (-not (Test-Path -Path ${scriptDir})) {
     }
 }
 remove-item -Path $logfile -Force -ErrorAction SilentlyContinue
+Function Logline {
+    Param ([string]$logstring, $step)
+    $now = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
+    $text = ( "{0,-23} : $hostname : step {1:d4} : {2}" -f $now, $step, $logstring)
+    Add-content -LiteralPath $Logfile -value $text
+    Write-Host $text
+}
 $text = "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"; Logline -logstring $text -step $step
 $text = "begin:             " + $begin;         Logline -logstring $text -step $step
 $text = "Powershell ver:    " + $psvers;        Logline -logstring $text -step $step
@@ -78,13 +85,6 @@ $text = "-----------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------
 #region functions
 # ----------------------------------------------------------------------------------------------------------------------------
-Function Logline {
-    Param ([string]$logstring, $step)
-    $now = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
-    $text = ( "{0,-23} : $hostname : step {1:d4} : {2}" -f $now, $step, $logstring)
-    Add-content -LiteralPath $Logfile -value $text
-    Write-Host $text
-}
 function Test-lastUninstall {
     Param (
         [string]$uninstName,
@@ -198,7 +198,6 @@ function Uninstall-ProductAgent {
         [int32]$step
     )
 
-    $IsUninstallDone = $false
     $text = "uninstall ${DisplayName} Agents"; $step++; Logline -logstring $text -step $step
     $program = "${scriptDir}/${uninstName}"
 
@@ -418,8 +417,11 @@ $text = "-----------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------
 #region run Test-lastUninstall
 # ----------------------------------------------------------------------------------------------------------------------------
+if ( $continue ) {
     $text = "run Test-lastUninstall"; $step++; Logline -logstring $text -step $step
     $continue = Test-lastUninstall -uninstName ${uninstName} -step $step
+}
+exit
 #endregion
 # ----------------------------------------------------------------------------------------------------------------------------
 #region run Stop-ProductAgent
