@@ -58,24 +58,23 @@ if (-not (Test-Path -Path ${scriptDir})) {
         New-Item -Path ${scriptDir} -ItemType Directory -Force | Out-Null
         $icaclsCmd = "icacls `"${scriptDir}`" /grant `"Users`":`(OI`)`(CI`)F"
         $result = Invoke-Expression $icaclsCmd
-        $text = "Created directory ${scriptDir} and set permissions"; Logline -logstring $text
+        $text = "Created directory ${scriptDir} and set permissions"; Logline -logstring $text -step $step
     }
     catch {
-        $text = "Error creating directory ${scriptDir}: $_"; Logline -logstring $text
+        $text = "Error creating directory ${scriptDir}: $_"; Logline -logstring $text -step $step
     }
 }
 remove-item -Path $logfile -Force -ErrorAction SilentlyContinue
-
-"------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
-"begin:             " + $begin
-"Powershell ver:    " + $psvers
-"hostname:          " + $hostname
-"hostIp:            " + $hostIp
-"scriptName:        " + $scriptName
-"scriptPath:        " + $scriptPath
-"scriptDir:         " + $scriptDir
-"logfile:           " + $logfile
-"------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+$text = "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"; Logline -logstring $text -step $step
+$text = "begin:             " + $begin;         Logline -logstring $text -step $step
+$text = "Powershell ver:    " + $psvers;        Logline -logstring $text -step $step
+$text = "hostname:          " + $hostname;      Logline -logstring $text -step $step
+$text = "hostIp:            " + $hostIp;        Logline -logstring $text -step $step
+$text = "scriptName:        " + $scriptName;    Logline -logstring $text -step $step
+$text = "scriptPath:        " + $scriptPath;    Logline -logstring $text -step $step
+$text = "scriptDir:         " + $scriptDir;     Logline -logstring $text -step $step
+$text = "logfile:           " + $logfile;       Logline -logstring $text -step $step
+$text = "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"; Logline -logstring $text -step $step
 # ----------------------------------------------------------------------------------------------------------------------------
 #region functions
 # ----------------------------------------------------------------------------------------------------------------------------
@@ -117,7 +116,7 @@ function Test-lastUninstall {
     }
     return $continue
 }
-function Stop-ProductAgents {
+function Stop-ProductAgent {
     Param (
         [string]$ServiceName,
         [string]$DisplayName,
@@ -199,89 +198,79 @@ function Uninstall-ProductAgent {
         [int32]$step
     )
 
+    $IsUninstallDone = $false
     $text = "uninstall ${DisplayName} Agents"; $step++; Logline -logstring $text -step $step
-    $possiblePaths = @(
-        "${scriptDir}/${uninstName}"
-    )
-    foreach ($path in $possiblePaths) {
-        if (Test-Path $path) {
-            $program = $path
-            break
+    $program = "${scriptDir}/${uninstName}"
+
+    if ( Test-IsAgentsStopped -eq $true ) {
+
+        if (Test-Path "$program") {
+            $text = " ITMRmvAll"; Logline -logstring $text -step $step
+            $cmdexec = @("start", "/WAIT", "/MIN", "`"${program}`"", "-batchrmvall", "-removegskit")
+            Logline -logstring "begin" $cmdexec
+            $result = & cmd /C $cmdexec 2>&1
+            $rc = $?
+            if ( $rc ) {
+                Logline -logstring "Success. rc=$rc result=$result"
+            }
+            else {
+                Logline -logstring "Failed. rc=$rc result=$result"
+            }
+            $text = "${program} exit code: $($result.ExitCode)"; Logline -logstring $text -step $step
         }
-    }
-    if (Test-Path "$program") {
-        $text = " ITMRmvAll"; Logline -logstring $text
-        $cmdexec = @("start", "/WAIT", "/MIN", "`"${program}`"", "-batchrmvall", "-removegskit")
-        Logline -logstring "begin" $cmdexec
-        $result = & cmd /C $cmdexec 2>&1
-        $rc = $?
-        if ( $rc ) {
-            Logline -logstring "Success. rc=$rc result=$result"
-        }
-        else {
-            Logline -logstring "Failed. rc=$rc result=$result"
-        }
-        $text = "${program} exit code: $($result.ExitCode)"; Logline -logstring $text
     }
 
-    if ( Test-IsAgentsStopped -eq $false ) {
+    if ( Test-IsAllGone -eq $false ) {
         $text = "uninstall via MsiExec for direct uninstall (if other methods fail)"; $step++; Logline -logstring $text -step $step
         try {
             $clientMsi = Get-WmiObject -Class Win32_Product | Where-Object { $_.Description -like "*${DisplayName}*" }
             if ($clientMsi) {
-                $text = "Uninstalling via MSI: $($clientMsi.Name)"; Logline -logstring $text
+                $text = "Uninstalling via MSI: $($clientMsi.Name)"; Logline -logstring $text -step $step
                 $result = $clientMsi.Uninstall()
-                $text = "MSI uninstall result: $($result.ReturnValue)"; Logline -logstring $text
+                $text = "MSI uninstall result: $($result.ReturnValue)"; Logline -logstring $text -step $step
             }
         }
         catch {
-            $text = "MSI uninstall error: $_"; Logline -logstring $text
+            $text = "MSI uninstall error: $_"; Logline -logstring $text -step $step
         }
     }
 
-    $text = "uninstall via WMIC (for older systems)"; $step++; Logline -logstring $text -step $step
-    try {
-        $text = "Attempting uninstall via WMI"; Logline -logstring $text
-        $result = Invoke-Expression "wmic product where 'name like ""Configuration Manager Client""' call uninstall /nointeractive"
-        $text = "WMI uninstall attempted"; Logline -logstring $text
+    if ( Test-IsAllGone -eq $false ) {
+        $text = "uninstall via WMIC (for older systems)"; $step++; Logline -logstring $text -step $step
+        try {
+            $text = "Attempting uninstall via WMI"; Logline -logstring $text -step $step
+            $result = Invoke-Expression "wmic product where 'name like ""Configuration Manager Client""' call uninstall /nointeractive"
+            $text = "WMI uninstall attempted"; Logline -logstring $text -step $step
+        }
+        catch {
+            $text = "WMI uninstall error: $_"; Logline -logstring $text -step $step
+        }
     }
-    catch {
-        $text = "WMI uninstall error: $_"; Logline -logstring $text
-    }
-    # if (-not $NoReboot -and (Test-Path HKLM:\SYSTEM\CurrentControlSet\Control\Session` Manager\PendingFileRenameOperations)) {
-    #     $text = "System restart required to complete uninstallation"; Logline -logstring $text
-    #     Restart-Computer -Force
-    # }
-    return $continue
+
+    return Test-IsAllGone
 }
 function Test-CleanupRegistry {
-    $isAllDoneOK = $true
+    $isAllRegistryGone = $true
     $regKeys = @(
-        "HKLM:\SOFTWARE\Candle",
-
-        "HKLM:\SOFTWARE\Wow6432Node\Microsoft\CCM",
-        "HKLM:\SOFTWARE\Wow6432Node\Microsoft\SMS",
-        "HKLM:\SOFTWARE\Wow6432Node\Microsoft\CCMSetup"
+        "HKLM:\SOFTWARE\Candle"
+        "HKLM:\SOFTWARE\Wow6432Node\Candle",
+        "HKLM:\SYSTEM\CurrentControlSet\Services\Candle",
+        "HKLM:\SYSTEM\CurrentControlSet\Services\IBM\ITM"
     )
-
-
     $text = "Clean up registry"; $step++; Logline -logstring $text -step $step
     foreach ($key in $regKeys) {
         if (Test-Path $key) {
             try {
-                $text = "Removing registry key: $key";Logline -logstring $text
+                $text = "Removing registry key: $key"; Logline -logstring $text -step $step
                 Remove-Item -Path $key -Recurse -Force -ErrorAction SilentlyContinue
+                $isAllRegistryGone = $true
             } catch {
-                $text = "Error removing registry key $key : $_";Logline -logstring $text
-                $isAllDoneOK = $false
+                $text = "Error removing registry key $key : $_"; Logline -logstring $text -step $step
+                $isAllRegistryGone = $false
             }
         }
     }
-    if ( $isAllDoneOK) {
-        return $true
-    } else {
-        return $true
-    }
+    return $isAllRegistryGone
 }
 function Remove-BlockedPath {
     param (
@@ -343,7 +332,7 @@ function Remove-BlockedPath {
 function Test-CleanupProductFiles {
     Param ([int32]$step)
 
-    $isAllDoneOK = $true
+    $isAllFilesGone = $true
     $filesNotRemoved = @()
 
     $dirPaths = @(
@@ -366,14 +355,14 @@ function Test-CleanupProductFiles {
             $result = Remove-BlockedPath -path $path
             if (-not $result) {
                 $filesNotRemoved += $path
-                $isAllDoneOK = $false
+                $isAllFilesGone = $false
             }
         }
         else {
             $text = "Path does not exist: $path"; Logline -logstring $text -step $step
         }
 
-        if ( $isAllDoneOK ) {
+        if ( $isAllFilesGone ) {
             $result = 'success. All Agents files are removed'
             Logline -logstring $result -step $step
         }
@@ -386,9 +375,10 @@ function Test-CleanupProductFiles {
             }
         }
     }
-    return $isAllDoneOK
+    return $isAllFilesGone
 }
 function Test-IsAgentsStopped {
+
     $serviceExists = $(Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' } -ErrorAction SilentlyContinue).Name
     $processExists = $(Get-Process | Where-Object { $_.ProcessName -match '${ServiceName}' -and $_.Description -match '${DisplayName}' } -ErrorAction SilentlyContinue).ProcessName
     $serviceExists | format-table -autosize | Out-string -Width 300
@@ -396,8 +386,21 @@ function Test-IsAgentsStopped {
 
     return -not ($serviceExists -or $processExists)
 }
+function Test-IsAllGone {
+    Param (
+        [string]$ServiceName,
+        [string]$DisplayName,
+        [string]$CommandLine,
+        [int32]$step
+        )
 
+    $isFilesGone        = [bool]$(Test-Path "C:/IBM/ITM/*" -ErrorAction SilentlyContinue)
+    $isRegistryGone     = [bool]$(Test-Path "HKLM:\SOFTWARE\Candle" -ErrorAction SilentlyContinue)
+    $serviceExists      = [bool]$(Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' } -ErrorAction SilentlyContinue)
+    $processExists      = [bool]$(Get-Process | Where-Object { $_.ProcessName -match '${ServiceName}' -and $_.Description -match '${DisplayName}' } -ErrorAction SilentlyContinue)
 
+    return -not ($isFilesGone -or $isRegistryGone -or $serviceExists -or $processExists)
+}
 # ----------------------------------------------------------------------------------------------------------------------------
 #region appl vars
 # ----------------------------------------------------------------------------------------------------------------------------
@@ -406,12 +409,12 @@ $uninstName         = 'ITMRmvAll.exe'
 $DisplayName        = 'monitoring Agent'
 $ServiceName        = '^k.*'
 $CommandLine        = '^C:\\IBM.ITM\\.*\\K*'
-"------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
-"uninstName:        " + $uninstName
-"DisplayName:       " + $DisplayName
-"ServiceName:       " + $ServiceName
-"CommandLine:       " + $CommandLine
-"------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+$text = "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"; Logline -logstring $text -step $step
+$text = "uninstName:        " + $uninstName;    Logline -logstring $text -step $step
+$text = "DisplayName:       " + $DisplayName;   Logline -logstring $text -step $step
+$text = "ServiceName:       " + $ServiceName;   Logline -logstring $text -step $step
+$text = "CommandLine:       " + $CommandLine;   Logline -logstring $text -step $step
+$text = "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"; Logline -logstring $text -step $step
 # ----------------------------------------------------------------------------------------------------------------------------
 #region run Test-lastUninstall
 # ----------------------------------------------------------------------------------------------------------------------------
@@ -454,24 +457,29 @@ if ( $continue ) {
 #region cleanup after us.
 # ----------------------------------------------------------------------------------------------------------------------------
 Remove-Item -Recurse -Path "$scriptDir" -ErrorAction SilentlyContinue
-Logline -logstring "OK"
 #endregion
+# ----------------------------------------------------------------------------------------------------------------------------
+#region final test.
+# ----------------------------------------------------------------------------------------------------------------------------
+if ( $continue ) {
+    $text = "run Test-IsAllGone"; $step++; Logline -logstring $text -step $step
+    $continue = Test-IsAllGone -ServiceName $ServiceName -DisplayName $DisplayName -CommandLine $CommandLine -step $step
+}#endregion
 # ----------------------------------------------------------------------------------------------------------------------------
 # The End
 # ----------------------------------------------------------------------------------------------------------------------------
 $end = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
 $TimeDiff = New-TimeSpan $begin $end
 if ($TimeDiff.Seconds -lt 0) {
-	$Hrs = ($TimeDiff.Hours) + 23
-	$Mins = ($TimeDiff.Minutes) + 59
-	$Secs = ($TimeDiff.Seconds) + 59
+    $Hrs = ($TimeDiff.Hours) + 23
+    $Mins = ($TimeDiff.Minutes) + 59
+    $Secs = ($TimeDiff.Seconds) + 59
 } else {
-	$Hrs = $TimeDiff.Hours
-	$Mins = $TimeDiff.Minutes
-	$Secs = $TimeDiff.Seconds
+    $Hrs = $TimeDiff.Hours
+    $Mins = $TimeDiff.Minutes
+    $Secs = $TimeDiff.Seconds
 }
-$text = 'The End, Elapsed time';$step++;Logline -logstring $text -step $step
-$Difference = '{0:00}:{1:00}:{2:00}' -f $Hrs,$Mins,$Secs
-$Difference
-"------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+$Difference = '{0:00}:{1:00}:{2:00}' -f $Hrs, $Mins, $Secs
+$text = "The End, Elapsed time: ${Difference}"; $step++; Logline -logstring $text -step $step
+$text = "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
 exit 0
