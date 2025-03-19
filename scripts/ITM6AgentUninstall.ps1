@@ -257,13 +257,14 @@ function Uninstall-ProductAgent {
 function Test-CleanupRegistry {
     $isAllDoneOK = $true
     $regKeys = @(
-        "HKLM:\SOFTWARE\Microsoft\CCM",
-        "HKLM:\SOFTWARE\Microsoft\SMS",
-        "HKLM:\SOFTWARE\Microsoft\CCMSetup",
+        "HKLM:\SOFTWARE\Candle",
+
         "HKLM:\SOFTWARE\Wow6432Node\Microsoft\CCM",
         "HKLM:\SOFTWARE\Wow6432Node\Microsoft\SMS",
         "HKLM:\SOFTWARE\Wow6432Node\Microsoft\CCMSetup"
     )
+
+
     $text = "Clean up registry"; $step++; Logline -logstring $text -step $step
     foreach ($key in $regKeys) {
         if (Test-Path $key) {
