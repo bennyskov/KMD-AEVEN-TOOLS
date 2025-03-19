@@ -28,10 +28,10 @@ Remove-Variable * -ErrorAction SilentlyContinue
 #
 #
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-# ITM6AgentUninstall.ps1  :      project de-tooling
+# ${DisplayName}AgentUninstall.ps1  :      project de-tooling
 #
 # Objective:
-# for this script is to do a complete uninstall of ITM6 agent and all legacy versions, if any on a given server.
+# for this script is to do a complete uninstall of ${DisplayName} agent and all legacy versions, if any on a given server.
 # also check and uninstall if any legacy versions. But do not uninstall if a opentext version exists on server.
 # the script is uploaded to a server and started remotely by a automation tool like ansible
 #
@@ -65,15 +65,16 @@ if (-not (Test-Path -Path ${scriptDir})) {
     }
 }
 remove-item -Path $logfile -Force -ErrorAction SilentlyContinue
+
 "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
 "begin:             " + $begin
+"Powershell ver:    " + $psvers
 "hostname:          " + $hostname
 "hostIp:            " + $hostIp
 "scriptName:        " + $scriptName
 "scriptPath:        " + $scriptPath
 "scriptDir:         " + $scriptDir
 "logfile:           " + $logfile
-"Powershell ver:    " + $psvers
 "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
 # ----------------------------------------------------------------------------------------------------------------------------
 #region functions
@@ -85,30 +86,173 @@ Function Logline {
     Add-content -LiteralPath $Logfile -value $text
     Write-Host $text
 }
-Function finish
-{
-Param(
-    [string]$f_result = "",
-    [string]$f_message = ""
-)
-    if ( $f_message ) { Write-Host f_message  }
-    if ( $f_message ) { " : $f_result" }
-    if ( $f_result -eq 0 ) { exit 12 }
-}
-function Test-RemoveWMInamespace {
-    $isAllDoneOK = $true
-    $text = "Removing CCM WMI namespaces"; $step++; Logline -logstring $text -step $step
-    try {
-        Get-WmiObject -Query "SELECT * FROM __Namespace WHERE Name='CCM'" -Namespace "root" -ErrorAction SilentlyContinue |
-            Remove-WmiObject -ErrorAction SilentlyContinue
-        Get-WmiObject -Query "SELECT * FROM __Namespace WHERE Name='SMSDM'" -Namespace "root\cimv2" -ErrorAction SilentlyContinue |
-            Remove-WmiObject -ErrorAction SilentlyContinue
-        Logline -logstring "OK"
-    } catch {
-        $text = "Error removing WMI namespaces: $_";Logline -logstring $text
-        $isAllDoneOK = $false
+function Test-lastUninstall {
+    Param (
+        [string]$uninstName,
+        [int32]$step
+    )
+
+    $continue = $true
+    if ( [bool](Get-WmiObject Win32_Process -Filter "name = '${uninstName}'") ) {
+        $text = "stop ${uninstName} if program is still running from last run."; $step++; Logline -logstring $text -step $step
+        $result = Get-WmiObject Win32_Process -Filter "name = '${uninstName}'" | Select-Object ProcessId, CommandLine | Where-Object { $_.CommandLine -like "*ITMRmvAll.exe*" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -PassThru -ErrorAction Stop -Verbose }
+        Logline -logstring $result -step $step
+
+        Start-Sleep -Seconds 10
+
+        if ( [bool](Get-WmiObject Win32_Process -Filter "name = '${uninstName}'") ) {
+            $text = "${uninstName} is still running. We try stopping it using psKill"; Logline -logstring $result -step $step
+            $cmdexec = "${scriptDir}/psKill -t $uninstName -accepteula -nobanner"
+            Logline -logstring $cmdexec -step $step
+            $result = & cmd /C $cmdexec 2>&1
+            Logline -logstring $result -step $step
+
+            Start-Sleep -Seconds 10
+
+            if ( [bool](Get-WmiObject Win32_Process -Filter "name = '${uninstName}'") ) {
+                $text = "${uninstName} is still running. We must break now"; Logline -logstring $result -step $step
+                $continue = $false
+            }
+        }
     }
-    return $isAllDoneOK
+    return $continue
+}
+function Stop-ProductAgents {
+    Param (
+        [string]$ServiceName,
+        [string]$DisplayName,
+        [string]$CommandLine,
+        [switch]$disable,
+        [int32]$step
+        )
+
+    $IsAgentsStopped = $false
+
+    if ( -not $IsAgentsStopped ) {
+        $text = "stop Method 1: Stop all ${DisplayName} agents using Stop-Service"; $step++; Logline -logstring $text -step $step
+        $servicesToStop = Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' } -ErrorAction SilentlyContinue
+        $servicesToStop | Stop-Service -Force
+        Start-Sleep -Seconds 10
+        foreach ($service in $servicesToStop) {
+            if ( $disable ) { $service | Set-Service -StartupType Disabled }
+            $service | Stop-Service -force
+            $result = $service | Get-Service
+            Logline -logstring $result -step $step
+        }
+        if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
+    }
+
+    if ( -not $IsAgentsStopped ) {
+        $text = "stop Method 2: Stop ${DisplayName} using WMI Terminate"; $step++; Logline -logstring $text -step $step
+        $ReturnValue = $(Get-WmiObject Win32_Process | Where-Object CommandLine -match '${CommandLine}' | ForEach-Object { $_.Terminate() }).ReturnValue
+        if ($ReturnValue) {
+            foreach ($rc in $ReturnValue) {
+                if ( -not $rc -eq 0 ) {
+                    Logline -logstring "terminating service rc=$rc" -step $step
+                }
+            }
+        }
+        if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
+    }
+
+    if ( -not $IsAgentsStopped ) {
+        $text = "stop Method 3: Stop ${DisplayName} using 'net stop service'"; $step++; Logline -logstring $text -step $step
+        $servicesToStop = $(Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' }).Name
+        foreach ($service in $servicesToStop) {
+            $cmdexec = "net stop $service"
+            $result = & cmd /C $cmdexec 2>&1
+            Logline -logstring "$result"
+        }
+        if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
+    }
+
+    if ( -not $IsAgentsStopped ) {
+        $text = "stop Method 4: Stop ${DisplayName} using 'psKill service'"; $step++; Logline -logstring $text -step $step
+        $servicesToKill = Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' } -ErrorAction SilentlyContinue
+        foreach ($service in $servicesToKill) {
+            $text = "${service} is still running. We try stopping it using psKill"; Logline -logstring $result -step $step
+            $cmdexec = "${scriptDir}/psKill -t $service -accepteula -nobanner"
+            Logline -logstring $cmdexec -step $step
+            $result = & cmd /C $cmdexec 2>&1
+            Logline -logstring $result -step $step
+        }
+        if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
+    }
+
+    if ( -not $IsAgentsStopped ) {
+        $text = "stop and disable services"; $step++; Logline -logstring $text -step $step
+        $servicesToStop = Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' }
+        foreach ($service in $servicesToStop) {
+            if ( $disable ) { $service | Set-Service -StartupType Disabled }
+            $service | Stop-Service -force
+            $result = $service | Get-Service | format-table -autosize | Out-string -Width 300
+            Logline -logstring "$result"
+        }
+        if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
+    }
+    return $IsAgentsStopped
+}
+function Uninstall-ProductAgent {
+    Param (
+        [string]$DisplayName,
+        [string]$uninstName,
+        [int32]$step
+    )
+
+    $text = "uninstall ${DisplayName} Agents"; $step++; Logline -logstring $text -step $step
+    $possiblePaths = @(
+        "${scriptDir}/${uninstName}"
+    )
+    foreach ($path in $possiblePaths) {
+        if (Test-Path $path) {
+            $program = $path
+            break
+        }
+    }
+    if (Test-Path "$program") {
+        $text = " ITMRmvAll"; Logline -logstring $text
+        $cmdexec = @("start", "/WAIT", "/MIN", "`"${program}`"", "-batchrmvall", "-removegskit")
+        Logline -logstring "begin" $cmdexec
+        $result = & cmd /C $cmdexec 2>&1
+        $rc = $?
+        if ( $rc ) {
+            Logline -logstring "Success. rc=$rc result=$result"
+        }
+        else {
+            Logline -logstring "Failed. rc=$rc result=$result"
+        }
+        $text = "${program} exit code: $($result.ExitCode)"; Logline -logstring $text
+    }
+
+    if ( Test-IsAgentsStopped -eq $false ) {
+        $text = "uninstall via MsiExec for direct uninstall (if other methods fail)"; $step++; Logline -logstring $text -step $step
+        try {
+            $clientMsi = Get-WmiObject -Class Win32_Product | Where-Object { $_.Description -like "*${DisplayName}*" }
+            if ($clientMsi) {
+                $text = "Uninstalling via MSI: $($clientMsi.Name)"; Logline -logstring $text
+                $result = $clientMsi.Uninstall()
+                $text = "MSI uninstall result: $($result.ReturnValue)"; Logline -logstring $text
+            }
+        }
+        catch {
+            $text = "MSI uninstall error: $_"; Logline -logstring $text
+        }
+    }
+
+    $text = "uninstall via WMIC (for older systems)"; $step++; Logline -logstring $text -step $step
+    try {
+        $text = "Attempting uninstall via WMI"; Logline -logstring $text
+        $result = Invoke-Expression "wmic product where 'name like ""Configuration Manager Client""' call uninstall /nointeractive"
+        $text = "WMI uninstall attempted"; Logline -logstring $text
+    }
+    catch {
+        $text = "WMI uninstall error: $_"; Logline -logstring $text
+    }
+    # if (-not $NoReboot -and (Test-Path HKLM:\SYSTEM\CurrentControlSet\Control\Session` Manager\PendingFileRenameOperations)) {
+    #     $text = "System restart required to complete uninstallation"; Logline -logstring $text
+    #     Restart-Computer -Force
+    # }
+    return $continue
 }
 function Test-CleanupRegistry {
     $isAllDoneOK = $true
@@ -209,7 +353,7 @@ function Test-CleanupProductFiles {
         "C:/Temp/Get-Win-Disks-and-Partitions.ps1",
         "C:/Temp/log4j2-scanner-2.6.5.jar",
         "C:/salt",
-        "C:/IBM/ITM/TMAITM6_x64/logs"
+        "C:/IBM/ITM/TMA${DisplayName}_x64/logs"
     )
     # "D:/scripts/tview/build/logs/systems"
 
@@ -244,156 +388,66 @@ function Test-CleanupProductFiles {
     return $isAllDoneOK
 }
 function Test-IsAgentsStopped {
-    $serviceExists = $(Get-Service | Where-Object { $_.Name -match '^k.*' -and $_.DisplayName -match 'Monitoring agent' } -ErrorAction SilentlyContinue).Name
-    $processExists = $(Get-Process | Where-Object { $_.ProcessName -match '^k.*' -and $_.Description -match 'Monitoring agent' } -ErrorAction SilentlyContinue).ProcessName
+    $serviceExists = $(Get-Service | Where-Object { $_.Name -match '${ServiceName}' -and $_.DisplayName -match '${DisplayName}' } -ErrorAction SilentlyContinue).Name
+    $processExists = $(Get-Process | Where-Object { $_.ProcessName -match '${ServiceName}' -and $_.Description -match '${DisplayName}' } -ErrorAction SilentlyContinue).ProcessName
     $serviceExists | format-table -autosize | Out-string -Width 300
     $processExists | format-table -autosize | Out-string -Width 300
 
     return -not ($serviceExists -or $processExists)
 }
+
+
+# ----------------------------------------------------------------------------------------------------------------------------
+#region appl vars
+# ----------------------------------------------------------------------------------------------------------------------------
+$continue           = $true
+$uninstName         = 'ITMRmvAll.exe'
+$DisplayName        = 'monitoring Agent'
+$ServiceName        = '^k.*'
+$CommandLine        = '^C:\\IBM.ITM\\.*\\K*'
+"------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+"uninstName:        " + $uninstName
+"DisplayName:       " + $DisplayName
+"ServiceName:       " + $ServiceName
+"CommandLine:       " + $CommandLine
+"------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+# ----------------------------------------------------------------------------------------------------------------------------
+#region run Test-lastUninstall
+# ----------------------------------------------------------------------------------------------------------------------------
+    $text = "run Test-lastUninstall"; $step++; Logline -logstring $text -step $step
+    $continue = Test-lastUninstall -uninstName ${uninstName} -step $step
 #endregion
-function Uninstall-ProductAgent {
-    param(
-        [switch]$Force,
-        [switch]$NoReboot
-    )
-
-    if ( [bool](Get-WmiObject Win32_Process -Filter "name = 'ITMRmvAll.exe'") ) {
-        $text = "stop ITMRmvAll.exe if program is still running from last run."; $step++; Logline -logstring $text -step $step
-        $result = Get-WmiObject Win32_Process -Filter "name = 'ITMRmvAll.exe'" | Select-Object ProcessId, CommandLine | Where-Object { $_.CommandLine -like "*ITMRmvAll.exe*" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -PassThru -ErrorAction Stop -Verbose }
-        Logline -logstring $result -step $step
-    }
-    Start-Sleep -Seconds 10
-    if ( [bool](Get-WmiObject Win32_Process -Filter "name = 'ITMRmvAll.exe'") ) {
-        $text = "ITMRmvAll.exe is still running. We try stopping it using psKill"; Logline -logstring $result -step $step
-        $cmdexec = "${scriptDir}/psKill -t $serviceName -accepteula -nobanner"
-        Logline -logstring $cmdexec -step $step
-        $result = & cmd /C $cmdexec 2>&1
-        Logline -logstring $result -step $step
-    }
-
-    if ( Test-IsAgentsStopped -eq $false ) {
-        $text = "stop Method 1: Stop all ITM6 agents using Stop-Service"; $step++; Logline -logstring $text -step $step
-        $servicesToStop = Get-Service | Where-Object { $_.Name -match '^k.*' -and $_.DisplayName -match 'Monitoring agent'  } -ErrorAction SilentlyContinue
-        $servicesToStop | Stop-Service -Force
-        Start-Sleep -Seconds 10
-        foreach ($service in $servicesToStop) {
-            $service | Set-Service -StartupType Disabled
-            $service | Stop-Service -force
-            $result = $service | Get-Service
-            Logline -logstring $result -step $step
-        }
-    }
-
-    if ( Test-IsAgentsStopped -eq $false ) {
-        $text = "stop Method 2: Stop ITM6 using WMI AND then terminate"; $step++; Logline -logstring $text -step $step
-        $ReturnValue = $(Get-WmiObject Win32_Process | Where-Object commandLine -match '^C:\\IBM.ITM\\.*\\K*' | ForEach-Object { $_.Terminate() }).ReturnValue
-        if ($ReturnValue) {
-            foreach ($rc in $ReturnValue) {
-                if ( -not $rc -eq 0 ) {
-                    write-host "terminating service rc=$rc"
-                }
-            }
-        }
-    }
-
-    if ( Test-IsAgentsStopped -eq $false ) {
-        $text = "disable services: Stop all ITM6 agents using Stop-Service"; $step++; Logline -logstring $text -step $step
-        $servicesToStop = Get-Service | Where-Object { $_.Name -match '^k.*' -and $_.DisplayName -match 'Monitoring agent' }
-        foreach ($service in $servicesToStop) {
-            $service | Set-Service -StartupType Disabled
-            $service | Stop-Service -force
-            $result = $service | Get-Service
-            Logline -logstring "$result"
-        }
-        Start-Sleep -Seconds 10
-    }
-
-    if ( Test-IsAgentsStopped -eq $false ) {
-        $text = "stop Method 3: Stop ITM6 using net stop service"; $step++; Logline -logstring $text -step $step
-        $servicesToStop = $(Get-Service | Where-Object { $_.Name -match '^k.*' -and $_.DisplayName -match 'Monitoring agent' }).Name
-        foreach ($serviceName in $servicesToStop) {
-            $cmdexec = "net stop $serviceName"
-            $result = & cmd /C $cmdexec 2>&1
-            Logline -logstring "$result"
-        }
-        Start-Sleep -Seconds 10
-        $result = $servicesToStop | format-table -autosize | Out-string -Width 300
-        Logline -logstring "$result"
-    }
-
-    if ( Test-IsAgentsStopped -eq $false ) {
-        $text = "Method 4: Use WMIC (for older systems)"; $step++; Logline -logstring $text -step $step
-        Logline -logstring "begin"
-        try {
-            $text = "Attempting uninstall via WMI";Logline -logstring $text
-            $result = Invoke-Expression "wmic product where 'name like ""Configuration Manager Client""' call uninstall /nointeractive"
-            $text = "WMI uninstall attempted";Logline -logstring $text
-        } catch {
-            $text = "WMI uninstall error: $_";Logline -logstring $text
-        }
-    }
-
-    if ( Test-IsAgentsStopped -eq $false ) {
-        $text = "uninstall ITM6 Agents"; $step++; Logline -logstring $text -step $step
-        $possiblePaths = @(
-            "${scriptDir}/ITMRmvAll.exe"
-        )
-        foreach ($path in $possiblePaths) {
-            if (Test-Path $path) {
-                $program = $path
-                break
-            }
-        }
-        if (Test-Path "$program") {
-            $text = " ITMRmvAll"; Logline -logstring $text
-            $cmdexec = @("start", "/WAIT", "/MIN", "`"${program}`"", "-batchrmvall", "-removegskit")
-            Logline -logstring "begin" $cmdexec
-            $result = & cmd /C $cmdexec 2>&1
-            $rc = $?
-            if ( $rc ) {
-                Logline -logstring "Success. rc=$rc result=$result"
-            }
-            else {
-                Logline -logstring "Failed. rc=$rc result=$result"
-            }
-            $text = "ITMRmvAll exit code: $($result.ExitCode)"; Logline -logstring $text
-        }
-    }
-
-    if ( Test-IsAgentsStopped -eq $false ) {
-        $text = "uninstall via MsiExec for direct uninstall (if other methods fail)"; $step++; Logline -logstring $text -step $step
-        try {
-            $clientMsi = Get-WmiObject -Class Win32_Product | Where-Object { $_.Description -like "*Monitoring agent*" }
-            if ($clientMsi) {
-                $text = "Uninstalling via MSI: $($clientMsi.Name)"; Logline -logstring $text
-                $result = $clientMsi.Uninstall()
-                $text = "MSI uninstall result: $($result.ReturnValue)"; Logline -logstring $text
-            }
-        }
-        catch {
-            $text = "MSI uninstall error: $_"; Logline -logstring $text
-        }
-    }
-
-    # if (-not $NoReboot -and (Test-Path HKLM:\SYSTEM\CurrentControlSet\Control\Session` Manager\PendingFileRenameOperations)) {
-    #     $text = "System restart required to complete uninstallation"; Logline -logstring $text
-    #     Restart-Computer -Force
-    # }
-    # return $success
+# ----------------------------------------------------------------------------------------------------------------------------
+#region run Stop-ProductAgent
+# ----------------------------------------------------------------------------------------------------------------------------
+if ( $continue ) {
+    $text = "run Stop-ProductAgent"; $step++; Logline -logstring $text -step $step
+    $continue = Stop-ProductAgent -ServiceName $ServiceName -DisplayName $DisplayName -CommandLine $CommandLine -step $step -disable
 }
 #endregion
 # ----------------------------------------------------------------------------------------------------------------------------
 #region run Uninstall-ProductAgent
 # ----------------------------------------------------------------------------------------------------------------------------
-$text = "run Uninstall-ProductAgent"; $step++; Logline -logstring $text -step $step
-Uninstall-ProductAgent -Force
+if ( $continue ) {
+    $text = "run Uninstall-ProductAgent"; $step++; Logline -logstring $text -step $step
+    Uninstall-ProductAgent -uninstName ${uninstName} -DisplayName $DisplayName
+}
+#endregion
+# ----------------------------------------------------------------------------------------------------------------------------
+#region run Test-CleanupRegistry.
+# ----------------------------------------------------------------------------------------------------------------------------
+if ( $continue ) {
+    $text = "run Test-CleanupRegistry"; $step++; Logline -logstring $text -step $step
+    $result = Test-CleanupRegistry -step $step
+}
 #endregion
 # ----------------------------------------------------------------------------------------------------------------------------
 #region run Test-CleanupProductFiles.
 # ----------------------------------------------------------------------------------------------------------------------------
-$text = "run Test-CleanupProductFiles"; $step++; Logline -logstring $text -step $step
-$result = Test-CleanupProductFiles -step $step
+if ( $continue ) {
+    $text = "run Test-CleanupProductFiles"; $step++; Logline -logstring $text -step $step
+    $result = Test-CleanupProductFiles -step $step
+}
 #endregion
 # ----------------------------------------------------------------------------------------------------------------------------
 #region cleanup after us.
