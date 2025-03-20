@@ -6,16 +6,14 @@ $global:begin       = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
 $global:hostname    = hostname
 $global:hostname    = $hostname.ToLower()
 $global:hostIp      = Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Filter IPENABLED=TRUE | Select-Object IPAddress | select-object -expandproperty IPAddress | select-object -first 1
-$global:scriptName  = $myinvocation.mycommand.Name
 $global:scriptPath  = $myinvocation.mycommand.Path
 $global:scriptName  = [System.Text.RegularExpressions.Regex]::Replace($scriptName, ".ps1", "")
-$global:scriptDir   = [System.Text.RegularExpressions.Regex]::Replace($scriptPath, "\\", "/")
-$global:scriptarray = $scriptDir.split("/")
+$global:scriptPath  = [System.Text.RegularExpressions.Regex]::Replace($scriptPath, "\\", "/")
+$global:scriptarray = $scriptPath.split("/")
 $global:scriptDir   = $scriptarray[0..($scriptarray.Count-2)] -join "/"
 $global:scriptBin   = "${scriptDir}/bin"
-$global:icaclsCmd   = "icacls `"${scriptDir}`" /grant `"Users`":`(OI`)`(CI`)F"
-$null               = Invoke-Expression $icaclsCmd
-$global:logfile     = "${scriptDir}/${scriptName}.log"; if (Test-Path -Path $logfile) { remove-item -Path $logfile -Force }
+$global:logfile     = "${scriptDir}/${scriptName}.log"
+if (Test-Path $logfile) { Remove-Item -Path $logfile -Force }
 $global:continue    = $true
 # ----------------------------------------------------------------------------------------------------------------------------
 # display vars

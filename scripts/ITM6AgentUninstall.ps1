@@ -1,4 +1,8 @@
-﻿
+﻿# $defaultErrorActionPreference = 'Continue'
+$defaultErrorActionPreference = 'SilentlyContinue'
+$global:ErrorActionPreference = $defaultErrorActionPreference
+$global:scriptName = $myinvocation.mycommand.Name
+
 <# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #
 #                                                                             dddddddd
@@ -37,11 +41,8 @@
 #
 #>
 # ----------------------------------------------------------------------------------------------------------------------------
-#  INIT - all the initial settings
+. "$PSScriptRoot\AgentUninstall_init.ps1" # load settings for an agent uninstall
 # ----------------------------------------------------------------------------------------------------------------------------
-. "AgentUninstall_init.ps1"
-# ----------------------------------------------------------------------------------------------------------------------------
-# global vars
 #
 # settings for ITM6 agent uninstall
 #
@@ -52,7 +53,7 @@ $global:ServiceName         = '^k.*'
 $global:CommandLine         = '^C:\\IBM.ITM\\.*\\K*'
 $global:UninstPath          = "${scriptDir}/${UninstName}"
 $global:UninstCmdexec       = @("start", "/WAIT", "/MIN", "`"${UninstPath}`"", "-batchrmvall", "-removegskit")
-$global:DisableSrvc         = $false
+$global:DisableService      = $false
 $global:step                = 0
 $global:RegistryKeys = @(
     "HKLM:\SOFTWARE\Candle"
@@ -60,27 +61,28 @@ $global:RegistryKeys = @(
     "HKLM:\SYSTEM\CurrentControlSet\Services\Candle",
     "HKLM:\SYSTEM\CurrentControlSet\Services\IBM\ITM"
 )
+# $global:RemoveDirs = @(
+#     "C:/Windows/Temp",
+#     "C:/Temp/scanner_logs",
+#     "C:/Temp/jre",
+#     "C:/Temp/report",
+#     "C:/Temp/exclude_config.txt",
+#     "C:/Temp/Get-Win-Disks-and-Partitions.ps1",
+#     "C:/Temp/log4j2-scanner-2.6.5.jar",
+#     "C:/salt",
+#     "${scriptBin}"
+# )
 $global:RemoveDirs = @(
-    "C:/Temp/scanner_logs",
-    "C:/Temp/jre",
-    "C:/Temp/report",
-    "C:/Temp/exclude_config.txt",
-    "C:/Temp/Get-Win-Disks-and-Partitions.ps1",
-    "C:/Temp/log4j2-scanner-2.6.5.jar",
-    "C:/salt",
-    "C:/salt",
-    "${scriptBin}"
+    "C:/Temp"
 )
-. "AgentUninstall_functions.ps1"
-
+. "$PSScriptRoot\AgentUninstall_functions.ps1" # load all functions
 # ----------------------------------------------------------------------------------------------------------------------------
 # run Start-ProductAgent
 # ----------------------------------------------------------------------------------------------------------------------------
 if ( $continue ) {
     $text = "run Start-ProductAgent"; $step++; Logline -logstring $text -step $step
-    $continue = Start-ProductAgent -UninstName ${UninstName} -step $step
+    $continue = Start-ProductAgent
 }
-exit 0
 # ----------------------------------------------------------------------------------------------------------------------------
 # run Test-lastUninstall
 # ----------------------------------------------------------------------------------------------------------------------------
@@ -95,6 +97,8 @@ if ( $continue ) {
     $text = "run Stop-ProductAgent"; $step++; Logline -logstring $text -step $step
     $continue = Stop-ProductAgent
 }
+exit 0
+
 # ----------------------------------------------------------------------------------------------------------------------------
 # run Uninstall-ProductAgent
 # ----------------------------------------------------------------------------------------------------------------------------
@@ -106,15 +110,15 @@ if ( $continue ) {
 # run Test-CleanupRegistry.
 # ----------------------------------------------------------------------------------------------------------------------------
 if ( $continue ) {
-    $text = "run Test-CleanupRegistry"; $step++; Logline -logstring $text -step $step
-    $continue = Test-CleanupRegistry
+    # $text = "run Test-CleanupRegistry"; $step++; Logline -logstring $text -step $step
+    # $continue = Test-CleanupRegistry
 }
 # ----------------------------------------------------------------------------------------------------------------------------
 # run Test-CleanupProductFiles.
 # ----------------------------------------------------------------------------------------------------------------------------
 if ( $continue ) {
-    $text = "run Test-CleanupProductFiles"; $step++; Logline -logstring $text -step $step
-    $continue = Test-CleanupProductFiles
+    # $text = "run Test-CleanupProductFiles"; $step++; Logline -logstring $text -step $step
+    # $continue = Test-CleanupProductFiles
 }
 # ----------------------------------------------------------------------------------------------------------------------------
 # final test.
