@@ -1,5 +1,5 @@
-﻿# $defaultErrorActionPreference = 'Continue'
-$defaultErrorActionPreference = 'SilentlyContinue'
+﻿$defaultErrorActionPreference = 'Continue'
+# $defaultErrorActionPreference = 'SilentlyContinue'
 $global:ErrorActionPreference = $defaultErrorActionPreference
 $global:scriptName = $myinvocation.mycommand.Name
 
@@ -76,8 +76,6 @@ $global:RemoveDirs = @(
     "C:/Temp"
 )
 . "$PSScriptRoot\AgentUninstall_functions.ps1" # load all functions
-exit 0
-
 # ----------------------------------------------------------------------------------------------------------------------------
 # run Start-ProductAgent
 # ----------------------------------------------------------------------------------------------------------------------------
@@ -99,6 +97,7 @@ if ( $continue ) {
     $text = "run Stop-ProductAgent"; $step++; Logline -logstring $text -step $step
     $continue = Stop-ProductAgent
 }
+exit 0
 # ----------------------------------------------------------------------------------------------------------------------------
 # run Uninstall-ProductAgent
 # ----------------------------------------------------------------------------------------------------------------------------

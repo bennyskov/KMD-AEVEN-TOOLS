@@ -1,30 +1,10 @@
-﻿$text = "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"; Logline -logstring $text -step $step
-$text = "UninstName:        " + $UninstName; Logline -logstring $text -step $step
-$text = "DisplayName:       " + $DisplayName; Logline -logstring $text -step $step
-$text = "ServiceName:       " + $ServiceName; Logline -logstring $text -step $step
-$text = "CommandLine:       " + $CommandLine; Logline -logstring $text -step $step
-$text = "UninstPath:        " + $UninstPath; Logline -logstring $text -step $step
-$text = "UninstCmdexec:     " + $UninstCmdexec; Logline -logstring $text -step $step
-$text = "DisableService:       " + $DisableService; Logline -logstring $text -step $step
-foreach ( $key in $RegistryKeys ) {
-    $text = "registry key to be removed: " + $key; Logline -logstring $text -step $step
-}
-foreach ( $dir in $RemoveDirs ) {
-    $text = "directory to be removed: " + $dir; Logline -logstring $text -step $step
-}
-$text = "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"; Logline -logstring $text -step $step
+﻿
 # ----------------------------------------------------------------------------------------------------------------------------
 # functions
 # ----------------------------------------------------------------------------------------------------------------------------
-Function Logline {
-    Param ([string]$logstring, $step)
-    $now = (get-date -format "yyyy-MM-dd HH:mm:ss.fff")
-    $text = ( "{0,-23} : $hostname : step {1:d4} : {2}" -f $now, $step, $logstring)
-    Add-content -LiteralPath $Logfile -value $text -Force
-    Write-Host $text
-}
 function Test-lastUninstall {
     try {
+        ${UninstName} = ''
         $continue = $true
         if ( [bool]$(Get-WmiObject Win32_Process | Where-Object Name -imatch "${UninstName}")) {
             $text   = "stop ${UninstName} if UninstPath is still running from last run."; $step++; Logline -logstring $text -step $step
@@ -58,9 +38,11 @@ function Start-ProductAgent {
         $text = "Start ${DisplayName} agents"; $step++; Logline -logstring $text -step $step
         $services = Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }
         foreach ($service in $services) {
-            $service | Stop-Service
-            $service | Set-Service -StartupType Automatic
-            $service | Start-Service
+            if ( -not $($service).Name -imatch "FCProvider" ) {
+                $service | Stop-Service
+                $service | Set-Service -StartupType Automatic
+                $service | Start-Service
+            }
         }
     }
     catch {
@@ -74,6 +56,7 @@ function Start-ProductAgent {
     Logline -logstring $result -step $step
     return $IsAgentsStarted
 }
+# $(Get-WmiObject Win32_Process | Where-Object Name -imatch "power")
 function Stop-ProductAgent {
     try {
         $IsAgentsStopped = $false
@@ -84,8 +67,6 @@ function Stop-ProductAgent {
             foreach ($service in $servicesToStop) {
                 if ( $disable ) { $service | Set-Service -StartupType Disabled }
                 $service | Stop-Service -force
-                $result =  $($service).Status
-                Logline -logstring $result -step $step
             }
             if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
         }
@@ -104,7 +85,7 @@ function Stop-ProductAgent {
         }
 
         if ( -not $IsAgentsStopped ) {
-            $text = "stop Method 3: Stop ${DisplayName} using "net stop service"; $step++; Logline -logstring $text -step $step
+            $text = "stop Method 3: Stop ${DisplayName} using 'net stop service'"; $step++; Logline -logstring $text -step $step
             $servicesToStop = $(Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}"}).Name
             foreach ($service in $servicesToStop) {
                 $cmdexec = "net stop $service"
@@ -115,7 +96,7 @@ function Stop-ProductAgent {
         }
 
         if ( -not $IsAgentsStopped ) {
-            $text = "stop Method 4: Stop ${DisplayName} using "psKill service"; $step++; Logline -logstring $text -step $step
+            $text = "stop Method 4: Stop ${DisplayName} using 'psKill service'"; $step++; Logline -logstring $text -step $step
             $servicesToKill = Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }
             foreach ($service in $servicesToKill) {
                 $text = "${service} is still running. We try stopping it using psKill"; Logline -logstring $result -step $step
@@ -141,12 +122,9 @@ function Stop-ProductAgent {
     catch {
         $errorMsg = $_.ToString()
         Logline -logstring $errorMsg -step $step
-        if ( Test-IsAgentsStopped -eq $false ) { $IsAgentsStopped = $true }
     }
-    if ( -not $IsAgentsStopped ) {
-        Show-AgentStatus
-    }
-    return $IsAgentsStopped
+    Show-AgentStatus
+      return $IsAgentsStopped
 }
 function Uninstall-ProductAgent {
     $text = "run Uninstall ${DisplayName} Agents"; $step++; Logline -logstring $text -step $step
