@@ -1,0 +1,50 @@
+rtemsCi;rtemsIP;rtemsConnect;rtemsPairs;rtemsFunction;rtemsPrimSec;rtemsTier;rtemsEnvir;rtemsShore
+kmdlnxrls001;84.255.92.90;kmdlnxitm001/kmdlnxitm003;0;itm rtems;primary;tier-2;IBM infrastructure;onshore
+kmdlnxrls002;84.255.92.91;kmdlnxitm001/kmdlnxitm003;0;itm rtems;secondary;tier-2;IBM infrastructure;onshore
+kmdlnxrls003;84.255.126.48;kmdlnxitm002/kmdlnxitm004;1;itm rtems/ping probe relay;primary;tier-2;cmo classic;onshore
+kmdlnxrls004;84.255.124.220;kmdlnxitm002/kmdlnxitm004;1;itm rtems/ping probe relay;secondary;tier-2;cmo classic;onshore
+kmdlnxrls007;84.255.126.45;kmdlnxitm001/kmdlnxitm003;3;itm rtems;primary;tier-2;cmo classic;nearshore
+kmdlnxrls011;84.255.126.52;kmdlnxitm001/kmdlnxitm003;5;itm rtems;primary;tier-2;cmo classic;nearshore
+kmdlnxrls015;84.255.126.54;kmdlnxitm001/kmdlnxitm003;7;itm rtems;primary;tier-2;cmo classic;nearshore
+kmdlnxrls016;84.255.124.219;kmdlnxitm001/kmdlnxitm003;7;itm rtems;secondary;tier-2;cmo classic;nearshore
+kmdlnxrls019;84.255.67.166;kmdlnxitm001/kmdlnxitm003;9;itm rtems;primary;tier-2;cmo paas;nearshore
+kmdlnxrls020;84.255.67.153;kmdlnxitm001/kmdlnxitm003;9;itm rtems;secondary;tier-2;cmo paas;nearshore
+kmdlnxrls021;84.255.124.198;kmdlnxitm001/kmdlnxitm003;10;itm rtems/ping probe relay;primary;tier-2;cmo classic;nearshore
+kmdlnxrls022;84.255.124.199;kmdlnxitm001/kmdlnxitm003;10;itm rtems/ping probe relay;secondary;tier-2;cmo classic;nearshore
+kmdlnxrls023;84.255.124.200;kmdlnxitm001/kmdlnxitm003;11;itm rtems;primary;tier-2;cmo classic;nearshore
+kmdlnxrls024;84.255.124.201;kmdlnxitm001/kmdlnxitm003;11;itm rtems;secondary;tier-2;cmo classic;nearshore
+kmdlnxrls025;84.255.67.154;kmdlnxitm002/kmdlnxitm004;12;itm rtems/ping probe relay;primary;tier-2;cmo paas;onshore
+kmdlnxrls026;84.255.67.155;kmdlnxitm002/kmdlnxitm004;12;itm rtems/ping probe relay;secondary;tier-2;cmo paas;onshore
+kmdlnxrls029;84.255.67.133;kmdlnxitm001/kmdlnxitm003;14;itm rtems/ping probe relay;primary;tier-2;cmo paas;nearshore
+kmdlnxrls030;84.255.67.132;kmdlnxitm001/kmdlnxitm003;14;itm rtems/ping probe relay;secondary;tier-2;cmo paas;nearshore
+kmdlnxrls031;84.255.67.136;kmdlnxitm001/kmdlnxitm003;15;itm rtems;primary;tier-2;cmo paas;nearshore
+kmdlnxrls032;84.255.67.137;kmdlnxitm001/kmdlnxitm003;15;itm rtems;secondary;tier-2;cmo paas;nearshore
+kmdlnxrls033;84.255.67.138;kmdlnxitm001/kmdlnxitm003;16;itm rtems;primary;tier-2;cmo paas;nearshore
+kmdlnxrls034;84.255.67.139;kmdlnxitm001/kmdlnxitm003;16;itm rtems;secondary;tier-2;cmo paas;nearshore
+kmdlnxrls035;84.255.67.141;kmdlnxitm001/kmdlnxitm003;17;itm rtems/ping probe relay;primary;tier-2;cmo paas;nearshore
+kmdlnxrls036;84.255.67.142;kmdlnxitm001/kmdlnxitm003;17;itm rtems/ping probe relay;secondary;tier-2;cmo paas;nearshore
+kmdlnxrls043;84.255.67.164;kmdlnxitm001/kmdlnxitm003;21;itm rtems;primary;Emptying;cmo paas;nearshore
+kmdlnxrls045;84.255.94.35;kmdlnxitm002/kmdlnxitm004;22;itm rtems/ping probe relay;primary;tier-2;fmo on prem;onshore
+kmdlnxrls046;84.255.94.36;kmdlnxitm002/kmdlnxitm004;22;itm rtems/ping probe relay;secondary;tier-2;fmo on prem;onshore
+kmdlnxrls047;84.255.94.12;kmdlnxitm001/kmdlnxitm003;23;itm rtems/ping probe relay;primary;tier-2;fmo on prem;nearshore
+kmdlnxrls048;84.255.94.13;kmdlnxitm001/kmdlnxitm003;23;itm rtems/ping probe relay;secondary;tier-2;fmo on prem;nearshore
+kmdlnxrls049;84.255.94.14;kmdlnxitm001/kmdlnxitm003;24;itm rtems;primary;tier-2;fmo on prem;nearshore
+kmdlnxrls050;84.255.94.15;kmdlnxitm001/kmdlnxitm003;24;itm rtems;secondary;tier-2;fmo on prem;nearshore
+kmdlnxrls051;84.255.94.16;kmdlnxitm001/kmdlnxitm003;25;itm rtems;primary;tier-2;fmo on prem;nearshore
+kmdlnxrls052;84.255.94.17;kmdlnxitm001/kmdlnxitm003;25;itm rtems;secondary;tier-2;fmo on prem;nearshore
+kmdlnxrls053;84.255.94.18;kmdlnxitm001/kmdlnxitm003;26;itm rtems;primary;tier-2;fmo on prem;nearshore
+kmdlnxrls054;84.255.94.19;kmdlnxitm001/kmdlnxitm003;26;itm rtems;secondary;tier-2;fmo on prem;nearshore
+kmdlnxrls055;84.255.94.20;kmdlnxitm001/kmdlnxitm003;27;itm rtems;primary;tier-2;fmo on prem;nearshore
+kmdlnxrls056;84.255.94.21;kmdlnxitm001/kmdlnxitm003;27;itm rtems;secondary;tier-2;fmo on prem;nearshore
+kmdlnxrls057;84.255.94.22;kmdlnxitm001/kmdlnxitm003;28;itm rtems;primary;tier-2;fmo on prem;nearshore
+kmdlnxrls058;84.255.94.23;kmdlnxitm001/kmdlnxitm003;28;itm rtems;secondary;tier-2;fmo on prem;nearshore
+kmdlnxrls059;84.255.94.24;kmdlnxitm001/kmdlnxitm003;29;itm rtems;primary;tier-2;fmo on prem;nearshore
+kmdlnxrls060;84.255.94.25;kmdlnxitm001/kmdlnxitm003;29;itm rtems;secondary;tier-2;fmo on prem;nearshore
+kmdlnxrls067;10.149.1.5;kmdlnxitm001/kmdlnxitm003;33;itm rtems;primary;tier-2;energinet;nearshore
+kmdlnxrls068;10.149.1.6;kmdlnxitm001/kmdlnxitm003;33;itm rtems;secondary;tier-2;energinet;nearshore
+kmdlnxrls069;10.149.1.7;kmdlnxitm001/kmdlnxitm003;34;itm rtems/ping probe relay;primary;tier-2;energinet;nearshore
+kmdlnxrls070;10.149.1.8;kmdlnxitm001/kmdlnxitm003;34;itm rtems/ping probe relay;secondary;tier-2;energinet;nearshore
+kmdlnxrls071;10.149.1.9;kmdlnxitm001/kmdlnxitm003;35;itm rtems;primary;tier-2;energinet;nearshore
+kmdlnxrls072;10.149.1.10;kmdlnxitm001/kmdlnxitm003;35;itm rtems;secondary;tier-2;energinet;nearshore
+kmdlnxrls073;10.149.1.11;kmdlnxitm001/kmdlnxitm003;36;itm rtems;primary;tier-2;energinet;nearshore
+kmdlnxrls074;10.149.1.12;kmdlnxitm001/kmdlnxitm003;36;itm rtems;secondary;tier-2;energinet;nearshore

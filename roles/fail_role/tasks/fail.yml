@@ -1,0 +1,9 @@
+---
+- name: '{{ f_name }}'
+  set_stats:
+    data:
+      '{{ f_key }}': '{{ f_value }}'
+
+- name: '{{ f_name }}'
+  fail:
+    msg: '{{ f_value | string }}'

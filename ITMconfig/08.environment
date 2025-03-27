@@ -1,0 +1,4 @@
+# ========================================================================
+# initially only KDC_FAMILIES
+# ========================================================================
+export KDC_FAMILIES=ip.spipe EPHEMERAL:Y port:3660 ip.pipe use:n sna use:n ip use:n ip6.pipe use:n ip6.spipe use:n ip6 use:n HTTP_SERVER:N

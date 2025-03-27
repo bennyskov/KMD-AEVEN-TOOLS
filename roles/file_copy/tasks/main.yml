@@ -1,0 +1,42 @@
+---
+- name: Copy remote file to server
+  block:
+    - name: Create temporary directory
+      delegate_to: 127.0.0.1
+      run_once: true
+      become: false
+      tempfile:
+        state: directory
+      register: copyrole_tmpdir
+
+    - name: Download file
+      delegate_to: 127.0.0.1
+      run_once: true
+      become: false
+      get_url:
+        url: "{{ get_from }}"
+        dest: "{{ copyrole_tmpdir.path }}{% if file_name %}/{{ file_name }}{% endif %}"
+      environment:
+        no_proxy: '{{ no_proxy | default(omit, True) }}'
+        NO_PROXY: '{{ no_proxy | default(omit, True) }}'
+      register: copyrole_downloaded_file
+
+    - name: Upload file to server
+      throttle: "{{ upload_limit }}"
+      copy:
+        src: "{{ copyrole_downloaded_file.dest }}"
+        dest: "{{ file_path }}"
+        owner: "{{ file_owner }}"
+        group: "{{ file_group }}"
+        mode: "{{ file_mode }}"
+      register: copyrole_uploaded_file
+
+  always:
+    - name: Remove temporary directory
+      delegate_to: 127.0.0.1
+      run_once: true
+      become: false
+      when: copyrole_tmpdir.path is defined
+      file:
+        path: "{{ copyrole_tmpdir.path }}"
+        state: absent

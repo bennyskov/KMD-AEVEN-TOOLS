@@ -1,0 +1,11 @@
+---
+# Required variables
+get_from: ''
+file_path: ''
+
+# Optional variables
+file_name: ''
+file_owner: root
+file_group: '{{ "system" if (ostype | d("")) == "aix" else "root" }}'
+file_mode: '0750'
+upload_limit: 5

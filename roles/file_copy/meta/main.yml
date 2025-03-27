@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  author: David Csiki
+  role_name: Copy file to remote server
+  description: Copy file to remote server where ansible controller node acts as proxy
+  company: Kyndryl
+  license: Kyndryl Intellectual Property
+  min_ansible_version: "2.4"
+
+  platforms:
+    - name: linux, unix, aix
+
+  galaxy_tags:
+    - file
