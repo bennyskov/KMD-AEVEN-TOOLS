@@ -1,0 +1,29 @@
+---
+- name: Ensure socks tunnel is setup for WINDOWS endpoints
+  hosts: all
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  gather_facts: false
+  tasks:
+    - name: Establish socks tunnel
+      block:
+        - name: Call socks tunnel setup role
+          ansible.builtin.include_role:
+            name: ansible-role-event-socks-tunnel
+          vars:
+            acc_id: "{{ gsma_code }}"
+            transaction_id: "{{ tower_job_id }}"
+          when: jh1_ip is defined  #  only if endpoint is behind a jumphost
+
+        - name: Set facts for socks tunneling
+          ansible.builtin.set_fact:
+            account_code: "{{ gsma_code }}"
+            trans_num: "{{ tower_job_id }}"
+          delegate_facts: true
+      run_once: true
+      delegate_to: localhost
+
+- name: Call windows ITM agent removal role
+  hosts: all
+  roles:
+    - windows

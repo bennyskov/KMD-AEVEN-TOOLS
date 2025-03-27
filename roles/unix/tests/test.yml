@@ -1,0 +1,6 @@
+---
+- name: Unix ITM Uninstallation
+  hosts: localhost
+  remote_user: root
+  roles:
+    - unix

@@ -1,0 +1,41 @@
+Enter passphrase for /tmp/bwrap_915998_e6oficqc/awx_915998_fk84ke79/artifacts/915998/ssh_key_data: 
+Identity added: /tmp/bwrap_915998_e6oficqc/awx_915998_fk84ke79/artifacts/915998/ssh_key_data (/tmp/bwrap_915998_e6oficqc/awx_915998_fk84ke79/artifacts/915998/ssh_key_data)
+/usr/lib/python2.7/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 2 is no longer supported by the Python core team. Support for it is now deprecated in cryptography, and will be removed in the next release.
+  from cryptography.exceptions import InvalidSignature
+[WARNING]: Invalid characters were found in group names but not replaced, use
+-vvvv to see details
+
+PLAY [Calling unix role] *******************************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [usmdlssvcm339.jvservices-core.com]
+
+TASK [unix : Validate input] ***************************************************
+skipping: [usmdlssvcm339.jvservices-core.com]
+
+TASK [unix : End play when ITM home is not defined] ****************************
+skipping: [usmdlssvcm339.jvservices-core.com]
+
+TASK [unix : Stop ITM agents & unistall] ***************************************
+changed: [usmdlssvcm339.jvservices-core.com]
+
+TASK [unix : ITM uninstallation success] ***************************************
+skipping: [usmdlssvcm339.jvservices-core.com]
+
+TASK [unix : ITM agent not found on server] ************************************
+skipping: [usmdlssvcm339.jvservices-core.com]
+
+TASK [unix : ITM uninstallation failed] ****************************************
+ok: [usmdlssvcm339.jvservices-core.com]
+
+TASK [unix : Output] ***********************************************************
+ok: [usmdlssvcm339.jvservices-core.com] => {
+    "exec_message": [
+        "Failed to uninstall ITM", 
+        "Error Message: /bin/sh: ITM/bin/itmcmd: No such file or directory "
+    ]
+}
+
+PLAY RECAP *********************************************************************
+usmdlssvcm339.jvservices-core.com : ok=4    changed=1    unreachable=0    failed=0    skipped=4    rescued=0    ignored=0   
+

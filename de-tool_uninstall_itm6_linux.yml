@@ -1,0 +1,7 @@
+---
+- name: Calling unix role
+  hosts: all
+  gather_facts: false
+  become: true
+  roles:
+    - unix

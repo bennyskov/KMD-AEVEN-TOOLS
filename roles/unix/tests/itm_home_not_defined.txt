@@ -1,0 +1,23 @@
+Enter passphrase for /tmp/bwrap_911474_5s6sp8jr/awx_911474_965husmr/artifacts/911474/ssh_key_data: 
+Identity added: /tmp/bwrap_911474_5s6sp8jr/awx_911474_965husmr/artifacts/911474/ssh_key_data (/tmp/bwrap_911474_5s6sp8jr/awx_911474_965husmr/artifacts/911474/ssh_key_data)
+/usr/lib/python2.7/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 2 is no longer supported by the Python core team. Support for it is now deprecated in cryptography, and will be removed in the next release.
+  from cryptography.exceptions import InvalidSignature
+[WARNING]: Invalid characters were found in group names but not replaced, use
+-vvvv to see details
+
+PLAY [Calling unix role] *******************************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [usmdlssvcm339.jvservices-core.com]
+
+TASK [unix : Validate input] ***************************************************
+ok: [usmdlssvcm339.jvservices-core.com]
+
+TASK [unix : End play when ITM home is not defined] ****************************
+ok: [usmdlssvcm339.jvservices-core.com] => {
+    "msg": "ITM home is not defined, Input variable missing."
+}
+
+PLAY RECAP *********************************************************************
+usmdlssvcm339.jvservices-core.com : ok=3    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+

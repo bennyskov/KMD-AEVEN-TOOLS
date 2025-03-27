@@ -1,0 +1,3 @@
+---
+itm_silent_uninstall_file: "C:\\temp\\ITMsilent_uninstall.txt"
+itm_silent_uninstall_log_file: "C:\\temp\\silentITM_removal.log"

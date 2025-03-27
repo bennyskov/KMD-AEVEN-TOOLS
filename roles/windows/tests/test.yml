@@ -1,0 +1,5 @@
+---
+- name: Windows ITM Uninstallation
+  hosts: localhost
+  roles:
+    - windows
