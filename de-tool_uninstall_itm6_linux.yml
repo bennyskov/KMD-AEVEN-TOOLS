@@ -1,7 +1,36 @@
 ---
-- name: Calling unix role
-  hosts: all
+- name: 'A.0.0 Create OS groups'
+  hosts: localhost
+  become: false
   gather_facts: false
-  become: true
-  roles:
-    - unix
+  connection: local
+  tasks:
+    - name: 'A.0.1 Create OS group'
+      group_by:
+        key: 'machine_{{ ostype }}'
+      changed_when: false
+      when: ostype is defined
+      delegate_to: localhost
+
+- name: 'A.0.1 Socks tunnel setup'
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - include_role:
+        name: ansible-role-event-socks-tunnel
+        apply:
+          check_mode: false
+          run_once: true
+          delegate_to: localhost
+      vars:
+    - set_fact:
+        ansible_job_id: '{{ tower_job_id }}'
+        ansible_become_method: runas
+        ansible_become_user: system
+
+    - name: Calling unix role
+      hosts: all
+      gather_facts: false
+      become: true
+      roles:
+        - unix
