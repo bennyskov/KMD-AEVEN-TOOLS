@@ -29,7 +29,7 @@
         ansible_become_user: system
 
     - name: Calling unix role
-      hosts: all
+      hosts: '{{ hostlist }}'
       gather_facts: false
       become: true
       roles:

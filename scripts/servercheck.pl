@@ -1,11 +1,16 @@
-#!/usr/bin/perl -w
+#!C:/Perl64/bin/perl.exe -w
 use strict;
 use warnings;
 use Sys::Hostname;
+# Add Perl debugger module for VS Code integration
+eval { require Devel::Debug::DBGp; Devel::Debug::DBGp->import(port => 9000); };
 
 my($CI,$OSname,$OSversion,$OSservicePack,$IsVirtual,$Domain,$FQDN,$IPaddress,$SerialNumber,$ModelNumber,$DiskSpace,$RAM,$CPUtype,$CPUspeed,$CPUcount,$CPUcores,$CPUsockets);
 my($output_file,$scriptname,$workdir,$cmdexec,$scriptn,$logfile,$text);
 my($xml,@out,@tmp,@words,$foo,$bar);
+
+# Set autoflush for better debug output
+local $| = 1;
 
 $scriptname         = $0;
 $scriptname         =~ s/\\/\//g; # turn slash
@@ -31,7 +36,7 @@ sub trim($) {
 }
 sub plog {
     $text = shift;
-    open FILEOUT, ">> ${logfile}" or die "cant open and write to ${logfile}"; 
+    open FILEOUT, ">> ${logfile}" or die "cant open and write to ${logfile}";
     print(FILEOUT $text);
     close FILEOUT;
     print("$text");
@@ -40,7 +45,7 @@ $foo = hostname;
 
 @words = split(/\./, $foo);
 $CI = $words[0];
-$CI = trim($CI); 
+$CI = trim($CI);
 plog("CI=$CI\n");
 
 $Domain = hostname;
@@ -65,7 +70,7 @@ foreach (@out) {
 $cmdexec = "cat /sys/class/dmi/id/product_name";
 @out = `$cmdexec`;
 plog("\n# product_name ------------------------------------------------------\n");
-plog("\n@out\n");       
+plog("\n@out\n");
 foreach (@out) {
     chomp($_);$_ = trim($_);
     if ( grep(/^$/i,$_) ) { next; }
@@ -77,7 +82,7 @@ plog("\n# get diskspace ------------------------------------------------------\n
 $cmdexec = "df -B1 --output=size | awk 'NR>1 {sum += \$1} END {printf \"%.0f\", sum}' | numfmt --to=iec --suffix=B --format='%.0f'";
 plog("\n$cmdexec\n");
 @out = `$cmdexec`;
-plog("\n@out\n");       
+plog("\n@out\n");
 foreach (@out) {
     chomp($_);$_ = trim($_);
     if ( grep(/^$/i,$_) ) { next; }
@@ -89,7 +94,7 @@ plog("\n# get RAM physical memory ----------------------------------------------
 $cmdexec = "free -b | grep Mem: | awk '{print \$2}' | numfmt --to=iec --suffix=B --format='%.0f'";
 plog("\n$cmdexec\n");
 @out = `$cmdexec`;
-plog("\n@out\n");       
+plog("\n@out\n");
 foreach (@out) {
     chomp($_);$_ = trim($_);
     if ( grep(/^$/i,$_) ) { next; }
@@ -107,7 +112,7 @@ foreach (@out) {
     @words = split(/:/, $_);
     plog("line=$_\n");
     $foo = $words[-1];
-    if ( grep(/^Operating System/i,$_) ) { 
+    if ( grep(/^Operating System/i,$_) ) {
         $OSname = trim($foo);
         $OSname =~ s/Enterprise//g;
         $OSname =~ s/Standard//g;
@@ -124,11 +129,11 @@ foreach (@out) {
         plog("OSversion=$OSversion\n");
 
     }
-    if ( grep(/^Machine ID/i,$_) ) { 
+    if ( grep(/^Machine ID/i,$_) ) {
         $SerialNumber = trim($foo);
         plog("SerialNumber=$SerialNumber\n");
     }
-    if ( grep(/^Kernel/i,$_) ) { 
+    if ( grep(/^Kernel/i,$_) ) {
         $OSservicePack = trim($foo);
         plog("OSservicePack=$OSservicePack\n");
     }
@@ -144,36 +149,36 @@ foreach (@out) {
     @words = split(/:/, $_);
     plog("line=$_\n");
     $foo = $words[-1];
-    if ( grep(/^Hypervisor vendor/i,$_) ) { 
+    if ( grep(/^Hypervisor vendor/i,$_) ) {
         if ( grep(/VMware/i,$_) ) {
             $IsVirtual = "True";
             plog("IsVirtual=$IsVirtual\n");
         }
     }
-    if ( grep(/^Model name/i,$_) ) { 
+    if ( grep(/^Model name/i,$_) ) {
         $CPUtype = trim($foo);
         plog("CPUtype=$CPUtype\n");
     }
-    if ( grep(/^CPU\(s\): /i,$_) ) { 
+    if ( grep(/^CPU\(s\): /i,$_) ) {
         $CPUcount = trim($foo);
         plog("CPUcount=$CPUcount\n");
     }
-    if ( grep(/^Socket\(s\): /i,$_) ) { 
+    if ( grep(/^Socket\(s\): /i,$_) ) {
         $CPUsockets = trim($foo);
         plog("CPUsockets=$CPUsockets\n");
         $CPUcores = $CPUcores * $CPUsockets; # Sockets is received after cores
         plog("CPUcores total=$CPUcores\n");
 
     }
-    if ( grep(/^Core\(s\) /i,$_) ) { 
+    if ( grep(/^Core\(s\) /i,$_) ) {
         $CPUcores = trim($foo);
         plog("CPUcores pr sockets=$CPUcores\n");
     }
 
-    if ( grep(/^CPU MHz: /i,$_) ) { 
+    if ( grep(/^CPU MHz: /i,$_) ) {
         $CPUspeed = trim($foo);
         # $CPUspeed = $CPUspeed / 1000;
-        $CPUspeed = sprintf("%.0f", $CPUspeed);        
+        $CPUspeed = sprintf("%.0f", $CPUspeed);
         plog("CPUspeed=$CPUspeed\n");
     }
 }
@@ -192,12 +197,12 @@ plog("\n@out\n");
 $cmdexec = "df -h --total";
 @out = `$cmdexec`;
 plog("\n# df -h --total ------------------------------------------------------\n");
-plog("\n@out\n");        
+plog("\n@out\n");
 
 $cmdexec = "systemd-detect-virt";
 @out = `$cmdexec`;
 plog("\n# systemd-detect-virt ------------------------------------------------------\n");
-plog("\n@out\n");        
+plog("\n@out\n");
 
 
 $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
@@ -213,7 +218,7 @@ $xml .= "\t<IPaddress>$IPaddress</IPaddress>\n";                    # dmsvrIPadd
 $xml .= "\t<SerialNumber>$SerialNumber</SerialNumber>\n";           # dmsvrSerialNumber
 $xml .= "\t<ModelNumber>$ModelNumber</ModelNumber>\n";              # dmsvrModelNumber
 $xml .= "\t<DiskSpace>$DiskSpace</DiskSpace>\n";                    # dmsvrDiskSpace
-$xml .= "\t<RAM>$RAM</RAM>\n";                                      # dmsvrRAM    
+$xml .= "\t<RAM>$RAM</RAM>\n";                                      # dmsvrRAM
 $xml .= "\t<CPUtype>$CPUtype</CPUtype>\n";                          # dmsvrCPUtype Model name:
 $xml .= "\t<CPUspeed>$CPUspeed</CPUspeed>\n";                       # dmsvrCPUspeed
 $xml .= "\t<CPUcount>$CPUcount</CPUcount>\n";                       # dmsvrCPUcount
