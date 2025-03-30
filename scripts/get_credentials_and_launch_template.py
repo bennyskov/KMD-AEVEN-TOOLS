@@ -84,10 +84,10 @@ tower_host      = 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # awx config settingss. awx is reading these
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-os.environ['TOWER_HOST']        = f'{tower_host}'
-os.environ['TOWER_USERNAME']    = f'{twusr}'
-os.environ['TOWER_PASSWORD']    = f'{twpwd}'
-os.environ['TOWER_VERIFY_SSL']  = 'False'
+# os.environ['TOWER_HOST']        = f'{tower_host}'
+# os.environ['TOWER_USERNAME']    = f'{twusr}'
+# os.environ['TOWER_PASSWORD']    = f'{twpwd}'
+# os.environ['TOWER_VERIFY_SSL']  = 'False'
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # functions begin
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
