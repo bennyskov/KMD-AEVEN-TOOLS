@@ -41,7 +41,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # ---------------------------------------------------------------------------------------------------------------------------------------
 # Changelog
 #
-# set_maintenance_mode.py  :   shortened version for ansible
+# maintenancemode.py  :   shortened version for ansible
 #
 # ---------------------------------------------------------------------------------------------------------------------------------------
 # functions
