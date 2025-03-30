@@ -39,12 +39,12 @@
   # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
   # task
   # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: 'A.1.2 launch {{ req_template_name }} '
+    - name: 'A.1.2 launch {{ launch_template_name }} '
       shell: >
         python get_credentials_and_launch_template.py
         -t '{{ launch_template_name }}'
-        -n '{{ req_hostname }}'
-        -s '{{ req_servicenow_id }}'
+        -n '{{ nodename }}'
+        -s '{{ change }}'
       args:
         chdir: "scripts/"
       register: script_result_launch

@@ -1,18 +1,17 @@
----
-- name: 'A.0.0 Create OS groups'
+- name: Create OS groups
   hosts: localhost
   become: false
   gather_facts: false
   connection: local
   tasks:
-    - name: 'A.0.1 Create OS group'
+    - name: Create OS group
       group_by:
-        key: 'machine_{{ ostype }}'
+        key: "machine_{{ ostype }}"
       changed_when: false
       when: ostype is defined
       delegate_to: localhost
 
-- name: 'A.0.1 Socks tunnel setup'
+- name: Socks tunnel setup
   hosts: localhost
   gather_facts: false
   tasks:
@@ -23,12 +22,355 @@
           run_once: true
           delegate_to: localhost
       vars:
+        acc_id: "{{ blueid_shortcode }}"
+        transaction_id: "{{ tower_job_id }}"
+        trans_num: "{{ tower_job_id }}"
+
     - set_fact:
-        ansible_job_id: '{{ tower_job_id }}'
         ansible_become_method: runas
         ansible_become_user: system
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# working on LOCALHOST
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+- name: gather_facts LOCALHOST
+  hosts: localhost
+  gather_facts: true
+  tasks:
+    - name: Debug facts
+      debug:
+        msg: |-
+          "{{ ansible_facts }}"
+      tags:
+        - debug_facts
 
-    - name: Call windows ITM agent removal role
-      hosts: all
-      roles:
-        - windows
+    - name: "List homedir files"
+      shell: "ls -lrt"
+      register: script_homedir
+    - name: Output list homedir
+      debug:
+        var: script_homedir.stdout_lines
+
+    - name: "List /tmp/"
+      shell: "ls -lrt /tmp/"
+      register: script_tmp
+    - name: Output list tmp
+      debug:
+        var: script_tmp.stdout_lines
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# now working on {{ hostlist }} host
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+#
+# Installation playbook of a ITM agent on Windows server
+#
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+- name: "Installation playbook of a ITM agent on Windows server {{ hostlist }}"
+  hosts: "{{ hostlist }}"
+  become: true
+  gather_facts: true
+  vars:
+    PortablePythonZip: "PortablePython.zip"
+    PortablePythonDir: "PortablePython"
+    itmZip: "ITM_win_6307SP14-349-1KMD.zip"
+    RepoUrl: "http://84.255.93.70:8080/repository/ITM/"
+    tmpdir: "C:/Windows/Temp/HSM-TOOLS/"
+    debugfile: "ITMAgentInstall_windows_debugfile.log"
+    pingfile: "ITMAgentInstall_windows_pingfile.log"
+    no_proxy: 84.255.93.70
+    trans_num: "{{ tower_job_id }}"
+  tasks:
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # write global vars
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: "print debug vars {{ hostlist }}"
+      debug:
+        msg: |-
+          "RepoUrl = {{ RepoUrl }}"
+          "PortablePythonZip = {{ PortablePythonZip }}"
+          "itmZip = {{ itmZip }}"
+          "trans_num = {{ trans_num }}"
+          "tmpdir = {{ tmpdir }}"
+          "debugfile = {{ debugfile }}"
+          "pingfile = {{ pingfile }}"
+          "ansible_facts = {{ ansible_facts }}"
+      tags:
+        - debug_vars
+
+    - name: "Get current machine"
+      run_once: true
+      raw: $ENV:PATH
+      register: path_out
+    - name: "Output result"
+      debug:
+        var: path_out.stdout_lines
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Delete & create new HSM-TOOLS directory
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: "Get-Processes on  {{ hostlist }}"
+      run_once: true
+      win_shell: Get-Process -Name "*ITM*"
+      ignore_errors: yes
+      register: script_getprocess
+
+    - name: Output list script_getprocess
+      debug:
+        var: script_getprocess.stdout_lines
+
+    - name: "Delete tmpdir directory on  {{ hostlist }}"
+      run_once: true
+      win_file:
+        path: "{{ tmpdir }}"
+        state: absent
+
+    - name: "Create tmpdir"
+      run_once: true
+      win_file:
+        path: "{{ tmpdir }}"
+        state: directory
+        remote_src: no
+
+    - name: "Create tmpdir"
+      run_once: true
+      win_file:
+        path: "{{ tmpdir }}repository/"
+        state: directory
+        remote_src: no
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # copy scripts to {{ tmpdir }}
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: "copy scripts to {{ tmpdir }}"
+      run_once: true
+      win_copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+      loop:
+        - src: scripts/
+          dest: '{{ tmpdir }}scripts/'
+
+        - src: bin/
+          dest: '{{ tmpdir }}bin/'
+
+        - src: ITMconfig/
+          dest: '{{ tmpdir }}ITMconfig/'
+
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Download PortablePythonZip from repository to localhost, copy to target host and unzip
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: "Download {{ PortablePythonZip }} from repository to server"
+      delegate_to: localhost
+      become: false
+      get_url:
+        url: "{{ RepoUrl }}{{ PortablePythonZip }}"
+        dest: /tmp/{{ PortablePythonZip }}
+        mode: '0644'
+        force: true
+      register: download_PortablePythonZip_result
+
+    - name: "Debug installer download"
+      debug:
+        msg: |-
+          "download_PortablePythonZip_result: {{ download_PortablePythonZip_result }}"
+      tags:
+        - debug_out
+
+    - name: "Copy {{ PortablePythonZip }} to target host"
+      run_once: true
+      win_copy:
+        src: /tmp/{{ PortablePythonZip }}
+        dest: "{{ tmpdir }}repository/{{ PortablePythonZip }}"
+        remote_src: no
+
+    - name: "Unzip {{ PortablePythonZip }} file"
+      run_once: true
+      win_unzip:
+        src: "{{ tmpdir }}repository/{{ PortablePythonZip }}"
+        dest: "{{ tmpdir }}scripts/{{ PortablePythonDir }}"
+        delete_archive: yes
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Download itmZip from repository to localhost, copy to target host and unzip
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: "Download {{ itmZip }} from repository to localhost"
+      delegate_to: localhost
+      run_once: true
+      become: false
+      get_url:
+        url: "{{ RepoUrl }}{{ itmZip }}"
+        dest: /tmp/{{ itmZip }}
+        mode: '0644'
+        force: true
+      register: download_itmZip_result
+
+    - name: "Debug installer download"
+      debug:
+        msg: |-
+          "download_itmZip_result: {{ download_itmZip_result }}"
+      tags:
+        - debug_out
+
+    - name: "Copy {{ itmZip }} archive to target host"
+      run_once: true
+      win_copy:
+        src: /tmp/{{ itmZip }}
+        dest: "{{ tmpdir }}repository/{{ itmZip }}"
+        remote_src: no
+
+    - name: "Unzip {{ itmZip }} file"
+      run_once: true
+      win_unzip:
+        src: "{{ tmpdir }}repository/{{ itmZip }}"
+        dest: "{{ tmpdir }}scripts/"
+        delete_archive: yes
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # run python script
+    # {{ tmpdir }}PortablePython/Scripts/python.exe {{ tmpdir }}ITMAgentInstall_windows.py
+    # ITMAgentInstall_windows.cmd -nodename kmdwinitm001 -ccode kmn -shore nearshore -envir . -f
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Run ITMAgentInstall_windows
+      win_shell: >
+        ./ITMAgentInstall_windows.cmd
+        -nodename {{ hostlist }}
+        {{ UninstallClanup }}
+        {{ DisableAllServices }}
+        {{ ForceUninstall }}
+      args:
+        chdir: "{{ tmpdir }}scripts/"
+      register: script_run
+
+    - name: Output result
+      debug:
+        var: script_run.stdout_lines
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # send debugfiles to ansible stdout
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: "Get-Item Env:PATH at the end"
+      run_once: true
+      win_shell: ($env:Path).split(';') | Out-string -Width 300
+      register: cmd_output3
+    - name: "Display cmd_output3"
+      debug:
+        var: cmd_output3.stdout_lines
+
+    - name: "List {{ tmpdir }}"
+      run_once: true
+      win_shell: Get-ChildItem -Path {{ tmpdir }}
+      register: script_tmpdir2
+    - name: "Output result at the end"
+      debug:
+        var: script_tmpdir2.stdout_lines
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # send debugfiles to ansible stdout
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: "Read content from {{ debugfile }}"
+      run_once: true
+      win_shell: Get-Content -LiteralPath "{{ tmpdir }}scripts/{{ debugfile }}"
+      register: file_content_debug
+    - name: "Display content in debug output"
+      debug:
+        msg: |-
+          "file_content_debug: {{ file_content_debug.stdout }}"
+
+    - name: "Read content from {{ debugfile }}"
+      run_once: true
+      win_shell: Get-Content -LiteralPath "{{ tmpdir }}scripts/{{ pingfile }}"
+      register: file_content_ping
+    - name: "Display content in ping output"
+      debug:
+        msg: |-
+          "file_content_ping: {{ file_content_ping.stdout }}"
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # cleanup
+    # Remove dir {{ tmpdir }}PortablePython from target host. dont work inside script, because python.exe is running and cleanup on localhost (cacf server)
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Remove dir {{ tmpdir }}scripts/PortablePython from target host
+      ignore_errors: true
+      win_file:
+        path: "{{ tmpdir }}scripts/PortablePython"
+        state: absent
+
+    - name: Remove dir {{ tmpdir }}scripts/PortablePython from target host
+      ignore_errors: true
+      win_file:
+        path: "{{ tmpdir }}scripts/ITM_win_6307SP14-349-1KMD"
+        state: absent
+
+    - name: Remove ITMAgentInstall_windows.cmd
+      ignore_errors: true
+      win_file:
+        path: "{{ tmpdir }}scripts/ITMAgentInstall_windows.cmd"
+        state: absent
+
+    - name: Remove ITMAgentInstall_windows.py
+      ignore_errors: true
+      win_file:
+        path: "{{ tmpdir }}scripts/ITMAgentInstall_windows.py"
+        state: absent
+
+    - name: Remove ITMAgentRepair_linux.pl
+      ignore_errors: true
+      win_file:
+        path: "{{ tmpdir }}scripts/ITMAgentRepair_linux.pl"
+        state: absent
+
+    - name: Remove ITMAgentRepair_linux.pl
+      ignore_errors: true
+      win_file:
+        path: "{{ tmpdir }}scripts/ITMAgentRepair_windows.ps1"
+        state: absent
+
+    - name: Remove ITMAgentStopStart_windows.ps1
+      ignore_errors: true
+      win_file:
+        path: "{{ tmpdir }}scripts/ITMAgentStopStart_windows.ps1"
+        state: absent
+
+    - name: Remove zip file from localhost
+      delegate_to: localhost
+      run_once: true
+      become: false
+      ignore_errors: true
+      file:
+        path: /tmp/{{ itmZip }}
+        state: absent
+
+    - name: "Remove zip file from localhost"
+      delegate_to: localhost
+      run_once: true
+      become: false
+      ignore_errors: true
+      file:
+        path: /tmp/{{ PortablePythonZip }}
+        state: absent
+
+    - name: "Remove tmpdir repository"
+      ignore_errors: true
+      run_once: true
+      win_file:
+        path: "{{ tmpdir }}repository/"
+        state: absent
+        remote_src: no
+
+    - name: "Remove tmpdir bin"
+      ignore_errors: true
+      run_once: true
+      win_file:
+        path: "{{ tmpdir }}bin/"
+        state: absent
+        remote_src: no
+
+    - name: "Remove tmpdir ITMconfig"
+      ignore_errors: true
+      run_once: true
+      win_file:
+        path: "{{ tmpdir }}ITMconfig/"
+        state: absent
+        remote_src: no
+
+    - name: "List whats left on {{ hostlist }}"
+      run_once: true
+      win_shell: Get-ChildItem -Recurse -Path "{{ tmpdir }}"
+      ignore_errors: yes
+      register: script_leftovers
+
+    - name: Output list script_leftovers
+      debug:
+        var: script_leftovers.stdout_lines
