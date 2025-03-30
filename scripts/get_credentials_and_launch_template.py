@@ -182,9 +182,9 @@ def f_requests(request='',twusr='',twpwd='', payload='', debug=False):
         f_log(f'url',f'{url}',debug)
         RC                      = 0
         if len(payload) == 0:
-            response                = requests.get(url, auth=(twusr, twpwd), verify=False)
+            response                = requests.get(url, auth=(twusr, twpwd), verify=False, imeout=300)
         else:
-            response                = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False)
+            response                = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False, imeout=300)
         response.raise_for_status()
         if response.status_code == 200 or response.status_code == 201:
             result_decoded  = response.content.decode('utf-8')
