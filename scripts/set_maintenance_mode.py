@@ -81,11 +81,14 @@ if len(sys.argv) > 1:
         if re.match("\-from_time$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; from_time = sys.argv[argnum]
         if re.match("\-until_time$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; until_time = sys.argv[argnum]
         if re.match("\-monsol$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; monsol = sys.argv[argnum]
-        if re.match("\-user$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; user = sys.argv[argnum]
-        if re.match("\-pw$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; pw = sys.argv[argnum]
+#         if re.match("\-user$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; user = sys.argv[argnum]
+#         if re.match("\-pw$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; pw = sys.argv[argnum]
 # ---------------------------------------------------------------------------------------------------------------------------------------
 def f_log(key,value,debug):
     if debug: text = "{:30}: {:}".format(f'{key}',f'{value}'); print(text)
+if len(nodename) == 0 or nodename is None:
+    f_log(f'nodename is empty',f'{nodename}',debug)
+    exit(12)
 # ---------------------------------------------------------------------------------------------------------------------------------------
 # note the cacf server is one  hour behind!!!!
 # vaidate from_time time
