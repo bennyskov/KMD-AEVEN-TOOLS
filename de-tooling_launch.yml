@@ -22,6 +22,10 @@
           run_once: true
           delegate_to: localhost
       vars:
+        acc_id: "{{ blueid_shortcode }}"
+        transaction_id: "{{ tower_job_id }}"
+        trans_num: "{{ tower_job_id }}"
+
     - set_fact:
         ansible_job_id: '{{ tower_job_id }}'
         ansible_become_method: runas
@@ -35,21 +39,46 @@
   become: false
   run_once: true
   ignore_errors: yes
+- name: 'launch of flow to de-tooling of servers to be handed over to Aeven'
+  hosts: '{{ hostlist }}'
+  become: true
+  gather_facts: false
+  vars:
+    launch_template_name_01: 'kmn_jobtemplate_de-tooling_maintenancemode'
+    launch_template_name_02: 'kmn_jobtemplate_de-tooling_install_itm6_windows'
+
   tasks:
   # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
   # task
   # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: 'A.1.2 launch {{ launch_template_name }} '
+    - name: 'A.1.2 launch {{ launch_template_name_01 }} '
       shell: >
         python get_credentials_and_launch_template.py
-        -t '{{ launch_template_name }}'
+        -t '{{ launch_template_name_01 }}'
         -n '{{ nodename }}'
         -s '{{ change }}'
       args:
         chdir: "scripts/"
-      register: script_result_launch
+      register: script_result_launch_01
         # no_log: true
 
-    - name: 'A.1.3 Output result'
+    - name: 'A.1.3 Output result 01'
       debug:
-        var: script_result_launch.stdout_lines
+        var: script_result_launch_01.stdout_lines
+  # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # task
+  # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: 'A.1.2 launch {{ launch_template_name_01 }} '
+      shell: >
+        python get_credentials_and_launch_template.py
+        -t '{{ launch_template_name_01 }}'
+        -n '{{ nodename }}'
+        -s '{{ change }}'
+      args:
+        chdir: "scripts/"
+      register: script_result_launch_01
+        # no_log: true
+
+    - name: 'A.1.3 Output result 01'
+      debug:
+        var: script_result_launch_01.stdout_lines
