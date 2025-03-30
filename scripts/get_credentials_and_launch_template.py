@@ -60,8 +60,6 @@ TESTING         = False
 if TESTING:
     print(f'TESTING={TESTING}')
     print(f'useRestAPI={useRestAPI}')
-    twusr               = 'functional_id_001'
-    twpwd               = 'm9AHKuXYa*MeZZWLsHqB' # se i 1password
     req_hostname        = 'dfkdbs302d                 '
     req_servicenow_id   = 'CHG0000ZZZ'
     # launch_template_name= 'eng_jobtemplate_decom_start'
@@ -69,6 +67,7 @@ if TESTING:
     sys_argv            = ['d:/scripts/GIT/eng_automation_other/scripts/scripts/get_credentials_and_launch_template.py.py', '-t', f'{launch_template_name}', '-n', f'{req_hostname}', '-s', f'{req_servicenow_id}', '-u', f'{twusr}', '-p', f'{twpwd}']
     print(f'sys_argv={sys_argv}')
     argnum              = 11
+
 sys_argv        = sys.argv
 scriptname      = sys.argv[0]
 scriptname      = scriptname.replace('\\','/').strip()
@@ -81,13 +80,15 @@ cred_names      = []
 payload         = []
 now             = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 tower_host      = 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local'
+twusr           = 'functional_id_001'
+twpwd           = 'm9AHKuXYa*MeZZWLsHqB' # se i 1password
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # awx config settingss. awx is reading these
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# os.environ['TOWER_HOST']        = f'{tower_host}'
-# os.environ['TOWER_USERNAME']    = f'{twusr}'
-# os.environ['TOWER_PASSWORD']    = f'{twpwd}'
-# os.environ['TOWER_VERIFY_SSL']  = 'False'
+os.environ['TOWER_HOST']        = f'{tower_host}'
+os.environ['TOWER_USERNAME']    = f'{twusr}'
+os.environ['TOWER_PASSWORD']    = f'{twpwd}'
+os.environ['TOWER_VERIFY_SSL']  = 'False'
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # functions begin
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
