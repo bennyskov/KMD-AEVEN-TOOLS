@@ -60,11 +60,10 @@ TESTING         = False
 if TESTING:
     print(f'TESTING={TESTING}')
     print(f'useRestAPI={useRestAPI}')
-    req_hostname        = 'dfkdbs302d                 '
-    req_servicenow_id   = 'CHG0000ZZZ'
-    # launch_template_name= 'eng_jobtemplate_decom_start'
-    launch_template_name= 'kmn_windows_remote_aeven_SA_redirect'
-    sys_argv            = ['d:/scripts/GIT/eng_automation_other/scripts/scripts/get_credentials_and_launch_template.py.py', '-t', f'{launch_template_name}', '-n', f'{req_hostname}', '-s', f'{req_servicenow_id}', '-u', f'{twusr}', '-p', f'{twpwd}']
+    nodename            = 'kmdwinitm001'
+    change              = 'CHG00000000'
+    launch_template_name= 'kmn_jobtemplate_de-tooling_maintenancemode'
+    sys_argv            = ['d:/scripts/GIT/eng_automation_other/scripts/scripts/get_credentials_and_launch_template.py.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
     print(f'sys_argv={sys_argv}')
     argnum              = 11
 
@@ -234,7 +233,7 @@ def f_cmdexec(cmdexec='',debug=False):
         return result, RC
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_help_error():
-    if debug: logging.info('use: python get_cred_for_host.py -t {{ launch_template_name }} -n {{ req_hostname }} -s {{ req_servicenow_id }} -u {{ twusr }} -p {{ twpwd }}')
+    if debug: logging.info('use: python get_cred_for_host.py -t {{ launch_template_name }} -n {{ nodename }} -s {{ change }} -u {{ twusr }} -p {{ twpwd }}')
     exit(12)
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # end functions
@@ -251,14 +250,14 @@ if not TESTING:
         else:
             for i, arg in enumerate(sys_argv):
                 checkArg = str(arg.strip())
-                if re.search(r'-n$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; req_hostname = sys_argv[argnum].lower()
-                if re.search(r'-s$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; req_servicenow_id = sys_argv[argnum]
+                if re.search(r'-n$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; nodename = sys_argv[argnum].lower()
+                if re.search(r'-s$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; change = sys_argv[argnum]
                 if re.search(r'-t$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; launch_template_name = sys_argv[argnum]
     else:
         f_help_error()
 #----------------------------------------------------------------------------------------------------------------------------------------------------------
-f_log(f'req_hostname',f'{req_hostname}',debug)
-f_log(f'req_servicenow_id',f'{req_servicenow_id}',debug)
+f_log(f'nodename',f'{nodename}',debug)
+f_log(f'change',f'{change}',debug)
 f_log(f'launch_template_name',f'{launch_template_name}',debug)
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_hostname
@@ -267,28 +266,28 @@ stepName = 'get_hostname'
 f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
 try:
     chosen = ''
-    hostnames = [f'{req_hostname.upper()}',f'{req_hostname.lower()}']
-    for req_hostname in hostnames:
-        req_hostname = req_hostname.strip()
+    hostnames = [f'{nodename.upper()}',f'{nodename.lower()}']
+    for nodename in hostnames:
+        nodename = nodename.strip()
         if useRestAPI:
-            request = f'hosts/?name={req_hostname}'
+            request = f'hosts/?name={nodename}'
             result,RC = f_requests(request,twusr,twpwd,payload,debug)
         else:
-            cmdexec = ['awx', 'host', 'list', '--name', f'{req_hostname}']
+            cmdexec = ['awx', 'host', 'list', '--name', f'{nodename}']
             result,RC = f_cmdexec(cmdexec,debug)
 
         if RC > 0: raise Exception(f'step {stepName} failed')
         if TESTING: f_dump_and_write(result,useRestAPI,stepName,debug)
 
         if result['count'] > 0:
-            chosen = req_hostname
+            chosen = nodename
 
     if chosen == '':
-        raise Exception(f'Hostname {req_hostname} not found')
+        raise Exception(f'Hostname {nodename} not found')
     else:
-        req_hostname = chosen
+        nodename = chosen
 
-    f_log(f'req_hostname',f'{req_hostname}',debug)
+    f_log(f'nodename',f'{nodename}',debug)
 
 except Exception as e:
     if debug: logging.error(e)
@@ -432,10 +431,10 @@ f_log(f'{stepName}','-----------------------------------------------------------
 try:
     allGroups_names = []
     if useRestAPI:
-        request = f'hosts/?name={req_hostname}&inventory={template_inv_id}'
+        request = f'hosts/?name={nodename}&inventory={template_inv_id}'
         result,RC = f_requests(request,twusr,twpwd,payload,debug)
     else:
-        cmdexec = ['awx', 'host', 'list', '--name', f'{req_hostname}', '--inventory', f'{template_inv_id}', '--all-pages']
+        cmdexec = ['awx', 'host', 'list', '--name', f'{nodename}', '--inventory', f'{template_inv_id}', '--all-pages']
         result,RC = f_cmdexec(cmdexec,debug)
 
     if RC > 0: raise Exception(f'step {stepName} failed')
@@ -443,7 +442,7 @@ try:
 
     singleHostGetGroups_count = result['count']
     if singleHostGetGroups_count != 1:
-         raise Exception(f'step get singleHostGetGroups failed. count={singleHostGetGroups_count}. Is host {req_hostname} part of inventory {template_inv_id} / {template_inv_name} ')
+         raise Exception(f'step get singleHostGetGroups failed. count={singleHostGetGroups_count}. Is host {nodename} part of inventory {template_inv_id} / {template_inv_name} ')
     else:
         result = result['results'][0]
         host_id = result['id']
@@ -590,8 +589,8 @@ try:
     credential      = f'--credentials {credential_ids} '
     inventory       = f'--inventory {template_inv_id} '
     extra_vars = {
-        'req_hostname': f'{req_hostname}',
-        'req_servicenow_id': f'{req_servicenow_id}',
+        'nodename': f'{nodename}',
+        'change': f'{change}',
     }
     extra_vars  = f'--extra_vars \"{extra_vars}\"'
 

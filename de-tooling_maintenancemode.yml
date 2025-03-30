@@ -40,9 +40,9 @@
   hosts: localhost
   gather_facts: false
   vars:
-    nodename: '{{ req_hostname }}'
+    nodename: '{{ nodename }}'
     desc: '{{ desc }}'
-    change: '{{ req_servicenow_id }}'
+    change: '{{ change }}'
     from_time: '{{ from_time }}'
     until_time: '{{ until_time }}'
     monsol: '{{ monsol }}'
@@ -54,7 +54,7 @@
   tasks:
   - name: 'A.1.2 Run set_maintenance_mode'
     shell: >
-      python set_maintenance_mode.py
+      python set_maintenancemode.py
       -nodename '{{ nodename }}'
       -desc '{{ desc }}'
       -change '{{ change }}'
