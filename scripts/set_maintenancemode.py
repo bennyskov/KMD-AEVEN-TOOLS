@@ -44,14 +44,65 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # set_maintenance_mode.py  :   shortened version for ansible
 #
 # ---------------------------------------------------------------------------------------------------------------------------------------
-# vars to login to bluecare and default if no input is added
+# functions
 # ---------------------------------------------------------------------------------------------------------------------------------------
 debug       = bool
 debug       = True
 def f_log(key,value,debug):
-    if debug: text = "{:50}: {:}".format(f'{key}',f'{value}'); print(text)
+    if debug: text = "{:30}: {:}".format(f'{key}',f'{value}'); print(text)
+# Check if Danish Daylight Saving Time (DST) is active
+def is_danish_dst():
+    # Denmark follows EU DST rules:
+    # Starts on last Sunday of March at 2:00 AM
+    # Ends on last Sunday of October at 3:00 AM
+    current_date = datetime.now()
+    year = current_date.year
+
+    # Calculate last Sunday of March
+    march_end = datetime(year, 3, 31)
+    while march_end.weekday() != 6:  # 6 is Sunday
+        march_end = march_end - timedelta(days=1)
+    dst_start = datetime(year, march_end.month, march_end.day, 2, 0, 0)
+
+    # Calculate last Sunday of October
+    october_end = datetime(year, 10, 31)
+    while october_end.weekday() != 6:  # 6 is Sunday
+        october_end = october_end - timedelta(days=1)
+    dst_end = datetime(year, october_end.month, october_end.day, 3, 0, 0)
+
+    return dst_start <= current_date < dst_end
+# ---------------------------------------------------------------------------------------------------------------------------------------
+# set now to follow bluecare (Danish Daylight Saving Time (DST)
+# ---------------------------------------------------------------------------------------------------------------------------------------
 start       = time.time()
-now         = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+now_utc     = datetime.now() # the ansible server runns UTC
+f_log("Ansible server time", f"{now_utc.strftime('%Y-%m-%d %H:%M:%S')}", debug)
+
+# Apply DST offset for Denmark (+1 hour standard time, +2 during DST)
+danish_dst  = bool
+danish_dst  = is_danish_dst()
+f_log("is Danish DST active", f"{danish_dst}", debug)
+
+if danish_dst:
+    now_adjusted = now_utc + timedelta(hours=2)  # CEST: UTC+2
+else:
+    now_adjusted = now_utc + timedelta(hours=1)  # CET: UTC+1
+
+now_danish_dst = now_adjusted.strftime('%Y-%m-%d %H:%M:%S')
+f_log("now_danish_dst", f"{now_danish_dst}", debug)
+
+exechost    = socket.gethostname().lower()
+f_log(f'exechost',f'{exechost}',debug)
+# exechost name will be something like "automation-job-2415026-9w8wf". Ansible runs in kubernetes pods
+if re.search(r"^automation-job.*", exechost, re.IGNORECASE):
+    now = now_danish_dst
+    f_log("now is set to DST", f"{now}", debug)
+else:
+    now = datetime.now()
+    f_log("now is set to DST", f"{now}", debug)
+# ---------------------------------------------------------------------------------------------------------------------------------------
+# INIT
+# ---------------------------------------------------------------------------------------------------------------------------------------
 argvnull    = sys.argv[0]
 scriptNamepy= argvnull.split('\\')[-1]
 scriptName  = scriptNamepy.split(".")[0]
@@ -61,7 +112,6 @@ hostIP      = '84.255.92.69'
 port        = '9443'
 auth        =  HTTPBasicAuth(user,pw)
 bcurl       = f'https://{hostIP}:{port}/Portal/services/rest/cis/v1/'
-bcGetTime   = f'https://{hostIP}:{port}/Portal/services/rest/ucd/auth/check'
 nodename    = 'kmdwinitm001'
 desc        = "Server put in maintenancce mode by system"
 change      = "CHG00000000"
@@ -71,63 +121,6 @@ from_time   = "now"
 until_time  = "1440"
 monsol      = ""
 instanceId  = ""
-
-# Get server time from the REST API
-server_time = None
-try:
-    url = bcGetTime
-    headers = {"accept": "application/json", "content-type": "application/json"}
-    response = requests.get(url, headers=headers, auth=auth, verify=False)
-    status_code = response.status_code
-    f_log(f'Time API status_code', f'{status_code}', debug)
-
-    # Extract time from response headers
-    response_headers = response.headers
-    f_log(f'Response headers', f'{dict(response_headers)}', debug)
-
-    # Look for Date header which contains server time
-    if 'Date' in response_headers:
-        date_header = response_headers['Date']
-        f_log(f'Server Date header', f'{date_header}', debug)
-
-        # Parse the date from header format (e.g. "Wed, 24 Jul 2023 14:22:10 GMT")
-        from email.utils import parsedate_to_datetime
-        server_time = parsedate_to_datetime(date_header)
-
-        # The server time from header is in UTC/GMT
-        # Calculate the offset between local time and UTC
-        local_now = datetime.now()
-        utc_now = datetime.utcnow()
-        local_utc_offset = (local_now - utc_now).total_seconds() / 3600
-
-        # Adjust server time to match local time
-        server_time_adjusted = server_time + timedelta(hours=local_utc_offset)
-
-        f_log(f'REST server time (UTC/GMT)', f'{server_time}', debug)
-        f_log(f'Local timezone offset (hours)', f'{local_utc_offset:.2f}', debug)
-        f_log(f'REST server time (adjusted to local)', f'{server_time_adjusted}', debug)
-        f_log(f'Local machine time', f'{local_now}', debug)
-
-        # Calculate time difference (should be minimal now)
-        time_diff = (server_time_adjusted - local_now).total_seconds() / 60
-        f_log(f'Time difference (minutes)', f'{time_diff:.2f}', debug)
-
-        # Use the adjusted server time for further operations
-        server_time = server_time_adjusted
-    else:
-        f_log(f'No Date header found in response', '', debug)
-
-        # As a fallback, try to get time from response body
-        if status_code == 200:
-            result_decoded = response.content.decode('utf-8')
-            try:
-                result_loaded = json.loads(result_decoded)
-                f_log(f'Server time response body', f'{json.dumps(result_loaded, indent=2)}', debug)
-            except json.JSONDecodeError:
-                f_log(f'Response is not JSON', f'{result_decoded[:100]}', debug)
-except Exception as e:
-    f_log(f'Error getting server time', f'{str(e)}', debug)
-    # Continue with local time if server time is unavailable
 # ---------------------------------------------------------------------------------------------------------------------------------------
 # parse and check input
 # ---------------------------------------------------------------------------------------------------------------------------------------
@@ -135,14 +128,14 @@ argnum = 1
 if len(sys.argv) > 1:
     for i, arg in enumerate(sys.argv):
         checkArg = str(arg.strip())
-        if re.search("\-nodename$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; nodename = sys.argv[argnum]
-        if re.search("\-desc$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; desc = sys.argv[argnum]
-        if re.search("\-change$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; change = sys.argv[argnum]
-        if re.search("\-from_time$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; from_time = sys.argv[argnum]
-        if re.search("\-until_time$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; until_time = sys.argv[argnum]
-        if re.search("\-monsol$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; monsol = sys.argv[argnum]
-        if re.search("\-user$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; user = sys.argv[argnum]
-        if re.search("\-pw$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; pw = sys.argv[argnum]
+        if re.search(r"-nodename$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; nodename = sys.argv[argnum]
+        if re.search(r"-desc$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; desc = sys.argv[argnum]
+        if re.search(r"-change$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; change = sys.argv[argnum]
+        if re.search(r"-from_time$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; from_time = sys.argv[argnum]
+        if re.search(r"-until_time$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; until_time = sys.argv[argnum]
+        if re.search(r"-monsol$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; monsol = sys.argv[argnum]
+        if re.search(r"-user$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; user = sys.argv[argnum]
+        if re.search(r"-pw$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; pw = sys.argv[argnum]
 # ---------------------------------------------------------------------------------------------------------------------------------------
 if len(nodename) == 0 or nodename is None:
     f_log(f'nodename is empty',f'{nodename}',debug)
@@ -153,21 +146,12 @@ f_log(f'sys.argv',f'{sys.argv}',debug)
 # vaidate from_time time
 # format = yyyy-MM-dd HH:mm
 # ---------------------------------------------------------------------------------------------------------------------------------------
-exechost    = socket.gethostname().lower()
-f_log(f'exechost',f'{exechost}',debug)
-# exechost gives = automation-job-2415026-9w8wf ansible runs in kubernetes pods
-if bool(re.search(r'now', from_time, re.IGNORECASE)):
-    current_time = datetime.now()
-    f_log(f'current_time (machine)',f'{current_time}',debug)
-    if re.search("automation-job", exechost, re.IGNORECASE):
-        added_time = current_time + timedelta(minutes=65)
-    else:
-        added_time = current_time
-
+if bool(re.match(r'now', from_time, re.IGNORECASE)):
+    current_time = now
+    added_time = current_time + timedelta(minutes=5)
     from_time = str(added_time.strftime('%Y-%m-%d %H:%M'))
-    f_log(f'from_time ( added one hour)',f'{current_time}',debug)
 else:
-    if bool(re.search(r'\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}$', from_time, re.IGNORECASE)):
+    if bool(re.match(r'\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}$', from_time, re.IGNORECASE)):
         from_time = datetime.strptime(from_time,'%Y-%m-%d %H:%M')
         from_date = from_time.strftime('%Y-%m-%d %H:%M')
         from_time = str(from_time.strftime('%Y-%m-%d %H:%M'))
@@ -180,8 +164,8 @@ else:
 # format = yyyy-MM-dd HH:mm
 # ---------------------------------------------------------------------------------------------------------------------------------------
 if bool(re.search(r'^\d+$', until_time, re.IGNORECASE)):
-    current_time = datetime.now()
-    until_time = int(until_time)+65
+    current_time = now
+    until_time = int(until_time)+5
     until_time = current_time + timedelta(minutes=until_time)
     until_time = str(until_time.strftime('%Y-%m-%d %H:%M'))
 else:
