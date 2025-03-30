@@ -46,8 +46,6 @@
     from_time: '{{ from_time }}'
     until_time: '{{ until_time }}'
     monsol: '{{ monsol }}'
-    bc_usr: '{{ bc_usr }}'
-    bc_pwd: '{{ bc_pwd }}'
     # bc_usr: "{{ lookup('env','BLUECARE_USERNAME') }}"
     # bc_pwd: "{{ lookup('env','BLUECARE_PASSWORD') }}"
   # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
