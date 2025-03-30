@@ -44,11 +44,11 @@
   become: true
   gather_facts: false
   vars:
-    launch_template_name_01: 'kmn_jobtemplate_de-tooling_maintenancemode'
-    launch_template_name_02: 'kmn_jobtemplate_de-tooling_serverchecke'
+    launch_template_name_01:  'kmn_jobtemplate_de-tooling_maintenancemode'
+    launch_template_name_02:  'kmn_jobtemplate_de-tooling_serverchecke'
     launch_template_name_03W: 'kmn_jobtemplate_de-tooling_uninstall_itm6_windows'
     launch_template_name_03L: 'kmn_jobtemplate_de-tooling_uninstall_itm6_linux'
-    launch_template_name_04: 'kmn_jobtemplate_de-tooling_disable_SCCM_windows'
+    launch_template_name_04:  'kmn_jobtemplate_de-tooling_disable_SCCM_windows'
 
   tasks:
   # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
