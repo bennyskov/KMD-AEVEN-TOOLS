@@ -52,7 +52,7 @@
   # set_maintenance_mode
   # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
   tasks:
-  - name: 'A.1.2 Run set_maintenance_mode'
+  - name: 'A.1.2 Run setmaintenance_mode'
     shell: >
       python set_maintenancemode.py
       -nodename '{{ nodename }}'

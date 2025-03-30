@@ -75,22 +75,23 @@ instanceId  = ""
 # ---------------------------------------------------------------------------------------------------------------------------------------
 # parse and check input
 # ---------------------------------------------------------------------------------------------------------------------------------------
-# argnum = 1
-# if len(sys.argv) > 1:
-#     for i, arg in enumerate(sys.argv):
-#         checkArg = str(arg.strip())
-#         if re.match("\-nodename$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; nodename = sys.argv[argnum]
-#         if re.match("\-desc$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; desc = sys.argv[argnum]
-#         if re.match("\-change$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; change = sys.argv[argnum]
-#         if re.match("\-from_time$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; from_time = sys.argv[argnum]
-#         if re.match("\-until_time$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; until_time = sys.argv[argnum]
-#         if re.match("\-monsol$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; monsol = sys.argv[argnum]
-#         if re.match("\-user$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; user = sys.argv[argnum]
-#         if re.match("\-pw$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; pw = sys.argv[argnum]
+argnum = 1
+if len(sys.argv) > 1:
+    for i, arg in enumerate(sys.argv):
+        checkArg = str(arg.strip())
+        if re.match("\-nodename$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; nodename = sys.argv[argnum]
+        if re.match("\-desc$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; desc = sys.argv[argnum]
+        if re.match("\-change$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; change = sys.argv[argnum]
+        if re.match("\-from_time$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; from_time = sys.argv[argnum]
+        if re.match("\-until_time$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; until_time = sys.argv[argnum]
+        if re.match("\-monsol$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; monsol = sys.argv[argnum]
+        if re.match("\-user$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; user = sys.argv[argnum]
+        if re.match("\-pw$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; pw = sys.argv[argnum]
 # ---------------------------------------------------------------------------------------------------------------------------------------
 if len(nodename) == 0 or nodename is None:
     f_log(f'nodename is empty',f'{nodename}',debug)
     exit(12)
+f_log(f'sys.argv',f'{sys.argv}',debug)
 # ---------------------------------------------------------------------------------------------------------------------------------------
 # note the cacf server is one  hour behind!!!!
 # vaidate from_time time
