@@ -3,7 +3,7 @@ import sys, os
 import requests
 import re
 import time
-import logging
+import socket
 from sys import exit
 from datetime import datetime
 from datetime import timedelta
@@ -48,8 +48,16 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # ---------------------------------------------------------------------------------------------------------------------------------------
 debug       = bool
 debug       = True
+def f_log(key,value,debug):
+    if debug: text = "{:30}: {:}".format(f'{key}',f'{value}'); print(text)
 start       = time.time()
+
 now         = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+exechost    = socket.gethostname().lower()
+if re.search("kmdcacf001", exechost, re.IGNORECASE):
+    f_log(f'machine time',f'{now}',debug)
+    now = (datetime.now() + timedelta(hours=1)).strftime('%Y-%m-%d %H:%M:%S')
+    f_log(f'machine time corrected',f'{now}',debug)
 argvnull    = sys.argv[0]
 scriptNamepy= argvnull.split('\\')[-1]
 scriptName  = scriptNamepy.split(".")[0]
@@ -84,8 +92,7 @@ if len(sys.argv) > 1:
 #         if re.match("\-user$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; user = sys.argv[argnum]
 #         if re.match("\-pw$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; pw = sys.argv[argnum]
 # ---------------------------------------------------------------------------------------------------------------------------------------
-def f_log(key,value,debug):
-    if debug: text = "{:30}: {:}".format(f'{key}',f'{value}'); print(text)
+
 if len(nodename) == 0 or nodename is None:
     f_log(f'nodename is empty',f'{nodename}',debug)
     exit(12)
