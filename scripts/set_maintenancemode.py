@@ -51,14 +51,9 @@ debug       = True
 def f_log(key,value,debug):
     if debug: text = "{:30}: {:}".format(f'{key}',f'{value}'); print(text)
 start       = time.time()
-
 now         = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 exechost    = socket.gethostname().lower()
 f_log(f'exechost',f'{exechost}',debug)
-f_log(f'machine time',f'{now}',debug)
-if re.search("kmdcacf001", exechost, re.IGNORECASE):
-    now = (datetime.now() + timedelta(hours=1)).strftime('%Y-%m-%d %H:%M:%S')
-    f_log(f'machine time corrected',f'{now}',debug)
 argvnull    = sys.argv[0]
 scriptNamepy= argvnull.split('\\')[-1]
 scriptName  = scriptNamepy.split(".")[0]
