@@ -88,18 +88,18 @@ if danish_dst:
 else:
     now_adjusted = now_utc + timedelta(hours=1)  # CET: UTC+1
 
-now_danish_dst = now_adjusted.strftime('%Y-%m-%d %H:%M:%S')
-f_log("now_danish_dst", f"{now_danish_dst}", debug)
+now_danish_dst = now_adjusted
+f_log("now_danish_dst", f"{now_danish_dst.strftime('%Y-%m-%d %H:%M:%S')}", debug)
 
 exechost    = socket.gethostname().lower()
 f_log(f'exechost',f'{exechost}',debug)
 # exechost name will be something like "automation-job-2415026-9w8wf". Ansible runs in kubernetes pods
 if re.search(r"^automation-job.*", exechost, re.IGNORECASE):
     now = now_danish_dst
-    f_log("now is set to DST", f"{now}", debug)
+    f_log("now is set to DST", f"{now.strftime('%Y-%m-%d %H:%M:%S')}", debug)
 else:
     now = datetime.now()
-    f_log("now is set to DST", f"{now}", debug)
+    f_log("now is set to DST", f"{now.strftime('%Y-%m-%d %H:%M:%S')}", debug)
 # ---------------------------------------------------------------------------------------------------------------------------------------
 # INIT
 # ---------------------------------------------------------------------------------------------------------------------------------------
