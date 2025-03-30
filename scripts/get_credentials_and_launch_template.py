@@ -55,7 +55,7 @@ twpwd           = '' # coming from testing or from parsed args within playbook
 debug           = bool
 debug           = True
 useRestAPI      = False #    True: REST API or False: awx
-TESTING         = True
+TESTING         = False
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 if TESTING:
     print(f'TESTING={TESTING}')
