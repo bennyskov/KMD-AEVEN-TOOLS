@@ -50,15 +50,22 @@ warnings.filterwarnings('ignore', 'This pattern is interpreted as a regular expr
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 #  init
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-twusr           = '' # coming from testing or from parsed args within playbook
-twpwd           = '' # coming from testing or from parsed args within playbook
+twusr           = '' # coming from isInAnsible or from parsed args within playbook
+twpwd           = '' # coming from isInAnsible or from parsed args within playbook
 debug           = bool
 debug           = True
 useRestAPI      = True #    True: REST API or False: awx
-TESTING         = False
+isInAnsible     = False
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if TESTING:
-    print(f'TESTING={TESTING}')
+hostname        = socket.gethostname().lower()
+
+if re.search(r".*kmdwinitm001.*", hostname, re.IGNORECASE): isInAnsible = False
+if re.search(r"^automation-job.*", hostname, re.IGNORECASE): isInAnsible = True
+
+if isInAnsible:
+    pass
+else:
+    print(f'isInAnsible={isInAnsible}')
     print(f'useRestAPI={useRestAPI}')
     nodename            = 'kmdwinitm001'
     change              = 'CHG00000000'
@@ -72,7 +79,6 @@ scriptname      = sys.argv[0]
 scriptname      = scriptname.replace('\\','/').strip()
 scriptname      = scriptname.split('/')[-1]
 scriptname      = scriptname.split('.')[0]
-hostname        = socket.gethostname().lower()
 RC              = 0
 cred_ids        = []
 cred_names      = []
@@ -243,7 +249,7 @@ def f_help_error():
 f_set_logging()
 f_log(f'Begin','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
 f_log(f'sys_argv',f'{sys_argv}',debug)
-if not TESTING:
+if isInAnsible:
     if len(sys_argv) > 1:
         if bool(re.search(r'^(-h|-?|--?|--help)$', sys_argv[1], re.IGNORECASE)): f_help_error()
         if len(sys_argv) < 4: f_help_error()
@@ -260,14 +266,14 @@ f_log(f'nodename',f'{nodename}',debug)
 f_log(f'change',f'{change}',debug)
 f_log(f'launch_template_name',f'{launch_template_name}',debug)
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# get_hostname
+# get_nodename
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-stepName = 'get_hostname'
+stepName = 'get_nodename'
 f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
 try:
     chosen = ''
-    hostnames = [f'{nodename.upper()}',f'{nodename.lower()}']
-    for nodename in hostnames:
+    nodenames = [f'{nodename.upper()}',f'{nodename.lower()}']
+    for nodename in nodenames:
         nodename = nodename.strip()
         if useRestAPI:
             request = f'hosts/?name={nodename}'
@@ -277,13 +283,13 @@ try:
             result,RC = f_cmdexec(cmdexec,debug)
 
         if RC > 0: raise Exception(f'step {stepName} failed')
-        if TESTING: f_dump_and_write(result,useRestAPI,stepName,debug)
+        if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
 
         if result['count'] > 0:
             chosen = nodename
 
     if chosen == '':
-        raise Exception(f'Hostname {nodename} not found')
+        raise Exception(f'nodename {nodename} not found')
     else:
         nodename = chosen
 
@@ -307,7 +313,7 @@ try:
         result,RC = f_cmdexec(cmdexec,debug)
 
     if RC > 0: raise Exception(f'step {stepName} failed')
-    if TESTING: f_dump_and_write(result,useRestAPI,stepName,debug)
+    if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
 
     template_count = result['count']
     if template_count != 1:
@@ -358,7 +364,7 @@ try:
         result,RC = f_cmdexec(cmdexec,debug)
 
     if RC > 0: raise Exception(f'step {stepName} failed')
-    if TESTING: f_dump_and_write(result,useRestAPI,stepName,debug)
+    if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
 
 except Exception as e:
     if debug: logging.error(e)
@@ -378,7 +384,7 @@ try:
         result,RC = f_cmdexec(cmdexec,debug)
 
     if RC > 0: raise Exception(f'step {stepName} failed')
-    if TESTING: f_dump_and_write(result,useRestAPI,stepName,debug)
+    if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
 
     inv_count = result['count']
     if inv_count == 0:
@@ -417,7 +423,7 @@ try:
         result,RC = f_cmdexec(cmdexec,debug)
 
     if RC > 0: raise Exception(f'step {stepName} failed')
-    if TESTING: f_dump_and_write(result,useRestAPI,stepName,debug)
+    if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
 
 except Exception as e:
     if debug: logging.error(e)
@@ -438,7 +444,7 @@ try:
         result,RC = f_cmdexec(cmdexec,debug)
 
     if RC > 0: raise Exception(f'step {stepName} failed')
-    if TESTING: f_dump_and_write(result,useRestAPI,stepName,debug)
+    if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
 
     singleHostGetGroups_count = result['count']
     if singleHostGetGroups_count != 1:
@@ -472,7 +478,7 @@ try:
         result,RC = f_cmdexec(cmdexec,debug)
 
     if RC > 0: raise Exception(f'step {stepName} failed')
-    if TESTING: f_dump_and_write(result,useRestAPI,stepName,debug)
+    if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
 
     if useRestAPI:
         allGroupsWithHost = result['results']                               # REST way
@@ -507,7 +513,7 @@ try:
             result,RC = f_cmdexec(cmdexec,debug)
 
         if RC > 0: raise Exception(f'step {stepName} failed')
-        if TESTING: f_dump_and_write(result,useRestAPI,stepName,debug)
+        if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
 
         grp_cred_count = result['count']
         if grp_cred_count <= 1:
@@ -548,7 +554,7 @@ try:
             result,RC = f_cmdexec(cmdexec,debug)
 
         if RC > 0: raise Exception(f'step {stepName} failed')
-        if TESTING: f_dump_and_write(result,useRestAPI,stepName,debug)
+        if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
 
         credential_count = result['count']
         if credential_count == 0:
@@ -604,7 +610,7 @@ try:
         result,RC = f_cmdexec(cmdexec,debug)
 
     if RC > 0: raise Exception(f'step {stepName} failed')
-    if TESTING: f_dump_and_write(result,useRestAPI,stepName,debug)
+    if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
 
 except Exception as e:
     if debug: logging.error(e)
