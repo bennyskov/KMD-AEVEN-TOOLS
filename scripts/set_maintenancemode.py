@@ -49,11 +49,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 debug       = bool
 debug       = True
 def f_log(key,value,debug):
-    if debug: text = "{:30}: {:}".format(f'{key}',f'{value}'); print(text)
+    if debug: text = "{:50}: {:}".format(f'{key}',f'{value}'); print(text)
 start       = time.time()
 now         = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-exechost    = socket.gethostname().lower()
-f_log(f'exechost',f'{exechost}',debug)
 argvnull    = sys.argv[0]
 scriptNamepy= argvnull.split('\\')[-1]
 scriptName  = scriptNamepy.split(".")[0]
@@ -63,6 +61,7 @@ hostIP      = '84.255.92.69'
 port        = '9443'
 auth        =  HTTPBasicAuth(user,pw)
 bcurl       = f'https://{hostIP}:{port}/Portal/services/rest/cis/v1/'
+bcGetTime   = f'https://{hostIP}:{port}/Portal/services/rest/ucd/auth/check'
 nodename    = 'kmdwinitm001'
 desc        = "Server put in maintenancce mode by system"
 change      = "CHG00000000"
@@ -72,6 +71,63 @@ from_time   = "now"
 until_time  = "1440"
 monsol      = ""
 instanceId  = ""
+
+# Get server time from the REST API
+server_time = None
+try:
+    url = bcGetTime
+    headers = {"accept": "application/json", "content-type": "application/json"}
+    response = requests.get(url, headers=headers, auth=auth, verify=False)
+    status_code = response.status_code
+    f_log(f'Time API status_code', f'{status_code}', debug)
+
+    # Extract time from response headers
+    response_headers = response.headers
+    f_log(f'Response headers', f'{dict(response_headers)}', debug)
+
+    # Look for Date header which contains server time
+    if 'Date' in response_headers:
+        date_header = response_headers['Date']
+        f_log(f'Server Date header', f'{date_header}', debug)
+
+        # Parse the date from header format (e.g. "Wed, 24 Jul 2023 14:22:10 GMT")
+        from email.utils import parsedate_to_datetime
+        server_time = parsedate_to_datetime(date_header)
+
+        # The server time from header is in UTC/GMT
+        # Calculate the offset between local time and UTC
+        local_now = datetime.now()
+        utc_now = datetime.utcnow()
+        local_utc_offset = (local_now - utc_now).total_seconds() / 3600
+
+        # Adjust server time to match local time
+        server_time_adjusted = server_time + timedelta(hours=local_utc_offset)
+
+        f_log(f'REST server time (UTC/GMT)', f'{server_time}', debug)
+        f_log(f'Local timezone offset (hours)', f'{local_utc_offset:.2f}', debug)
+        f_log(f'REST server time (adjusted to local)', f'{server_time_adjusted}', debug)
+        f_log(f'Local machine time', f'{local_now}', debug)
+
+        # Calculate time difference (should be minimal now)
+        time_diff = (server_time_adjusted - local_now).total_seconds() / 60
+        f_log(f'Time difference (minutes)', f'{time_diff:.2f}', debug)
+
+        # Use the adjusted server time for further operations
+        server_time = server_time_adjusted
+    else:
+        f_log(f'No Date header found in response', '', debug)
+
+        # As a fallback, try to get time from response body
+        if status_code == 200:
+            result_decoded = response.content.decode('utf-8')
+            try:
+                result_loaded = json.loads(result_decoded)
+                f_log(f'Server time response body', f'{json.dumps(result_loaded, indent=2)}', debug)
+            except json.JSONDecodeError:
+                f_log(f'Response is not JSON', f'{result_decoded[:100]}', debug)
+except Exception as e:
+    f_log(f'Error getting server time', f'{str(e)}', debug)
+    # Continue with local time if server time is unavailable
 # ---------------------------------------------------------------------------------------------------------------------------------------
 # parse and check input
 # ---------------------------------------------------------------------------------------------------------------------------------------
@@ -79,14 +135,14 @@ argnum = 1
 if len(sys.argv) > 1:
     for i, arg in enumerate(sys.argv):
         checkArg = str(arg.strip())
-        if re.match("\-nodename$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; nodename = sys.argv[argnum]
-        if re.match("\-desc$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; desc = sys.argv[argnum]
-        if re.match("\-change$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; change = sys.argv[argnum]
-        if re.match("\-from_time$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; from_time = sys.argv[argnum]
-        if re.match("\-until_time$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; until_time = sys.argv[argnum]
-        if re.match("\-monsol$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; monsol = sys.argv[argnum]
-        if re.match("\-user$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; user = sys.argv[argnum]
-        if re.match("\-pw$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; pw = sys.argv[argnum]
+        if re.search("\-nodename$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; nodename = sys.argv[argnum]
+        if re.search("\-desc$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; desc = sys.argv[argnum]
+        if re.search("\-change$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; change = sys.argv[argnum]
+        if re.search("\-from_time$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; from_time = sys.argv[argnum]
+        if re.search("\-until_time$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; until_time = sys.argv[argnum]
+        if re.search("\-monsol$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; monsol = sys.argv[argnum]
+        if re.search("\-user$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; user = sys.argv[argnum]
+        if re.search("\-pw$", checkArg, re.IGNORECASE): argnum = i; argnum += 1; pw = sys.argv[argnum]
 # ---------------------------------------------------------------------------------------------------------------------------------------
 if len(nodename) == 0 or nodename is None:
     f_log(f'nodename is empty',f'{nodename}',debug)
@@ -97,12 +153,21 @@ f_log(f'sys.argv',f'{sys.argv}',debug)
 # vaidate from_time time
 # format = yyyy-MM-dd HH:mm
 # ---------------------------------------------------------------------------------------------------------------------------------------
-if bool(re.match(r'now', from_time, re.IGNORECASE)):
+exechost    = socket.gethostname().lower()
+f_log(f'exechost',f'{exechost}',debug)
+# exechost gives = automation-job-2415026-9w8wf ansible runs in kubernetes pods
+if bool(re.search(r'now', from_time, re.IGNORECASE)):
     current_time = datetime.now()
-    added_time = current_time + timedelta(minutes=65)
+    f_log(f'current_time (machine)',f'{current_time}',debug)
+    if re.search("automation-job", exechost, re.IGNORECASE):
+        added_time = current_time + timedelta(minutes=65)
+    else:
+        added_time = current_time
+
     from_time = str(added_time.strftime('%Y-%m-%d %H:%M'))
+    f_log(f'from_time ( added one hour)',f'{current_time}',debug)
 else:
-    if bool(re.match(r'\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}$', from_time, re.IGNORECASE)):
+    if bool(re.search(r'\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}$', from_time, re.IGNORECASE)):
         from_time = datetime.strptime(from_time,'%Y-%m-%d %H:%M')
         from_date = from_time.strftime('%Y-%m-%d %H:%M')
         from_time = str(from_time.strftime('%Y-%m-%d %H:%M'))
@@ -114,13 +179,13 @@ else:
 # vaidate until_time time
 # format = yyyy-MM-dd HH:mm
 # ---------------------------------------------------------------------------------------------------------------------------------------
-if bool(re.match(r'^\d+$', until_time, re.IGNORECASE)):
+if bool(re.search(r'^\d+$', until_time, re.IGNORECASE)):
     current_time = datetime.now()
     until_time = int(until_time)+65
     until_time = current_time + timedelta(minutes=until_time)
     until_time = str(until_time.strftime('%Y-%m-%d %H:%M'))
 else:
-    if bool(re.match(r'\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}$', until_time, re.IGNORECASE)):
+    if bool(re.search(r'\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}$', until_time, re.IGNORECASE)):
         until_time = datetime.strptime(until_time,'%Y-%m-%d %H:%M')
         until_date = until_time.strftime('%Y-%m-%d %H:%M')
         until_time = str(until_time.strftime('%Y-%m-%d %H:%M'))

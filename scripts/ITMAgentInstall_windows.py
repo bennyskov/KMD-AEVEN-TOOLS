@@ -76,6 +76,10 @@ scriptName  = sys.argv[0]
 scriptName  = scriptName.replace('\\','/').strip()
 scriptName  = scriptName.split('/')[-1]
 scriptName  = scriptName.split(".")[0]
+# if getattr(sys, 'frozen', False):
+#     workdir = os.path.dirname(sys.executable) # needed for getting the current dir where the exe file is placed
+# else:
+#     workdir = os.path.dirname(os.path.abspath(__file__))
 workdir     = os.path.dirname(os.path.abspath(__file__))
 workdir     = workdir.replace('\\','/').strip()
 workdir     = workdir.split('/')[0:-1]
