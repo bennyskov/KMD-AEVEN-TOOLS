@@ -69,7 +69,7 @@ else:
     print(f'useRestAPI={useRestAPI}')
     nodename            = 'kmdwinitm001'
     change              = 'CHG00000000'
-    launch_template_name= 'kmn_jobtemplate_de-tooling_maintenancemode'
+    launch_template_name= 'kmn_jobtemplate_de-tooling_set_maintenancemode'
     sys_argv            = ['d:/scripts/GIT/eng_automation_other/scripts/scripts/get_credentials_and_launch_template.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
     print(f'sys_argv={sys_argv}')
     argnum              = 11
