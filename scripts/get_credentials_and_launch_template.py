@@ -54,7 +54,7 @@ twusr           = '' # coming from isInAnsible or from parsed args within playbo
 twpwd           = '' # coming from isInAnsible or from parsed args within playbook
 debug           = bool
 debug           = True
-useRestAPI      = True #    True: REST API or False: awx
+useRestAPI      = False #    True: REST API or False: awx
 isInAnsible     = False
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 hostname        = socket.gethostname().lower()
@@ -197,8 +197,8 @@ def f_requests(request='',twusr='',twpwd='', payload='', debug=False):
             result_loaded   = load_data(result_decoded)
             result_dumps    = json.dumps(result_loaded, indent=5)
             result          = json.loads(result_dumps)
-            # f_log(f'result type',f'{type(result)}',debug)
-            # f_log(f'result_dumps',f'\n{result_dumps}',debug)
+            f_log(f'result type',f'{type(result)}',debug)
+            f_log(f'result_dumps',f'\n{result_dumps}',debug)
 
     except Exception as e:
         if debug:
@@ -591,13 +591,22 @@ f_log(f'{stepName}','-----------------------------------------------------------
 try:
     credential_ids = ','.join(map(str, unique_credential_ids))
 
-    job_template    = f'--name {launch_template_name} '
-    credential      = f'--credentials {credential_ids} '
-    inventory       = f'--inventory {template_inv_id} '
-    extra_vars = {
-        'nodename': f'{nodename}',
-        'change': f'{change}',
-    }
+    if launch_template_name == 'kmn_jobtemplate_de-tooling_maintenancemode':
+        job_template    = f'--name {launch_template_name} '
+        credential      = f'--credentials {credential_ids} '
+        inventory       = f'--inventory {template_inv_id} '
+        extra_vars = {
+            'nodename': f'{nodename}',
+            'change': f'{change}',
+        }
+    else:
+        job_template    = f'--name {launch_template_name} '
+        credential      = f'--credentials {credential_ids} '
+        inventory       = f'--inventory {template_inv_id} '
+        extra_vars = {
+            'nodename': f'{nodename}',
+            'change': f'{change}',
+        }
     extra_vars  = f'--extra_vars \"{extra_vars}\"'
 
     if useRestAPI:
@@ -610,7 +619,8 @@ try:
         result,RC = f_cmdexec(cmdexec,debug)
 
     if RC > 0: raise Exception(f'step {stepName} failed')
-    if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
+    if isInAnsible:
+        f_dump_and_write(result,useRestAPI,stepName,debug)
 
 except Exception as e:
     if debug: logging.error(e)
