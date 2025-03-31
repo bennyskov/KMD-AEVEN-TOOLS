@@ -43,14 +43,6 @@
     tmpdir: "C:/Windows/Temp/HSM-TOOLS/"
     candlehome_unix: "/opt/IBM/ITM"
 
-- name: "Get current machine"
-  run_once: true
-  raw: $ENV:PATH
-  register: path_out
-- name: "Output result"
-  debug:
-    var: path_out.stdout_lines
-
 - name: ITM install path is not defined
   when: candlehome_unix is not defined
   block:
