@@ -3,7 +3,7 @@
 - name: ansible-role-event-socks-tunnel
   src: https://github.kyndryl.net/Continuous-Engineering/ansible-role-event-socks-tunnel.git
   scm: git
-  version: master
+  version: origin/master
 
 - name: sfs_upload
   src: https://github.kyndryl.net/David-Csiki/ansible_role_sfs_upload.git
