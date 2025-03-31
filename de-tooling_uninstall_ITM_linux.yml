@@ -67,6 +67,14 @@
             path: /opt/IBM/ITM/
             state: absent
 
+        - name: 'List /opt/IBM/ITM/'
+          ignore_errors: yes
+          shell: 'ls -lrta /opt/IBM/ITM/'
+          register: list_agentdir_out
+        - name: 'send output to ansible'
+          debug:
+            var: list_agentdir_out.stdout_lines
+
         - name: Delete scripttemp_dir directory
           ignore_errors: yes
           file:
@@ -79,9 +87,9 @@
             path: /var/opt/ansible
             state: absent
 
-        - name: 'List /opt/IBM/ITM/'
+        - name: 'List /var/opt/ansible'
           ignore_errors: yes
-          shell: 'ls -lrta /opt/IBM/ITM/'
+          shell: 'ls -lrta /var/opt/ansible'
           register: list_agentdir_out
         - name: 'send output to ansible'
           debug:
