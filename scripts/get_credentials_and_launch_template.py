@@ -69,12 +69,17 @@ else:
     print(f'useRestAPI={useRestAPI}')
     nodename            = 'kmdwinitm001'
     change              = 'CHG00000000'
+    #
+    # not part of kmn_jobtemplate_de-tooling_begin
+    # launch_template_name= 'kmn_jobtemplate_de-tooling_install_ITM_windows'
+    #
     # launch_template_name= 'kmn_jobtemplate_de-tooling_cleanup_CACF_ansible'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_disable_SCCM_windows'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_servercheck_windows'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_set_maintenancemode'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_windows'
     launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_linux'
+    #
     sys_argv            = ['d:/scripts/GIT/eng_automation_other/scripts/scripts/get_credentials_and_launch_template.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
     print(f'sys_argv={sys_argv}')
     argnum              = 11
