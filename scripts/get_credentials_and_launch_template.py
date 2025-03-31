@@ -67,11 +67,12 @@ if isInAnsible:
 else:
     print(f'isInAnsible={isInAnsible}')
     print(f'useRestAPI={useRestAPI}')
-    nodename            = 'kmdwinitm001'
+    # nodename            = 'kmdwinitm001'
+    nodename            = 'udvsqlqc01'
     change              = 'CHG00000000'
     #
     # not part of kmn_jobtemplate_de-tooling_begin
-    # launch_template_name= 'kmn_jobtemplate_de-tooling_install_ITM_windows'
+    # launch_template_name= 'kmn_jobtemplate_de-tooling_REinstall_ITM_windows'
     #
     # launch_template_name= 'kmn_jobtemplate_de-tooling_cleanup_CACF_ansible'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_disable_SCCM_windows'
@@ -601,7 +602,7 @@ f_log(f'{stepName}','-----------------------------------------------------------
 try:
     credential_ids = ','.join(map(str, unique_credential_ids))
 
-    if launch_template_name == 'kmn_jobtemplate_de-tooling_maintenancemode':
+    if re.search(r".*maintenancemode.*", launch_template_name, re.IGNORECASE):
         job_template    = f'--name {launch_template_name} '
         credential      = f'--credentials {credential_ids} '
         inventory       = f'--inventory {template_inv_id} '
