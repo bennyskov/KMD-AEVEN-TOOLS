@@ -28,9 +28,91 @@
         ansible_become_method: runas
         ansible_become_user: system
 
-- name: Calling unix role
-  hosts: '{{ nodename }}'
-  gather_facts: false
+# - name: Calling unix role
+#   hosts: '{{ nodename }}'
+#   gather_facts: false
+#   become: true
+#   roles:
+#     - unix
+
+- name: "uninstall ITM on linux on server {{ nodename }}"
+  hosts: "{{ nodename }}"
   become: true
-  roles:
-    - unix
+  gather_facts: true
+  vars:
+    tmpdir: "C:/Windows/Temp/HSM-TOOLS/"
+    candlehome_unix:
+
+- name: "Get current machine"
+  run_once: true
+  raw: $ENV:PATH
+  register: path_out
+- name: "Output result"
+  debug:
+    var: path_out.stdout_lines
+
+- name: ITM install path is not defined
+  when: candlehome_unix is not defined
+  block:
+    - name: Validate if Candlehome Unix is defined
+      set_fact:
+        exec_success: false
+        exec_changed: false
+        exec_rc: 1001
+        exec_message:
+          - Kindly validate the input variables. ITM intall path is not defined.
+
+    - name: End play when ITM home is not defined
+      debug:
+        msg: ITM home is not defined, Input variable missing.
+
+    - name: End the play
+      meta: end_play
+
+- name: Unix ITM Uninstallation
+  block:
+    - name: Stop ITM agents & unistall
+      shell: |
+        set -o pipefail;
+        "{{ candlehome_unix }}"/bin/itmcmd agent stop all;  yes 1|"{{ candlehome_unix }}"/bin/uninstall.sh
+      register: uninstall_out
+      changed_when: uninstall_out.rc == 0
+      failed_when: false
+
+    - name: ITM uninstallation success
+      set_fact:
+        exec_success: true
+        exec_changed: true
+        exec_rc: 0
+        exec_message: ITM has been uninstalled sussessfully.
+      when: >
+        ("uninstall.sh warning: Purging /opt/IBM/ITM" in uninstall_out.stderr) or
+        (uninstall_out.rc == 0)
+
+    - name: ITM agent not found on server
+      set_fact:
+        exec_success: true
+        exec_changed: false
+        exec_rc: 0
+        exec_message: ITM Agent is not present on the server
+      when: >
+        ("/opt/IBM/ITM/bin/itmcmd: No such file or directory" in uninstall_out.stderr) and
+        (uninstall_out.rc == 127)
+
+    - name: ITM uninstallation failed
+      set_fact:
+        exec_success: false
+        exec_changed: false
+        exec_rc: 201
+        exec_message:
+          - "Failed to uninstall ITM"
+          - "Error Message: {% if (uninstall_out.stderr is defined) %}{{ uninstall_out.stderr }}
+            {% else %}{{ 'Please refer to the job log for more details' }}{% endif %}"
+      when: >
+        (uninstall_out.rc != 0) and
+        ("/opt/IBM/ITM/bin/itmcmd: No such file or directory" not in uninstall_out.stderr) and
+        ("uninstall.sh warning:" not in uninstall_out.stderr)
+
+    - name: Output
+      debug:
+        var: exec_message
