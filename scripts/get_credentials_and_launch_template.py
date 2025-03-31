@@ -53,8 +53,8 @@ warnings.filterwarnings('ignore', 'This pattern is interpreted as a regular expr
 twusr           = '' # coming from isRunningLocally or from parsed args within playbook
 twpwd           = '' # coming from isRunningLocally or from parsed args within playbook
 debug           = bool
-debug           = True
-useRestAPI      = False #    True: REST API or False: awx
+debug           = False
+useRestAPI      = True #    True: REST API or False: awx
 isRunningLocally = True
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 hostname        = socket.gethostname().lower()
@@ -69,6 +69,22 @@ if isRunningLocally:
         os.remove(logfile)
 
     # nodename            = 'kmdwinitm001'
+    # Udv19bld01
+	# Udv19bfs01
+	# Udv19db2aws01
+	# Udv19avs01
+	# Udv19elk02
+	# Udv19cis01
+	# Udv19tdm03
+	# Udv19bfs02
+	# Udv19tdm02
+	# Udv19tdg01
+	# Udv19elk01
+	# Udv19tools
+	# Udv19gws01
+	# Udv19app01
+	# Udv19elk03
+	# Kmddbs2136
     nodename            = 'Udv19db2aws01'
     change              = 'CHG00000000'
     #job_json_file = f'D:/scripts/GIT/{project}/archive/json_files/{stepName}_useRestAPI.json'
