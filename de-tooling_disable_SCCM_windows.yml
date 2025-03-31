@@ -1,18 +1,18 @@
 - name: Create OS groups
-  hosts: '{{ nodename }}'
+  hosts: localhost
   become: false
   gather_facts: false
   connection: local
   tasks:
     - name: Create OS group
       group_by:
-        key: 'machine_{{ ostype }}'
+        key: "machine_{{ ostype }}"
       changed_when: false
       when: ostype is defined
       delegate_to: localhost
 
 - name: Socks tunnel setup
-  hosts: 'machine_windows'
+  hosts: localhost
   gather_facts: false
   tasks:
     - include_role:
@@ -22,9 +22,9 @@
           run_once: true
           delegate_to: localhost
       vars:
-        acc_id: '{{ blueid_shortcode }}'
-        transaction_id: '{{ tower_job_id }}'
-        trans_num: '{{ tower_job_id }}'
+        acc_id: "{{ blueid_shortcode }}"
+        transaction_id: "{{ tower_job_id }}"
+        trans_num: "{{ tower_job_id }}"
 
     - set_fact:
         ansible_become_method: runas
@@ -44,9 +44,9 @@
   vars:
   tasks:
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    # disable services
+    # disable block
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: Uninstall block
+    - name: disable block
       block:
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # disable all SCCM services

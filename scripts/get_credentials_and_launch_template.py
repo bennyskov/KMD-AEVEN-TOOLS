@@ -54,8 +54,8 @@ twusr           = '' # coming from isRunningLocally or from parsed args within p
 twpwd           = '' # coming from isRunningLocally or from parsed args within playbook
 debug           = bool
 debug           = True
-useRestAPI      = True #    True: REST API or False: awx
-isRunningLocally = False
+useRestAPI      = False #    True: REST API or False: awx
+isRunningLocally = True
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 hostname        = socket.gethostname().lower()
 
@@ -69,14 +69,14 @@ if isRunningLocally:
         os.remove(logfile)
 
     # nodename            = 'kmdwinitm001'
-    nodename            = 'udv19bld01'
+    nodename            = 'Udv19db2aws01'
     change              = 'CHG00000000'
     #job_json_file = f'D:/scripts/GIT/{project}/archive/json_files/{stepName}_useRestAPI.json'
     # not part of kmn_jobtemplate_de-tooling_begin
     # launch_template_name= 'kmn_jobtemplate_de-tooling_REinstall_ITM_windows'
     #
-    launch_template_name= 'kmn_jobtemplate_de-tooling_cleanup_CACF_ansible'
-    # launch_template_name= 'kmn_jobtemplate_de-tooling_disable_SCCM_windows'
+    # launch_template_name= 'kmn_jobtemplate_de-tooling_cleanup_CACF_ansible'
+    launch_template_name= 'kmn_jobtemplate_de-tooling_disable_SCCM_windows'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_servercheck_windows'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_set_maintenancemode'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_windows'
