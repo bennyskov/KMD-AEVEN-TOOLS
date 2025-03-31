@@ -50,28 +50,30 @@ warnings.filterwarnings('ignore', 'This pattern is interpreted as a regular expr
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 #  init
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-twusr           = '' # coming from isInAnsible or from parsed args within playbook
-twpwd           = '' # coming from isInAnsible or from parsed args within playbook
+twusr           = '' # coming from isRunningLocally or from parsed args within playbook
+twpwd           = '' # coming from isRunningLocally or from parsed args within playbook
 debug           = bool
 debug           = True
-useRestAPI      = False #    True: REST API or False: awx
-isInAnsible     = False
+useRestAPI      = True #    True: REST API or False: awx
+isRunningLocally = False
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 hostname        = socket.gethostname().lower()
 
-if re.search(r".*kmdwinitm001.*", hostname, re.IGNORECASE): isInAnsible = False
-if re.search(r"^automation-job.*", hostname, re.IGNORECASE): isInAnsible = True
+if re.search(r".*kmdwinitm001.*", hostname, re.IGNORECASE): isRunningLocally = True
+if re.search(r"^automation-job.*", hostname, re.IGNORECASE): isRunningLocally = False
+print(f'isRunningLocally={isRunningLocally}')
+print(f'useRestAPI={useRestAPI}')
 
-if isInAnsible:
-    pass
-else:
-    print(f'isInAnsible={isInAnsible}')
-    print(f'useRestAPI={useRestAPI}')
-    project             = 'KMD-AEVEN-TOOLS'
+if isRunningLocally:
+    project = 'KMD-AEVEN-TOOLS'
+    logfile = f'D:/scripts/GIT/{project}/archive/logs/get_credentials_and_launch_template.log'
+    if os.path.isfile(logfile):
+        os.remove(logfile)
+
     # nodename            = 'kmdwinitm001'
     nodename            = 'udvsqlqc01'
     change              = 'CHG00000000'
-    #
+    #job_json_file = f'D:/scripts/GIT/{project}/archive/json_files/{stepName}_useRestAPI.json'
     # not part of kmn_jobtemplate_de-tooling_begin
     # launch_template_name= 'kmn_jobtemplate_de-tooling_REinstall_ITM_windows'
     #
@@ -131,38 +133,48 @@ def f_log(key,value,debug):
 # f_set_logging
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_set_logging():
-    # now = datetime.now().strftime('%Y %b %d %H:%M:%S')
-    # text = "{:25} {:20} {:8} {:30} {}".format(now,'%(levelname)s','%(filename)s','%(message)s')
-    logging_schema = {
-        'version': 1,
-        'formatters': {
-            'standard': {
-                'class': 'logging.Formatter',
-                "format": "%(asctime)s\t%(levelname)s\t%(filename)s\t%(message)s",
-                'datefmt': '%Y %b %d %H:%M:%S'
-            }
-        },
-        'handlers': {
-            'console': {
-                'class': 'logging.StreamHandler',
-                'formatter': 'standard',
+    global isRunningLocally
+    if isRunningLocally:
+        logfile = f'D:/scripts/GIT/{project}/archive/logs/get_credentials_and_launch_template.log'
+
+        logging_schema = {
+            'version': 1,
+            'formatters': {
+                'standard': {
+                    'class': 'logging.Formatter',
+                    "format": "%(asctime)s\t%(levelname)s\t%(filename)s\t%(message)s",
+                    'datefmt': '%Y %b %d %H:%M:%S'
+                }
+            },
+            'handlers': {
+                'console': {
+                    'class': 'logging.StreamHandler',
+                    'formatter': 'standard',
+                    'level': 'INFO',
+                    'stream': 'ext://sys.stdout'
+                },
+                'file': {
+                    'class': 'logging.FileHandler',
+                    'formatter': 'standard',
+                    'level': 'INFO',
+                    'filename': logfile,
+                    'mode': 'w'
+                }
+            },
+            'loggers': {
+                '__main__': {
+                    'handlers': ['console', 'file'],
+                    'level': 'INFO',
+                    'propagate': False
+                }
+            },
+            'root': {
                 'level': 'INFO',
-                'stream': 'ext://sys.stdout'
+                'handlers': ['console', 'file'],
             }
-        },
-        'loggers' : {
-            '__main__': {
-                'handlers': ['console'],
-                'level': 'INFO',
-                'propagate': False
-            }
-        },
-        'root' : {
-            'level': 'INFO',
-            'handlers': ['console'],
         }
-    }
-    logging.config.dictConfig(logging_schema)
+        logging.config.dictConfig(logging_schema)
+        logging.info(f'Logging to file: {logfile}')
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # load_data
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -209,8 +221,8 @@ def f_requests(request='',twusr='',twpwd='', payload='', debug=False):
             result_loaded   = load_data(result_decoded)
             result_dumps    = json.dumps(result_loaded, indent=5)
             result          = json.loads(result_dumps)
-            f_log(f'result type',f'{type(result)}',debug)
-            f_log(f'result_dumps',f'\n{result_dumps}',debug)
+            # f_log(f'result type',f'{type(result)}',debug)
+            # f_log(f'result_dumps',f'\n{result_dumps}',debug)
 
     except Exception as e:
         if debug:
@@ -230,8 +242,8 @@ def f_cmdexec(cmdexec='',debug=False):
         f_log(f'cmdexec',f'{cmdexec}',debug)
         cmdexec_result = subprocess.run(cmdexec, capture_output=True, text=True)
         RC = cmdexec_result.returncode
-        f_log(f'cmdexec_result type',f'{type(cmdexec_result)}',debug)
-        f_log(f'cmdexec_result     ',f'{cmdexec_result}',debug)
+        # f_log(f'cmdexec_result type',f'{type(cmdexec_result)}',debug)
+        # f_log(f'cmdexec_result     ',f'{cmdexec_result}',debug)
         if RC > 0:
             raise Exception('f_cmdexec failed')
         else:
@@ -261,7 +273,7 @@ def f_help_error():
 f_set_logging()
 f_log(f'Begin','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
 f_log(f'sys_argv',f'{sys_argv}',debug)
-if isInAnsible:
+if not isRunningLocally:
     if len(sys_argv) > 1:
         if bool(re.search(r'^(-h|-?|--?|--help)$', sys_argv[1], re.IGNORECASE)): f_help_error()
         if len(sys_argv) < 4: f_help_error()
@@ -295,7 +307,7 @@ try:
             result,RC = f_cmdexec(cmdexec,debug)
 
         if RC > 0: raise Exception(f'step {stepName} failed')
-        if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
+        if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
 
         if result['count'] > 0:
             chosen = nodename
@@ -325,7 +337,7 @@ try:
         result,RC = f_cmdexec(cmdexec,debug)
 
     if RC > 0: raise Exception(f'step {stepName} failed')
-    if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
+    if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
 
     template_count = result['count']
     if template_count != 1:
@@ -376,7 +388,7 @@ try:
         result,RC = f_cmdexec(cmdexec,debug)
 
     if RC > 0: raise Exception(f'step {stepName} failed')
-    if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
+    if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
 
 except Exception as e:
     if debug: logging.error(e)
@@ -396,7 +408,7 @@ try:
         result,RC = f_cmdexec(cmdexec,debug)
 
     if RC > 0: raise Exception(f'step {stepName} failed')
-    if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
+    if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
 
     inv_count = result['count']
     if inv_count == 0:
@@ -435,7 +447,7 @@ try:
         result,RC = f_cmdexec(cmdexec,debug)
 
     if RC > 0: raise Exception(f'step {stepName} failed')
-    if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
+    if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
 
 except Exception as e:
     if debug: logging.error(e)
@@ -456,7 +468,7 @@ try:
         result,RC = f_cmdexec(cmdexec,debug)
 
     if RC > 0: raise Exception(f'step {stepName} failed')
-    if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
+    if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
 
     singleHostGetGroups_count = result['count']
     if singleHostGetGroups_count != 1:
@@ -490,7 +502,7 @@ try:
         result,RC = f_cmdexec(cmdexec,debug)
 
     if RC > 0: raise Exception(f'step {stepName} failed')
-    if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
+    if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
 
     if useRestAPI:
         allGroupsWithHost = result['results']                               # REST way
@@ -525,7 +537,7 @@ try:
             result,RC = f_cmdexec(cmdexec,debug)
 
         if RC > 0: raise Exception(f'step {stepName} failed')
-        if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
+        if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
 
         grp_cred_count = result['count']
         if grp_cred_count <= 1:
@@ -566,7 +578,7 @@ try:
             result,RC = f_cmdexec(cmdexec,debug)
 
         if RC > 0: raise Exception(f'step {stepName} failed')
-        if isInAnsible: f_dump_and_write(result,useRestAPI,stepName,debug)
+        if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
 
         credential_count = result['count']
         if credential_count == 0:
@@ -625,13 +637,14 @@ try:
         request = f'job_templates/{template_id}/launch/'
         f_log(f'request',f'{request}',debug)
         result,RC = f_requests(request,twusr,twpwd,payload,debug)
+        f_log(f'unique_credential_ids',f'{unique_credential_ids}',debug)
     else:
         cmdexec = f"awx job_templates launch {launch_template_name} {credential} {inventory} {extra_vars}"
         f_log(f'cmdexec',f'{cmdexec}',debug)
         result,RC = f_cmdexec(cmdexec,debug)
 
     if RC > 0: raise Exception(f'step {stepName} failed')
-    if isInAnsible:
+    if isRunningLocally:
         f_dump_and_write(result,useRestAPI,stepName,debug)
 
 except Exception as e:

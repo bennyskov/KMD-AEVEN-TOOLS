@@ -58,13 +58,25 @@
           args:
             chdir: /tmp/scripttemp_dir
           register: script_run
-
         - name: Output list
           debug:
             var: script_run.stdout_lines
 
-      always:
+        - name: Delete /opt/IBM/ITM/ directory
+          file:
+            path: /opt/IBM/ITM/
+            state: absent
+
         - name: Delete scripttemp_dir directory
+          ignore_errors: yes
           file:
             path: /tmp/scripttemp_dir
             state: absent
+
+        - name: 'List /opt/IBM/ITM/'
+          ignore_errors: yes
+          shell: 'ls -lrta /opt/IBM/ITM/'
+          register: list_agentdir_out
+        - name: 'send output to ansible'
+          debug:
+            var: list_agentdir_out.stdout_lines
