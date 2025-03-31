@@ -1,18 +1,19 @@
+---
 - name: Create OS groups
-  hosts: '{{ nodename }}'
+  hosts: "{{ hostlist }}"
   become: false
   gather_facts: false
   connection: local
   tasks:
     - name: Create OS group
       group_by:
-        key: 'machine_{{ ostype }}'
+        key: "machine_{{ ostype }}"
       changed_when: false
       when: ostype is defined
       delegate_to: localhost
 
 - name: Socks tunnel setup
-  hosts: '{{ nodename }}'
+  hosts: "{{ hostlist }}"
   gather_facts: false
   tasks:
     - include_role:
@@ -22,138 +23,51 @@
           run_once: true
           delegate_to: localhost
       vars:
-        acc_id: '{{ blueid_shortcode }}'
-        transaction_id: '{{ tower_job_id }}'
-        trans_num: '{{ tower_job_id }}'
+        acc_id: "{{ blueid_shortcode }}"
+        transaction_id: "{{ tower_job_id }}"
+        trans_num: "{{ tower_job_id }}"
 
     - set_fact:
         ansible_become_user: root
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-# working on LOCALHOST
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: gather_facts LOCALHOST
-  hosts: localhost
-  gather_facts: true
-  tasks:
-    - name: Debug facts
-      debug:
-        msg: |-
-          "{{ ansible_facts }}"
-      tags:
-        - debug_facts
 
-    - name: 'List homedir files'
-      shell: 'ls -lrt'
-      register: script_homedir
-    - name: Output list homedir
-      debug:
-        var: script_homedir.stdout_lines
-
-    - name: 'List /tmp/'
-      shell: 'ls -lrt /tmp/'
-      register: script_tmp
-    - name: Output list tmp
-      debug:
-        var: script_tmp.stdout_lines
-
-    - meta: clear_host_errors
-
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-# now working on {{ nodename }} host
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-#
-# UNINSTALL playbook of ITM agent on linux
-#
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: 'UNINSTALL playbook of ITM agent on linux for de-tooling {{ nodename }}'
-  hosts: '{{ nodename }}'
+- name: Get script result on linux nodes
+  hosts: "{{ hostlist }}"
   become: true
   gather_facts: false
-  vars:
-    agentdir: '/opt/IBM/ITM'
-    tmpdir: '/tmp/'
-    uninstall_stdout: 'ITM_agent_uninstall_stdout.log'
   tasks:
-    - name: Copy, create, exec file
+    - name: Copy, create, fetch file
       block:
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # write global vars
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: 'print debug vars {{ nodename }}'
-          debug:
-            msg: |-
-              "tmpdir = {{ tmpdir }}"
-          tags:
-            - debug_vars
+        - name: Create prtemp_dir directory
+          file:
+            path: /tmp/scripttemp_dir
+            state: directory
+            mode: 0777
 
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # list {{ agentdir }}
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: copy multiple items
+          copy:
+            src: "{{ item.src }}"
+            dest: "{{ item.dest }}"
+            mode: 0777
 
-        - name: 'Check if the {{ agentdir }} exists'
-          stat:
-            path: '{{ agentdir }}'
-          register: file_stat_agentdir
+          loop:
+            - src: scripts/ITMAgentRepair_linux.pl
+              dest: /tmp/scripttemp_dir/ITMAgentUNinstall_linux.pl
 
-        - name: 'List {{ agentdir }}'
-          shell: 'ls -lrt {{ agentdir }}'
-          register: list_agentdir_out
-          when: file_stat_agentdir.stat.exists
+            - src: ITMconfig/
+              dest: /tmp/scripttemp_dir/
 
-        - name: list_agentdir Output
-          debug:
-            var: list_agentdir_out.stdout_lines
-          when: file_stat_agentdir.stat.exists
-
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # run UNINSTALL
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: 'Check if the agent_uninstall.sh exists'
-          stat:
-            path: '{{ agentdir }}/bin/uninstall.sh'
-          register: file_stat_uninstall_sh
-
-        - name: Run UNINSTALL
-          shell: sh {{ agentdir }}/bin/itmcmd agent stop all > {{ tmpdir }}{{ uninstall_stdout }} 2>&1
+        - name: Run command
+          shell: perl -w ITMAgentRepair_linux.pl -d
           args:
-            chdir: '{{ agentdir }}'
-          register: script_stop_stdout_lines
-          when: script_stop_stdout_lines.stat.exists
+            chdir: /tmp/scripttemp_dir
+          register: script_run
 
-        - name: 'Read content from stdout if not catched by pipe'
+        - name: Output list
           debug:
-            var: script_stop_stdout_lines.stdout_lines
-          when: script_stop_stdout_lines.stat.exists
+            var: script_run.stdout_lines
 
-        # - name: Run UNINSTALL
-        #   shell: sh {{ agentdir }}agent_uninstall.sh --force > {{ tmpdir }}{{ uninstall_stdout }} 2>&1
-        #   args:
-        #     chdir: '{{ agentdir }}'
-        #   register: script_uninstall_stdout_lines
-        #   when: file_stat_uninstall_sh.stat.exists
-
-        # - name: 'Read content from stdout if not catched by pipe'
-        #   debug:
-        #     var: script_uninstall_stdout_lines.stdout_lines
-        #   when: file_stat_uninstall_sh.stat.exists
-
-        # # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # # send {{ uninstall_stdout }} to ansible stdout
-        # # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-        # - name: 'Check if the {{ uninstall_stdout }} exists'
-        #   stat:
-        #     path: '{{ tmpdir }}{{ uninstall_stdout }}'
-        #   register: file_content_uninstall_stdout
-
-        # - name: 'Read content from {{ uninstall_stdout }}'
-        #   run_once: true
-        #   shell: cat "{{ tmpdir }}{{ uninstall_stdout }}"
-        #   register: sa_agent_uninstall_stdout_log
-        #   when: file_content_uninstall_stdout.stat.exists
-
-        # - name: 'send content to ansible'
-        #   debug:
-        #     msg: |-
-        #       "aeven_stdout_log: {{ file_content_uninstall_stdout.stdout }}"
-        #   when: file_content_uninstall_stdout.stat.exists
+      always:
+        - name: Delete scripttemp_dir directory
+          file:
+            path: /tmp/scripttemp_dir
+            state: absent
