@@ -73,6 +73,12 @@
             path: /tmp/scripttemp_dir
             state: absent
 
+        - name: Delete ansible directory
+          ignore_errors: yes
+          file:
+            path: /var/opt/ansible
+            state: absent
+
         - name: 'List /opt/IBM/ITM/'
           ignore_errors: yes
           shell: 'ls -lrta /opt/IBM/ITM/'

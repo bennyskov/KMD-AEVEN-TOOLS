@@ -69,18 +69,18 @@ if isRunningLocally:
         os.remove(logfile)
 
     # nodename            = 'kmdwinitm001'
-    nodename            = 'udvsqlqc01'
+    nodename            = 'udv19bld01'
     change              = 'CHG00000000'
     #job_json_file = f'D:/scripts/GIT/{project}/archive/json_files/{stepName}_useRestAPI.json'
     # not part of kmn_jobtemplate_de-tooling_begin
     # launch_template_name= 'kmn_jobtemplate_de-tooling_REinstall_ITM_windows'
     #
-    # launch_template_name= 'kmn_jobtemplate_de-tooling_cleanup_CACF_ansible'
+    launch_template_name= 'kmn_jobtemplate_de-tooling_cleanup_CACF_ansible'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_disable_SCCM_windows'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_servercheck_windows'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_set_maintenancemode'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_windows'
-    launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_linux'
+    # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_linux'
     #
     sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/get_credentials_and_launch_template.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
     print(f'sys_argv={sys_argv}')

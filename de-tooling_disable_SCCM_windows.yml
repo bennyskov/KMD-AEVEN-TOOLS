@@ -1,5 +1,5 @@
 - name: Create OS groups
-  hosts: '{{ hostlist }}'
+  hosts: '{{ nodename }}'
   become: false
   gather_facts: false
   connection: local
@@ -31,14 +31,14 @@
         ansible_become_user: system
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-# now working on {{ hostlist }} host
+# now working on {{ nodename }} host
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #
 # uninstall playbook of Opsware agent on windows
 #
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: 'uninstall playbook of SA Opsware agent {{ hostlist }}'
-  hosts: '{{ hostlist }}'
+- name: 'uninstall playbook of SA Opsware agent {{ nodename }}'
+  hosts: '{{ nodename }}'
   become: true
   gather_facts: false
   vars:
