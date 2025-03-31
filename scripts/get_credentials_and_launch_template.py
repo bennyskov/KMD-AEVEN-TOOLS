@@ -67,6 +67,7 @@ if isInAnsible:
 else:
     print(f'isInAnsible={isInAnsible}')
     print(f'useRestAPI={useRestAPI}')
+    project             = 'KMD-AEVEN-TOOLS'
     # nodename            = 'kmdwinitm001'
     nodename            = 'udvsqlqc01'
     change              = 'CHG00000000'
@@ -81,7 +82,7 @@ else:
     # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_windows'
     launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_linux'
     #
-    sys_argv            = ['d:/scripts/GIT/eng_automation_other/scripts/scripts/get_credentials_and_launch_template.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
+    sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/scripts/get_credentials_and_launch_template.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
     print(f'sys_argv={sys_argv}')
     argnum              = 11
 
@@ -111,9 +112,9 @@ os.environ['TOWER_VERIFY_SSL']  = 'False'
 def f_dump_and_write(result,useRestAPI,stepName,debug):
     if debug:
         if useRestAPI:
-            job_json_file = f'D:/scripts/GIT/eng_automation_other/archive/json_files/{stepName}_useRestAPI.json'
+            job_json_file = f'D:/scripts/GIT/{project}/archive/json_files/{stepName}_useRestAPI.json'
         else:
-            job_json_file = f'D:/scripts/GIT/eng_automation_other/archive/json_files/{stepName}_useAwxAPI.json'
+            job_json_file = f'D:/scripts/GIT/{project}/archive/json_files/{stepName}_useAwxAPI.json'
 
         result_dumps = json.dumps(result, indent=5)
         f_log(f'result_dumps',f'{result_dumps}',debug)
