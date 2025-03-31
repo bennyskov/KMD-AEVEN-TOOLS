@@ -61,8 +61,6 @@ hostname        = socket.gethostname().lower()
 
 if re.search(r".*kmdwinitm001.*", hostname, re.IGNORECASE): isRunningLocally = True
 if re.search(r"^automation-job.*", hostname, re.IGNORECASE): isRunningLocally = False
-print(f'isRunningLocally={isRunningLocally}')
-print(f'useRestAPI={useRestAPI}')
 
 if isRunningLocally:
     project = 'KMD-AEVEN-TOOLS'
@@ -212,9 +210,9 @@ def f_requests(request='',twusr='',twpwd='', payload='', debug=False):
         f_log(f'url',f'{url}',debug)
         RC                      = 0
         if len(payload) == 0:
-            response                = requests.get(url, auth=(twusr, twpwd), verify=False, timeout=300)
+            response                = requests.get(url, auth=(twusr, twpwd), verify=False, timeout=1440)
         else:
-            response                = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False, timeout=300)
+            response                = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False, timeout=1440)
         response.raise_for_status()
         if response.status_code == 200 or response.status_code == 201:
             result_decoded  = response.content.decode('utf-8')
@@ -286,6 +284,8 @@ if not isRunningLocally:
     else:
         f_help_error()
 #----------------------------------------------------------------------------------------------------------------------------------------------------------
+f_log(f'isRunningLocally',f'{isRunningLocally}',debug)
+f_log(f'useRestAPI',f'{useRestAPI}',debug)
 f_log(f'nodename',f'{nodename}',debug)
 f_log(f'change',f'{change}',debug)
 f_log(f'launch_template_name',f'{launch_template_name}',debug)
