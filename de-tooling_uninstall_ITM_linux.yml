@@ -26,7 +26,8 @@
         acc_id: "{{ blueid_shortcode }}"
         transaction_id: "{{ tower_job_id }}"
         trans_num: "{{ tower_job_id }}"
-        acc_id: '{{ blueid_shortcode }}'
+        ansib_user1: 'kmduxat1'
+        ansib_user2: 'kmduxat2'
 
     - set_fact:
         ansible_become_user: root
@@ -106,20 +107,43 @@
           debug:
             var: list_agentdir_out.stdout_lines
 
-        - name: "2.A2.1. Check if {{ kmduxat1 }} already exists"
-          command: "id {{ kmduxat1 }}"
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # remove ansible users ansib_user1
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: "2.A2.1. Check if {{ ansib_user1 }} already exists"
+          command: "id {{ ansib_user1 }}"
           register: unix_user_info
           ignore_errors: true
 
-        - name: "2.A2.1. Delete user {{ kmduxat1 }}"
+        - name: "2.A2.1. Delete user {{ ansib_user1 }}"
           ignore_errors: true
           ansible.builtin.user:
-            name: "{{ kmduxat1 }}"
+            name: "{{ ansib_user1 }}"
             remove: "{{ data.remove_user_dirs | default(true) }}"
             state: absent
 
-        - name: "2.A2.5. Delete sudoers profile for {{ kmduxat1 }}"
+        - name: "2.A2.5. Delete sudoers profile for {{ ansib_user1 }}"
           ignore_errors: true
           ansible.builtin.file:
-            path: "/etc/sudoers.d/{{ kmduxat1 }}_sudo"
+            path: "/etc/sudoers.d/{{ ansib_user1 }}_sudo"
+            state: absent
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # remove ansible users ansib_user2
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: "2.A2.1. Check if {{ ansib_user2 }} already exists"
+          command: "id {{ ansib_user2 }}"
+          register: unix_user_info
+          ignore_errors: true
+
+        - name: "2.A2.1. Delete user {{ ansib_user2 }}"
+          ignore_errors: true
+          ansible.builtin.user:
+            name: "{{ ansib_user2 }}"
+            remove: "{{ data.remove_user_dirs | default(true) }}"
+            state: absent
+
+        - name: "2.A2.5. Delete sudoers profile for {{ ansib_user2 }}"
+          ignore_errors: true
+          ansible.builtin.file:
+            path: "/etc/sudoers.d/{{ ansib_user2 }}_sudo"
             state: absent
