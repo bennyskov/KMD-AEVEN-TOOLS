@@ -26,6 +26,7 @@
         acc_id: "{{ blueid_shortcode }}"
         transaction_id: "{{ tower_job_id }}"
         trans_num: "{{ tower_job_id }}"
+        acc_id: '{{ blueid_shortcode }}'
 
     - set_fact:
         ansible_become_user: root
@@ -81,6 +82,16 @@
             path: /tmp/scripttemp_dir
             state: absent
 
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        #
+        # cleanup ansible
+        #
+        # "/var/opt/ansible/GTS",
+        # "/var/opt/ansible/tmp",
+        # "/var/opt/ansible/GTS/dataLake"
+        #
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
         - name: Delete ansible directory
           ignore_errors: yes
           file:
@@ -94,3 +105,21 @@
         - name: 'send output to ansible'
           debug:
             var: list_agentdir_out.stdout_lines
+
+        - name: "2.A2.1. Check if {{ kmduxat1 }} already exists"
+          command: "id {{ kmduxat1 }}"
+          register: unix_user_info
+          ignore_errors: true
+
+        - name: "2.A2.1. Delete user {{ kmduxat1 }}"
+          ignore_errors: true
+          ansible.builtin.user:
+            name: "{{ kmduxat1 }}"
+            remove: "{{ data.remove_user_dirs | default(true) }}"
+            state: absent
+
+        - name: "2.A2.5. Delete sudoers profile for {{ kmduxat1 }}"
+          ignore_errors: true
+          ansible.builtin.file:
+            path: "/etc/sudoers.d/{{ kmduxat1 }}_sudo"
+            state: absent
