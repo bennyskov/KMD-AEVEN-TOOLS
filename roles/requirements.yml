@@ -20,11 +20,6 @@
   scm: git
   version: master
 
-- name: ansible-role-tsm-check
-  src: "https://github.kyndryl.net/eu-nordic-kmn/ansible-role-tsm-check.git"
-  scm: git
-  version: main
-
 - name: towercli-init
   src: "https://github.kyndryl.net/eu-nordic-kmn/ansible-role-towercli-init.git"
   scm: git
