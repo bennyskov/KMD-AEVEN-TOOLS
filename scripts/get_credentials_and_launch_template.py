@@ -82,7 +82,7 @@ else:
     # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_windows'
     launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_linux'
     #
-    sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/scripts/get_credentials_and_launch_template.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
+    sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/get_credentials_and_launch_template.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
     print(f'sys_argv={sys_argv}')
     argnum              = 11
 

@@ -46,7 +46,7 @@ my($envirShore,$step,$scriptname,$scriptn,@words);
 my(@foo,@bar,@baz,@out,@trimin,$argnum);
 my($cmdexec,$text,$debug,$csv_data,%hash_rtems,@csv_rows,@csv_lines,@fields,$line,$row,$count,$status,$ccode,$hostname,$itm_nodename);
 my($rtemsCi,$rtemsIP,$rtemsConnect,$rtemsPairs,$rtemsFunction,$rtemsPrimSec,$rtemsTier,$rtemsEnvir,$rtemsShore,$result,$itmuser);
-my($primary,$secondary,$pairsNumber,$CT_CMSLIST,$rtems_file,$handle,$agent,$shore,$envir,$candlehome_unix);
+my($primary,$secondary,$pairsNumber,$CT_CMSLIST,$rtems_file,$handle,$agent,$shore,$envir);
 my($silent_config_data,$silent_config_linux_git,$silent_config_linux,$pingonly);
 my($env_file,$env_file_git,$env_data);
 my($ini_file,$ini_file_git,$ini_data);
@@ -63,20 +63,10 @@ $scriptname         =~ s/\\/\//g; # turn slash
 $scriptn            = $words[$#words];
 $scriptn            =~ s/\.pl//g;
 $debug              = 0;
-$candlehome_unix    = "/opt/IBM/ITM"
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # read input
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# plog("@ARGV\n");
-if  (scalar(@ARGV) != 0 ) {
-	if 	( ($ARGV[0] =~ /^(-h|-\?|--help)/) ) { help_error(); }
-	foreach $argnum (0 .. $#ARGV) {
-		# plog("$ARGV[$argnum]\n");
-    if ( $ARGV[$argnum] =~ /^\-d$/)             { $argnum++; $debug = 1; } # 1=yes
-	}
-} else {
-	help_error();
-}
+$debug = 1;
 plog("\nhostname: $hostname");
 plog("\ndebug:    $debug");
 plog("\nscriptn:  $scriptn");
@@ -314,16 +304,16 @@ sub cinfo {
         plog("OK: cinfo completed");
 }
 sub listLogs {
-        ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-        list Logs
-        ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # list dir
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         ++$step;
         undef( @out );
         @out = ();$baz = '';
         $text = "list Logs";
         plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
 
-        $cmdexec = "ls -lrt /opt/IBM/ITM/logs 2>&1";
+        $cmdexec = "ls -lrt /opt/IBM/ITM/* 2>&1";
         if ( $debug ) { plog("\n$cmdexec\n"); }
         @out = `$cmdexec`;
         if ( $debug ) { plog("\nout=>\n@out\n"); }

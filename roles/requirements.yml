@@ -1,26 +1,6 @@
 ---
-# global socks tunner role
+
 - name: ansible-role-event-socks-tunnel
   src: https://github.kyndryl.net/Continuous-Engineering/ansible-role-event-socks-tunnel.git
-  scm: git
-  version: master
-
-- name: sfs_upload
-  src: https://github.kyndryl.net/David-Csiki/ansible_role_sfs_upload.git
-  scm: git
-  version: 3.0/main
-
-- name: simple_sfs_upload
-  src: https://github.kyndryl.net/eu-nordic-kmn/simple_sfs_upload.git
-  scm: git
-  version: master
-
-- name: host-variable
-  src: "https://github.kyndryl.net/eu-nordic-kmn/ansible-role-host-variable.git"
-  scm: git
-  version: master
-
-- name: towercli-init
-  src: "https://github.kyndryl.net/eu-nordic-kmn/ansible-role-towercli-init.git"
   scm: git
   version: master
