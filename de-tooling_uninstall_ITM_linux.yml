@@ -41,7 +41,7 @@
   gather_facts: true
   vars:
     tmpdir: "C:/Windows/Temp/HSM-TOOLS/"
-    candlehome_unix:
+    candlehome_unix: "/opt/IBM/ITM"
 
 - name: "Get current machine"
   run_once: true
