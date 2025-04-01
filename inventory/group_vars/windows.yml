@@ -1,0 +1,16 @@
+# Windows connection settings for Ansible
+ansible_connection: winrm
+ansible_winrm_transport: ntlm
+ansible_winrm_server_cert_validation: ignore
+
+# Increase timeout settings to prevent connection issues
+ansible_winrm_operation_timeout_sec: 60
+ansible_winrm_read_timeout_sec: 70
+
+# Force use of NTLM authentication directly rather than SPNEGO negotiation
+ansible_winrm_scheme: http
+ansible_port: 5985
+
+# Additional settings that might help with authentication
+ansible_become_method: runas
+ansible_become_user: system
