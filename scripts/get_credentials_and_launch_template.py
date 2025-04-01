@@ -116,7 +116,7 @@ def f_dump_and_write(result,useRestAPI,stepName,debug):
             job_json_file = f'D:/scripts/GIT/{project}/archive/json_files/{stepName}_useAwxAPI.json'
 
         result_dumps = json.dumps(result, indent=5)
-        f_log(f'result_dumps',f'{result_dumps}',debug)
+        # f_log(f'result_dumps',f'{result_dumps}',debug)
 
         fhandle = open(job_json_file, 'w', encoding='utf-8')
         fhandle.write(f"{result_dumps}")
@@ -348,7 +348,7 @@ try:
     else:
         result                  = result['results'][0]
         template_id             = result['id']
-        launch_template_name       = result['name']
+        launch_template_name    = result['name']
         template_org_name       = result['summary_fields']['organization']['name']
         template_org_id         = result['summary_fields']['organization']['id']
         template_inv_name       = result['summary_fields']['inventory']['name']
