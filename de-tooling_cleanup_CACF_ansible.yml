@@ -31,81 +31,48 @@
         ansible_become_user: system
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-# now working on {{ hostlist }} host
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #
-# uninstall playbook of Opsware agent on windows
+# The whole playbook is running from ansible tower host
 #
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: 'uninstall playbook of SA Opsware agent {{ hostlist }}'
-  hosts: '{{ hostlist }}'
-  become: true
+- name: 'Export of on host from ansible itower inventory and then remove the host from all inventories'
+  hosts: localhost
   gather_facts: false
+  become: false
+  run_once: true
+  ignore_errors: yes
   vars:
-    agentdir: 'C:/Program Files/Opsware/agent/pylibs3/cog/uninstall/'
-    tmpdir: 'C:/Windows/Temp/'
-    stdoutfile: 'sa-agent_uninstall_stdout.log'
-    ansible_connection: winrm
-    ansible_winrm_transport: ntlm
-    ansible_winrm_server_cert_validation: ignore
+    nodename: '{{ nodename }}'
+    tower_host: 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local'
+    # tower_username: 'functional_id_001'
+    # tower_password: 'm9AHKuXYa*MeZZWLsHqB'
   tasks:
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    # Uninstall
+    # Export host from inventory
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: Uninstall block
+    - name: 'A.0.0 Export host from inventory'
       block:
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # run uninstall using ccmsetup
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: Create tower-cli config
+          include_role:
+            name: towercli-init
+
         - name: Run command
-          win_command: 'ccmsetup.exe /uninstall 2>&1'
-          args:
-            chdir: '{{ agentdir }}'
-          register: script_run
-          ignore_errors: yes
+          uri:
+            url: "{{ tower_host }}/api/v2/hosts/?name={{ nodename }}"
+            method: GET
+            user: "{{ tower_username }}"
+            password: "{{ tower_password }}"
+            force_basic_auth: yes
+            validate_certs: no
+            return_content: yes
+          register: host_response
+          delegate_to: localhost
 
-        - name: Output list
+        - name: List inventories for the host
           debug:
-            var: script_run.stdout_lines
- # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # run uninstall using Ccmclean.exe
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: Run command
-          win_command: 'Ccmclean.exe 2>&1'
-          args:
-            chdir: '{{ agentdir }}'
-          register: script_run2
-          ignore_errors: yes
-
-        - name: Output list
-          debug:
-            var: script_run2.stdout_lines
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # send stdoutfiles to ansible stdout
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-        - name: 'Read content from {{ stdoutfile }}'
-          run_once: true
-          win_shell: Get-Content -LiteralPath "{{ tmpdir }}{{ stdoutfile }}"
-          register: file_content_uninstall_stdout
-          ignore_errors: yes
-
-        - name: 'Display content in stdout'
-          debug:
-            msg: |-
-              "aeven_fstdout {{ file_content_uninstall_stdout.stdout }}"
-
-        - name: 'List {{ tmpdir }} at the end'
-          run_once: true
-          win_shell: Get-ChildItem -Path "C:/Program Files/*"
-          register: dir_of_tmpdir_end
-
-        - name: 'list dir of C:/Program Files/*'
-          debug:
-            var: dir_of_tmpdir_end.stdout_lines
-
-      always:
-        - name: Delete temp C:/Program Files/Opsware/ agent directory
-          win_file:
-            path: 'C:/Program Files/Opsware/'
-            state: absent
+            msg: "Host {{ nodename }} found in inventory: {{ item.name }}"
+          loop: "{{ host_response.json.results[0].summary_fields.inventory.related_groups | default([]) }}"
+          when: host_response.json.results | length > 0

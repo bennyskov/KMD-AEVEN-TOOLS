@@ -33,16 +33,12 @@
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # get credentials and launch job_template
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: 'A.1.0 set ro execute on cacf localhost'
+- name: 'A.1.0 launch of flow to de-tooling of servers to be handed over to Aeven'
   hosts: localhost
   gather_facts: false
   become: false
   run_once: true
   ignore_errors: yes
-- name: 'launch of flow to de-tooling of servers to be handed over to Aeven'
-  hosts: '{{ hostlist }}'
-  become: true
-  gather_facts: false
   vars:
     launch_template_name_00:  'kmn_jobtemplate_de-tooling_cleanup_CACF_ansible'
     launch_template_name_04:  'kmn_jobtemplate_de-tooling_disable_SCCM_windows'
@@ -69,56 +65,56 @@
       debug:
         var: script_result_launch_01.stdout_lines
 
-  # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-  # {{ launch_template_name_02 }}
-  # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: 'A.1.2 launch {{ launch_template_name_02 }} '
-      shell: >
-        python get_credentials_and_launch_template.py
-        -t '{{ launch_template_name_02 }}'
-        -n '{{ nodename }}'
-        -s '{{ change }}'
-      args:
-        chdir: "scripts/"
-      register: script_result_launch_02
-        # no_log: true
+  # # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # # {{ launch_template_name_02 }}
+  # # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+  #   - name: 'A.1.2 launch {{ launch_template_name_02 }} '
+  #     shell: >
+  #       python get_credentials_and_launch_template.py
+  #       -t '{{ launch_template_name_02 }}'
+  #       -n '{{ nodename }}'
+  #       -s '{{ change }}'
+  #     args:
+  #       chdir: "scripts/"
+  #     register: script_result_launch_02
+  #       # no_log: true
 
-    - name: 'A.1.3 Output result 02'
-      debug:
-        var: script_result_launch_01.stdout_lines
+  #   - name: 'A.1.3 Output result 02'
+  #     debug:
+  #       var: script_result_launch_01.stdout_lines
 
-  # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-  # {{ launch_template_name_03 }}
-  # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: 'A.1.2 launch {{ launch_template_name_03 }} '
-      shell: >
-        python get_credentials_and_launch_template.py
-        -t '{{ launch_template_name_03 }}'
-        -n '{{ nodename }}'
-        -s '{{ change }}'
-      args:
-        chdir: "scripts/"
-      register: script_result_launch_03
-        # no_log: true
+  # # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # # {{ launch_template_name_03 }}
+  # # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+  #   - name: 'A.1.2 launch {{ launch_template_name_03 }} '
+  #     shell: >
+  #       python get_credentials_and_launch_template.py
+  #       -t '{{ launch_template_name_03 }}'
+  #       -n '{{ nodename }}'
+  #       -s '{{ change }}'
+  #     args:
+  #       chdir: "scripts/"
+  #     register: script_result_launch_03
+  #       # no_log: true
 
-    - name: 'A.1.3 Output result 03'
-      debug:
-        var: script_result_launch_01.stdout_lines
+  #   - name: 'A.1.3 Output result 03'
+  #     debug:
+  #       var: script_result_launch_01.stdout_lines
 
-  # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-  # {{ launch_template_name_04 }}
-  # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: 'A.1.2 launch {{ launch_template_name_04 }} '
-      shell: >
-        python get_credentials_and_launch_template.py
-        -t '{{ launch_template_name_04 }}'
-        -n '{{ nodename }}'
-        -s '{{ change }}'
-      args:
-        chdir: "scripts/"
-      register: script_result_launch_04
-        # no_log: true
+  # # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # # {{ launch_template_name_04 }}
+  # # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+  #   - name: 'A.1.2 launch {{ launch_template_name_04 }} '
+  #     shell: >
+  #       python get_credentials_and_launch_template.py
+  #       -t '{{ launch_template_name_04 }}'
+  #       -n '{{ nodename }}'
+  #       -s '{{ change }}'
+  #     args:
+  #       chdir: "scripts/"
+  #     register: script_result_launch_04
+  #       # no_log: true
 
-    - name: 'A.1.3 Output result 04'
-      debug:
-        var: script_result_launch_01.stdout_lines
+  #   - name: 'A.1.3 Output result 04'
+  #     debug:
+  #       var: script_result_launch_01.stdout_lines
