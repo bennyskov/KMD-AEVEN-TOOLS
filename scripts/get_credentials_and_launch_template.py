@@ -55,7 +55,7 @@ twusr               = '' # coming from isRunningLocally or from parsed args with
 twpwd               = '' # coming from isRunningLocally or from parsed args within playbook
 debug               = bool
 debug               = True
-useRestAPI          = True #    True: REST API or False: awx
+useRestAPI          = False #    True: REST API or False: awx
 isRunningLocally    = True
 hostname            = socket.gethostname().lower()
 if re.search(r".*kmdwinitm001.*", hostname, re.IGNORECASE): isRunningLocally = True
@@ -362,6 +362,7 @@ try:
         f_log(f'template_inv_name',f'{template_inv_name}',debug)
         f_log(f'template_inv_id',f'{template_inv_id}',debug)
         f_log(f'template_link_to_cred',f'{template_link_to_cred}',debug)
+        f_log(f'template_cred',f'{template_cred}',debug)
         f_log(f'type template_cred',f'{type(template_cred)}',debug)
         # f_log(f'dump template_cred',f'\n{json.template_inv_id(template_cred, indent=4)}',debug)
         if isinstance(template_cred, (list)):
@@ -455,6 +456,7 @@ except Exception as e:
     exit(RC)
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_singleHostGetGroups
+#
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 try:
     stepName = 'get_singleHostGetGroups'
@@ -476,6 +478,9 @@ try:
     else:
         result = result['results'][0]
         host_id = result['id']
+        # ----------------------------------------------------------------------------------------------------------------------------------------------------------
+        # removed. it takes special usages creds like kmn_grp_production, kmn_grp_access_event, kmn_grp_windows, kmn_grp_access_hc, kmn_grp_access_patchscan
+        # ----------------------------------------------------------------------------------------------------------------------------------------------------------
         singleHostGetGroups_names = result['summary_fields']['groups']['results']
         f_log(f'singleHostGetGroups_names',f'{singleHostGetGroups_names}',debug)
         if isinstance(singleHostGetGroups_names, (list)):
@@ -484,6 +489,7 @@ try:
                     if key == 'name': allGroups_names.append(value)
         for index, item in enumerate(allGroups_names):
             f_log(f'allGroups_names {index}',f'{item}',debug)
+
 except Exception as e:
     if debug: logging.error(e)
     RC = 12

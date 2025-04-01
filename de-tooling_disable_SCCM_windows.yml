@@ -48,18 +48,40 @@
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     - name: disable block
       block:
+        # Check if SCCM service is already disabled
+        - name: "Check SCCM service status"
+          run_once: true
+          win_shell: Get-Service "CcmExec" -ErrorAction SilentlyContinue | Select-Object -Property Name, Status, StartType
+          register: SCCM_service_status
+          ignore_errors: true
+
+        - name: "Display current SCCM service status"
+          debug:
+            msg: "Current SCCM service status: {{ SCCM_service_status.stdout }}"
+
+        - name: "Skip disabling if already disabled"
+          set_fact:
+            skip_disable: "{{ 'Disabled' in SCCM_service_status.stdout }}"
+
+        - name: "Show skip status"
+          debug:
+            msg: "Service is already disabled, skipping disable operation"
+          when: skip_disable | default(false)
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # disable all SCCM services
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: "list CcmExec services"
-          run_once: true
-          win_shell: Get-Service "CcmExec" -ErrorAction SilentlyContinue | Stop-Service -PassThru | Set-Service -StartupType disabled
-          # win_shell: Get-Service "CcmExec" -ErrorAction SilentlyContinue | Set-Service -StartupType Manual -PassThru | Start-Service
-          register: SCCM_services_stop
-        - name: "Display SCCM_services_stop"
+        - name: "Stop and disable SCCM service"
+          win_service:
+            name: CcmExec
+            state: stopped
+            start_mode: disabled
+          when: not skip_disable | default(false)
+          register: service_disabled
+
+        - name: "Display service disable results"
           debug:
-            msg: |-
-              "SCCM_services_stop: {{ SCCM_services_stop.stdout }}"
+            msg: "SCCM service stopped and disabled successfully"
+          when: service_disabled is changed
 
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # disable all SCCM services
