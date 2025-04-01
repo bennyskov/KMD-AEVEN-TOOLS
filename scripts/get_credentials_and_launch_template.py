@@ -50,18 +50,16 @@ warnings.filterwarnings('ignore', 'This pattern is interpreted as a regular expr
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 #  init
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-twusr           = '' # coming from isRunningLocally or from parsed args within playbook
-twpwd           = '' # coming from isRunningLocally or from parsed args within playbook
-debug           = bool
-debug           = False
-useRestAPI      = True #    True: REST API or False: awx
-isRunningLocally = True
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-hostname        = socket.gethostname().lower()
-
+#region
+twusr               = '' # coming from isRunningLocally or from parsed args within playbook
+twpwd               = '' # coming from isRunningLocally or from parsed args within playbook
+debug               = bool
+debug               = True
+useRestAPI          = False #    True: REST API or False: awx
+isRunningLocally    = True
+hostname            = socket.gethostname().lower()
 if re.search(r".*kmdwinitm001.*", hostname, re.IGNORECASE): isRunningLocally = True
 if re.search(r"^automation-job.*", hostname, re.IGNORECASE): isRunningLocally = False
-
 if isRunningLocally:
     project = 'KMD-AEVEN-TOOLS'
     logfile = f'D:/scripts/GIT/{project}/archive/logs/get_credentials_and_launch_template.log'
@@ -81,10 +79,11 @@ if isRunningLocally:
     # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_windows'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_linux'
     #
+    #nodename : 'udv19tdm03, udv19bfs02, udv19tdm02, udv19tdg01, udv19elk01, udv19tools, udv19gws01, udv19app01, udv19elk03, kmddbs2136'
+    #
     sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/get_credentials_and_launch_template.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
     print(f'sys_argv={sys_argv}')
     argnum              = 11
-
 sys_argv        = sys.argv
 scriptname      = sys.argv[0]
 scriptname      = scriptname.replace('\\','/').strip()
@@ -105,6 +104,7 @@ os.environ['TOWER_HOST']        = f'{tower_host}'
 os.environ['TOWER_USERNAME']    = f'{twusr}'
 os.environ['TOWER_PASSWORD']    = f'{twpwd}'
 os.environ['TOWER_VERIFY_SSL']  = 'False'
+#endregion
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # functions begin
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -129,7 +129,7 @@ def f_log(key,value,debug):
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_set_logging
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_set_logging():
+def f_set_logging(debug):
     global isRunningLocally
     if isRunningLocally:
         logfile = f'D:/scripts/GIT/{project}/archive/logs/get_credentials_and_launch_template.log'
@@ -259,15 +259,18 @@ def f_cmdexec(cmdexec='',debug=False):
     finally:
         return result, RC
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
+# f_help_error
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_help_error():
     if debug: logging.info('use: python get_cred_for_host.py -t {{ launch_template_name }} -n {{ nodename }} -s {{ change }} -u {{ twusr }} -p {{ twpwd }}')
     exit(12)
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # end functions
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+# -----
 # Begin
 #----------------------------------------------------------------------------------------------------------------------------------------------------------
-f_set_logging()
+#region
+f_set_logging(debug)
 f_log(f'Begin','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
 f_log(f'sys_argv',f'{sys_argv}',debug)
 if not isRunningLocally:
@@ -288,12 +291,14 @@ f_log(f'useRestAPI',f'{useRestAPI}',debug)
 f_log(f'nodename',f'{nodename}',debug)
 f_log(f'change',f'{change}',debug)
 f_log(f'launch_template_name',f'{launch_template_name}',debug)
+#endregion
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_nodename
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-stepName = 'get_nodename'
-f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
 try:
+    stepName = 'get_nodename'
+    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
+
     chosen = ''
     nodenames = [f'{nodename.upper()}',f'{nodename.lower()}']
     for nodename in nodenames:
@@ -317,7 +322,6 @@ try:
         nodename = chosen
 
     f_log(f'nodename',f'{nodename}',debug)
-
 except Exception as e:
     if debug: logging.error(e)
     RC = 12
@@ -325,9 +329,9 @@ except Exception as e:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_jobTemplateByName
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-stepName = 'get_jobTemplateByName'
-f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
 try:
+    stepName = 'get_jobTemplateByName'
+    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
     if useRestAPI:
         request = f'job_templates/?name={launch_template_name}'
         result,RC = f_requests(request,twusr,twpwd,payload,debug)
@@ -376,9 +380,9 @@ except Exception as e:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_jobTemplatesById
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-stepName = 'get_jobTemplatesById'
-f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
 try:
+    stepName = 'get_jobTemplatesById'
+    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
     if useRestAPI:
         request = f'job_templates/{template_id}'
         result,RC = f_requests(request,twusr,twpwd,payload,debug)
@@ -388,7 +392,6 @@ try:
 
     if RC > 0: raise Exception(f'step {stepName} failed')
     if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
-
 except Exception as e:
     if debug: logging.error(e)
     RC = 12
@@ -396,9 +399,9 @@ except Exception as e:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_inventoryByName
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-stepName = 'get_inventoryByName'
-f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
 try:
+    stepName = 'get_inventoryByName'
+    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
     if useRestAPI:
         request = f'inventories/?name={template_inv_name}'
         result,RC = f_requests(request,twusr,twpwd,payload,debug)
@@ -427,7 +430,6 @@ try:
 
     for index, item in enumerate(cred_names):
         f_log(f'cred_names {index}',f'{item}',debug)
-
 except Exception as e:
     if debug: logging.error(e)
     RC = 12
@@ -435,9 +437,9 @@ except Exception as e:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_allHostsByInvName
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-stepName = 'get_allHostsByInvName'
-f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
 try:
+    stepName = 'get_allHostsByInvName'
+    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
     if useRestAPI:
         request = f'hosts/?inventory={template_inv_id}'
         result,RC = f_requests(request,twusr,twpwd,payload,debug)
@@ -447,7 +449,6 @@ try:
 
     if RC > 0: raise Exception(f'step {stepName} failed')
     if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
-
 except Exception as e:
     if debug: logging.error(e)
     RC = 12
@@ -455,9 +456,9 @@ except Exception as e:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_singleHostGetGroups
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-stepName = 'get_singleHostGetGroups'
-f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
 try:
+    stepName = 'get_singleHostGetGroups'
+    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
     allGroups_names = []
     if useRestAPI:
         request = f'hosts/?name={nodename}&inventory={template_inv_id}'
@@ -490,9 +491,9 @@ except Exception as e:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_allGroupsWithHost
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-stepName = 'get_allGroupsWithHost'
-f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
 try:
+    stepName = 'get_allGroupsWithHost'
+    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
     if useRestAPI:
         request = f'hosts/{host_id}/all_groups'
         result,RC = f_requests(request,twusr,twpwd,payload,debug)
@@ -516,7 +517,6 @@ try:
 
     unique_group_list = list(set(allGroups_names))
     f_log(f'unique_group_list',f'{unique_group_list}',debug)
-
 except Exception as e:
     if debug: logging.error(e)
     RC = 12
@@ -524,9 +524,9 @@ except Exception as e:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_credNameFromGroup
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-stepName = 'get_credNameFromGroup'
-f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
 try:
+    stepName = 'get_credNameFromGroup'
+    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
     for grp_cred in unique_group_list:
         if useRestAPI:
             request = f'groups/?name={grp_cred}'
@@ -563,9 +563,9 @@ except Exception as e:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_credential_ids
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-stepName = 'get_credential_ids'
-f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
 try:
+    stepName = 'get_credential_ids'
+    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
     credential_ids = []
     credential_names = []
     for cred_name in unique_cred_name_list:
@@ -609,9 +609,9 @@ except Exception as e:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # launch_job_template
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-stepName = 'launch_job_template'
-f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
 try:
+    stepName = 'launch_job_template'
+    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
     credential_ids = ','.join(map(str, unique_credential_ids))
 
     if re.search(r".*maintenancemode.*", launch_template_name, re.IGNORECASE):
@@ -636,16 +636,16 @@ try:
         request = f'job_templates/{template_id}/launch/'
         f_log(f'request',f'{request}',debug)
         result,RC = f_requests(request,twusr,twpwd,payload,debug)
-        f_log(f'unique_credential_ids',f'{unique_credential_ids}',debug)
     else:
         cmdexec = f"awx job_templates launch {launch_template_name} {credential} {inventory} {extra_vars}"
         f_log(f'cmdexec',f'{cmdexec}',debug)
         result,RC = f_cmdexec(cmdexec,debug)
 
+    f_log(f'unique_credential_ids',f'{unique_credential_ids}',debug)
+
     if RC > 0: raise Exception(f'step {stepName} failed')
     if isRunningLocally:
         f_dump_and_write(result,useRestAPI,stepName,debug)
-
 except Exception as e:
     if debug: logging.error(e)
     RC = 12

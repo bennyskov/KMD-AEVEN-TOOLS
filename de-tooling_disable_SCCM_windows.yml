@@ -53,7 +53,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: "list CcmExec services"
           run_once: true
-          win_shell: Get-Service "CcmExec" | Stop-Service -PassThru | Set-Service -StartupType disabled
+          win_shell: Get-Service "CcmExec" -ErrorAction SilentlyContinue | Stop-Service -PassThru | Set-Service -StartupType disabled
           register: SCCM_services_stop
         - name: "Display SCCM_services_stop"
           debug:
