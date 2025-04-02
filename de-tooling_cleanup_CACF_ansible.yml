@@ -43,7 +43,7 @@
   ignore_errors: yes
   vars:
     nodename: '{{ nodename }}'
-    tower_host: 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local'
+    # tower_host: 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local'
     # tower_username: 'functional_id_001'
     # tower_password: 'm9AHKuXYa*MeZZWLsHqB'
   tasks:
@@ -59,20 +59,20 @@
           include_role:
             name: towercli-init
 
-        - name: Run command
-          uri:
-            url: "{{ tower_host }}/api/v2/hosts/?name={{ nodename }}"
-            method: GET
-            user: "{{ tower_username }}"
-            password: "{{ tower_password }}"
-            force_basic_auth: yes
-            validate_certs: no
-            return_content: yes
+        - name: Get host information using AWX command
+          shell: "awx-cli host list --name={{ nodename }} -f yaml"
           register: host_response
           delegate_to: localhost
+          failed_when: false
+          changed_when: false
+
+        - name: Set host data from command output
+          set_fact:
+            host_data: "{{ host_response.stdout | from_yaml }}"
+          when: host_response.rc == 0
 
         - name: List inventories for the host
           debug:
-            msg: "Host {{ nodename }} found in inventory: {{ item.name }}"
-          loop: "{{ host_response.json.results[0].summary_fields.inventory.related_groups | default([]) }}"
-          when: host_response.json.results | length > 0
+            msg: "Host {{ nodename }} found in inventory: {{ item.inventory_name }}"
+          loop: "{{ host_data.results }}"
+          when: host_data is defined and host_data.results | length > 0
