@@ -63,25 +63,34 @@ debug           = bool
 debug           = True
 useRestAPI      = False #    True: REST API or False: awx
 hostname        = socket.gethostname().lower()
+RC              = 0
+result          = {}
+twtok           = ''
+cred_ids        = []
+cred_names      = []
+payload         = []
 sys_argv        = sys.argv
 scriptname      = sys.argv[0]
 scriptname      = scriptname.replace('\\','/').strip()
 scriptname      = scriptname.split('/')[-1]
 scriptname      = scriptname.split('.')[0]
-RC              = 0
-cred_ids        = []
-cred_names      = []
-payload         = []
 now             = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+Logdate_long    = datetime.now().strftime('%Y-%m-%d_%H-%M-%S_%f')
 project         = 'KMD-AEVEN-TOOLS'
 jsondir         = f'D:/scripts/GIT/{project}/backup_inventory'
+logdir          = f'D:/scripts/GIT/{project}/logs'
 if not os.path.isdir(f'{jsondir}'): os.mkdir(f'{jsondir}')
+if not os.path.isdir(f'{logdir}'): os.mkdir(f'{logdir}')
+logfile         = f'{logdir}/{scriptname}_{Logdate_long}.log'
 tower_host      = 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local'
+tower_url       = f'{tower_host}/api/v2/'
 twusr           = 'functional_id_001'
 twpwd           = 'm9AHKuXYa*MeZZWLsHqB' # se i 1password
+#endregion
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # awx config settingss. awx is reading these
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
+#region
 os.environ['TOWER_HOST']        = f'{tower_host}'
 os.environ['TOWER_USERNAME']    = f'{twusr}'
 os.environ['TOWER_PASSWORD']    = f'{twpwd}'
@@ -110,8 +119,6 @@ def f_log(key,value,debug):
 # f_set_logging
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_set_logging(debug):
-    Logdate_long = datetime.now().strftime('%Y-%m-%d_%H-%M-%S_%f')
-    logfile = f'D:/scripts/GIT/{project}/archive/logs/export_node_from_tower_{Logdate_long}.log'
     logging_schema = {
         'version': 1,
         'formatters': {
@@ -254,26 +261,40 @@ f_log(f'Begin','----------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # login
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# Check if we're already authenticated before attempting login
-try:
+if not useRestAPI:
+    stepName = 'login'
+    # First check if we can access AWX with current credentials/token
     cmdexec = ['awx', 'me', '--conf.format', 'yaml', '--conf.insecure']
-    auth_result, auth_rc = f_cmdexec(cmdexec, debug)
-    if auth_rc == 0 and 'username' in auth_result:
-        f_log('AWX Auth Status', 'Already logged in', debug)
-        twtok = 'reused-existing-token'
-    else:
-        f_log('AWX Auth Status', 'Login required', debug)
+    try:
+        result, RC = f_cmdexec(cmdexec, debug)
+        if RC == 0 and 'username' in result:
+            f_log('AWX Auth Status', 'Already logged in', debug)
+            twtok = os.environ.get('TOWER_OAUTH_TOKEN', '')
+            f_log('Current token', f'{twtok[:10]}...' if twtok else 'None', debug)
+        else:
+            raise Exception("Not authenticated")
+    except Exception as e:
+        f_log('AWX Auth Status', f'Login required: {str(e)}', debug)
+
+        # Perform login to get new token
         cmdexec = f'awx login --conf.host {tower_host} --conf.username {twusr} --conf.password {twpwd} --conf.insecure --conf.format yaml'
         result, RC = f_cmdexec(cmdexec, debug)
-        twtok = result['token']
-except Exception as e:
-    f_log('AWX Auth Check failed', str(e), debug)
-    # Fall back to login if auth check fails
-    cmdexec = f'awx login --conf.host {tower_host} --conf.username {twusr} --conf.password {twpwd} --conf.insecure --conf.format yaml'
-    result,RC = f_cmdexec(cmdexec,debug)
-finally:
-    f_dump_and_write(result,useRestAPI,'begin',jsondir,debug)
-    twtok = result['token']
+
+        if RC == 0 and 'token' in result:
+            twtok = result['token']
+            os.environ['TOWER_OAUTH_TOKEN'] = twtok
+            f_log('New token obtained', f'{twtok[:10]}...', debug)
+
+            # Configure AWX client to use the token
+            cmdexec = ['awx', 'config', 'oauth_token', f'{twtok}']
+            result, RC = f_cmdexec(cmdexec, debug)
+            f_log('token config', f'{result}', debug)
+
+            cmdexec = ['awx', 'config', 'use_token', 'True']
+            result, RC = f_cmdexec(cmdexec, debug)
+            f_log('token usage config', f'{result}', debug)
+        else:
+            f_log('Login failed', f'RC: {RC}, Result: {result}', debug)
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # Get all inventories
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -295,11 +316,11 @@ try:
     all_inventories = result['results']
     inventories_to_export = []
     for inv in all_inventories:
-        inv_id = result['id']
-        inv_name = result['name']
+        inv_id = inv['id']
+        inv_name = inv['name']
         if inv_name.startswith(('eng_i', 'kmn_i', 'kmw_i')) and re.search(r'inventory$', inv_name):
             f_log(f'inventory', f'{inv_name} (ID: {inv_id})', debug)
-            inventories_to_export.append(inv)
+            inventories_to_export.append(inv_id)
         else:
             pass
             # f_log(f'skip name', f'{inv_name} (ID: {inv_id})', debug)

@@ -124,4 +124,5 @@ temp/
 repository/
 archive/
 backup_inventory/
+logs/
 .vscode/
