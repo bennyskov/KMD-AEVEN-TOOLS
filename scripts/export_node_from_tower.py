@@ -53,13 +53,33 @@ warnings.filterwarnings('ignore', 'This pattern is interpreted as a regular expr
 #  init
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 #region
+global nodenames, debug, useRestAPI, hostname, RC, result, twtok, cred_ids, cred_names
+global payload, sys_argv, scriptname, now, Logdate_long, project, jsondir, logdir
+global logfile, tower_host, tower_url, twusr, twpwd
 #
 # #NOTE delete of these nodes in inventories.
 #
 nodenames       = ['udv19bfs01, udv19db2aws01, udv19avs01, udv19elk02, udv19cis01, udv19tdm03, udv19bfs02, udv19tdm02, udv19tdg01, udv19elk01, udv19tools, udv19gws01, udv19app01, udv19elk03, kmddbs2136']
 nodenames       = ['kmdwinitm001']
-#
-debug           = bool
+debug           = True
+useRestAPI      = False #    True: REST API or False: awx
+hostname        = socket.gethostname().lower()
+RC              = 0
+result          = {}
+twtok           = ''
+cred_ids        = []
+cred_names      = []
+payload         = []
+sys_argv        = sys.argv
+scriptname      = sys.argv[0]
+scriptname      = scriptname.replace('\\','/').strip()
+scriptname      = scriptname.split('/')[-1]
+scriptname      = scriptname.split('.')[0]
+now             = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+Logdate_long    = datetime.now().strftime('%Y-%m-%d_%H-%M-%S_%f')
+project         = 'KMD-AEVEN-TOOLS'
+jsondir         = f'D:/scripts/GIT/{project}/backup_inventory'
+logdir          = f'D:/scripts/GIT/{project}/logs'
 debug           = True
 useRestAPI      = False #    True: REST API or False: awx
 hostname        = socket.gethostname().lower()
@@ -86,15 +106,6 @@ tower_host      = 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.
 tower_url       = f'{tower_host}/api/v2/'
 twusr           = 'functional_id_001'
 twpwd           = 'm9AHKuXYa*MeZZWLsHqB' # se i 1password
-#endregion
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# awx config settingss. awx is reading these
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-#region
-os.environ['TOWER_HOST']        = f'{tower_host}'
-os.environ['TOWER_USERNAME']    = f'{twusr}'
-os.environ['TOWER_PASSWORD']    = f'{twpwd}'
-os.environ['TOWER_VERIFY_SSL']  = 'False'
 #endregion
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # functions begin
@@ -263,6 +274,16 @@ f_log(f'Begin','----------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 if not useRestAPI:
     stepName = 'login'
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------------
+    # awx config settingss. awx is reading these
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------------
+    #region login
+    os.environ['TOWER_HOST']        = f'{tower_host}'
+    os.environ['TOWER_USERNAME']    = f'{twusr}'
+    os.environ['TOWER_PASSWORD']    = f'{twpwd}'
+    os.environ['TOWER_VERIFY_SSL']  = 'False'
+    os.environ['TOWER_FORMAT']      = 'json'
+
     # First check if we can access AWX with current credentials/token
     cmdexec = ['awx', 'me', '--conf.format', 'yaml', '--conf.insecure']
     try:
@@ -277,7 +298,13 @@ if not useRestAPI:
         f_log('AWX Auth Status', f'Login required: {str(e)}', debug)
 
         # Perform login to get new token
-        cmdexec = f'awx login --conf.host {tower_host} --conf.username {twusr} --conf.password {twpwd} --conf.insecure --conf.format yaml'
+        cmdexec = ['awx', 'login',
+                    '--conf.host', tower_host,
+                    '--conf.username', twusr,
+                    '--conf.password', twpwd,
+                    '--conf.insecure',
+                    '--conf.format', 'yaml']
+
         result, RC = f_cmdexec(cmdexec, debug)
 
         if RC == 0 and 'token' in result:
@@ -293,13 +320,23 @@ if not useRestAPI:
             cmdexec = ['awx', 'config', 'use_token', 'True']
             result, RC = f_cmdexec(cmdexec, debug)
             f_log('token usage config', f'{result}', debug)
+
+            # Verify login was successful
+            cmdexec = ['awx', 'me', '--conf.format', 'yaml', '--conf.insecure']
+            result, RC = f_cmdexec(cmdexec, debug)
+            if RC == 0 and 'username' in result:
+                f_log('AWX Auth Verification', 'Successfully authenticated', debug)
+            else:
+                f_log('AWX Auth Verification', 'Authentication still failing after login attempt', debug)
         else:
             f_log('Login failed', f'RC: {RC}, Result: {result}', debug)
+            raise Exception("Failed to authenticate with AWX")
+    #endregion
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # Get all inventories
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 try:
-    stepName = 'export_inventories'
+    stepName = 'list_inventories'
     f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
     if useRestAPI:
         request = f'inventories/'
@@ -314,13 +351,13 @@ try:
     f_dump_and_write(result,useRestAPI,stepName,jsondir,debug)
 
     all_inventories = result['results']
-    inventories_to_export = []
+    inventories_to_export = {}
     for inv in all_inventories:
         inv_id = inv['id']
         inv_name = inv['name']
         if inv_name.startswith(('eng_i', 'kmn_i', 'kmw_i')) and re.search(r'inventory$', inv_name):
             f_log(f'inventory', f'{inv_name} (ID: {inv_id})', debug)
-            inventories_to_export.append(inv_id)
+            inventories_to_export[inv_id] = inv_name
         else:
             pass
             # f_log(f'skip name', f'{inv_name} (ID: {inv_id})', debug)
@@ -334,7 +371,8 @@ except Exception as e:
 try:
     stepName = 'export_inventories'
     f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
-    for inv_id in inventories_to_export:
+    for inv_id, inv_name in inventories_to_export.items:
+        stepname = f"{inv_name}_{now}"
         if useRestAPI:
             request = f'inventories/{inv_id}/'
             result,RC = f_requests(request,twusr,twpwd,payload,debug)
