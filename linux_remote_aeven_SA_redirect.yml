@@ -1,5 +1,5 @@
 - name: Create OS groups
-  hosts: '{{ hostlist }}'
+  hosts: localhost
   become: false
   gather_facts: false
   connection: local
@@ -47,7 +47,7 @@
     - meta: clear_host_errors
 
 - name: 'running redirect script to assign another temp work for agent'
-  hosts: '{{ hostlist }}'
+  hosts: '{{ nodename }}'
   become: true
   run_once: true
   gather_facts: false
