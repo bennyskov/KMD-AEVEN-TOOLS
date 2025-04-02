@@ -371,7 +371,7 @@ except Exception as e:
 try:
     stepName = 'export_inventories'
     f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
-    for inv_id, inv_name in inventories_to_export.items:
+    for inv_id, inv_name in inventories_to_export.items():
         stepname = f"{inv_name}_{now}"
         if useRestAPI:
             request = f'inventories/{inv_id}/'
