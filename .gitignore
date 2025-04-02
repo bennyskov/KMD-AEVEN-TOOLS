@@ -123,4 +123,5 @@ docs/.bundle/
 temp/
 repository/
 archive/
+backup_inventory/
 .vscode/
