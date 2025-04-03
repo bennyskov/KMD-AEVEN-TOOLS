@@ -98,10 +98,11 @@ now             = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 Logdate_long    = datetime.now().strftime('%Y-%m-%d_%H-%M-%S_%f')
 project         = 'KMD-AEVEN-TOOLS'
 jsondir         = f'D:/scripts/GIT/{project}/backup_inventory'
-logdir          = f'D:/scripts/GIT/{project}/logs'
 if not os.path.isdir(f'{jsondir}'): os.mkdir(f'{jsondir}')
+logdir          = f'D:/scripts/GIT/{project}/logs'
 if not os.path.isdir(f'{logdir}'): os.mkdir(f'{logdir}')
 logfile         = f'{logdir}/{scriptname}_{Logdate_long}.log'
+
 tower_host      = 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local'
 tower_url       = f'{tower_host}/api/v2/'
 twusr           = 'functional_id_001'
@@ -372,7 +373,8 @@ try:
     stepName = 'export_inventories'
     f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
     for inv_id, inv_name in inventories_to_export.items():
-        stepname = f"{inv_name}_{now}"
+        f_log(f'inventory', f'{inv_name} (ID: {inv_id})', debug)
+        if  inv_id == 9: continue
         if useRestAPI:
             request = f'inventories/{inv_id}/'
             result,RC = f_requests(request,twusr,twpwd,payload,debug)
@@ -382,6 +384,7 @@ try:
             # f_log(f'result', f'{result}', debug)
 
         if RC > 0: raise Exception(f'step {stepName} failed')
+        stepname = f"{inv_name}_{now}"
         f_dump_and_write(result,useRestAPI,stepName,jsondir,debug)
 except Exception as e:
     if debug: logging.error(e)

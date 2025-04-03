@@ -34,8 +34,8 @@ echo "Using gateway address: $OPSW_GW_ADDR"
 #OPSW_GW_ADDR=10.226.80.1:3001,10.226.80.2:3001 EBOKS
 #OPSW_GW_ADDR=84.255.75.1:3001,84.255.75.2:3001 defaults / MSA
 #OPSW_GW_ADDR=10.233.78.1:3001,10.233.78.2:3001 LMST
-#OPSW_GW_ADDR=10.35.10.1:3001,10.35.10.2:3001	ATP
-#OPSW_GW_ADDR=10.233.70.1:3001,10.233.70.2:3001	DFK
+#OPSW_GW_ADDR=10.35.10.1:3001,10.35.10.2:3001   ATP
+#OPSW_GW_ADDR=10.233.70.1:3001,10.233.70.2:3001 DFK
 #  ************************************************************
 # for KMD use below gateway and cusomer
 # ************************************************************
@@ -57,20 +57,24 @@ cd $INSTALL_PATH
 # INSTALL_PARAMETERS=" -f -r --force_new_device --force_full_hw_reg --crypto_dir $INSTALL_PATH --logfile $INSTALL_LOG --loglevel info --opsw_gw_addr "
 AGENT_INSTALLER=""
 detect_os() {
-	if [ -f /etc/os-release ]; then
-        . /etc/os-release
-        OS=$NAME
-        VERSION=$VERSION_ID
-		MAJOR_VERSION=$(echo "$VERSION" | cut -d '.' -f 1)
-    elif [ -f /etc/lsb-release ]; then
-        . /etc/lsb-release
-        OS=$DISTRIB_ID
-        VERSION=$DISTRIB_RELEASE
-		MAJOR_VERSION=$(echo "$VERSION" | cut -d '.' -f 1)
-	elif [ "$(uname)" = "AIX" ]; then
-        OS="AIX"
-        VERSION=$(oslevel)
-		MAJOR_VERSION=$(echo "$VERSION" | cut -d '.' -f 0-2)
+        if [ -f /etc/os-release ]; then
+			. /etc/os-release
+			OS=$NAME
+			VERSION=$VERSION_ID
+			MAJOR_VERSION=$(echo "$VERSION" | cut -d '.' -f 1)
+        elif [ -f /etc/redhat-release ]; then
+			. /etc/redhat-release
+			OS='Red Hat'
+			MAJOR_VERSION=$(cat /etc/redhat-release | cut -d '.' -f 1|awk '{ print $7 }')
+		elif [ -f /etc/lsb-release ]; then
+			. /etc/lsb-release
+			OS=$DISTRIB_ID
+			VERSION=$DISTRIB_RELEASE
+			MAJOR_VERSION=$(echo "$VERSION" | cut -d '.' -f 1)
+        elif [ "$(uname)" = "AIX" ]; then
+			OS="AIX"
+			VERSION=$(oslevel)
+			MAJOR_VERSION=$(echo "$VERSION" | cut -d '.' -f 0-2)
     else
         OS="Unknown"
         VERSION="Unknown"
@@ -82,103 +86,103 @@ detect_os
 ######################################################
 echo "Detected OS: $OS, Version: $VERSION (Major: $MAJOR_VERSION)"
 case "$OS" in
-	*Red*Hat*)
-		if [ "$MAJOR_VERSION" = "9" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"RHEL9/opsware-agent-90.0.96031.0-linux-RHEL9-X86_64"
-		elif [ "$MAJOR_VERSION" = "8" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"RHEL8/opsware-agent-90.0.96031.0-linux-RHEL8-X86_64"
-		elif [ "$MAJOR_VERSION" = "7" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"RHEL7/opsware-agent-90.0.96031.0-linux-7SERVER-X86_64"
-		elif [ "$MAJOR_VERSION" = "6" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"RHEL6/opsware-agent-90.0.96031.0-linux-6SERVER-X86_64"
-		elif [ "$MAJOR_VERSION" = "5" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"RHEL5/opsware-agent-80.0.92926.0-linux-5SERVER-X86_64"
-		else
-			echo "Unsupported OS or version."
-			exit 0
-		fi
-		;;
-	*CentOS*)
-		if [ "$MAJOR_VERSION" = "7" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"CentOS7/opsware-agent-90.0.96031.0-linux-CENTOS7-X86_64"
-		elif [ "$MAJOR_VERSION" = "6" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"CentOS6/opsware-agent-80.0.92926.0-linux-CENTOS6-X86_64"
-		else
-			echo "Unsupported OS or version."
-			exit 0
-		fi
-		;;
-	*AIX*)
-		if [ "$MAJOR_VERSION" = "6.1" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"AIX6.1/opsware-agent-90.0.96031.0-aix-6.1"
-		elif [ "$MAJOR_VERSION" = "7.1" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"AIX7.1/opsware-agent-90.0.96031.0-aix-7.1"
-		elif [ "$MAJOR_VERSION" = "7.2" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"AIX7.2/opsware-agent-90.0.96031.0-aix-7.2"
-		elif [ "$MAJOR_VERSION" = "7.3" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"AIX7.3/opsware-agent-90.0.96031.0-aix-7.3"
-		else
-			echo "Unsupported OS or version."
-			exit 0
-		fi
-		;;
-	*SLES*)
-		if [ "$MAJOR_VERSION" = "15" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"SLESL15/opsware-agent-90.0.96031.0-linux-SLES-15-X86_64"
-		elif [ "$MAJOR_VERSION" = "12" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"SLESL12/opsware-agent-90.0.96031.0-linux-SLES-12-X86_64"
-		elif [ "$MAJOR_VERSION" = "11" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"SLESL11/opsware-agent-80.0.92926.0-linux-SLES-11-X86_64"
-		else
-			echo "Unsupported OS or version."
-			exit 0
-		fi
-		;;
-	*Oracle*Linux*)
-		if [ "$MAJOR_VERSION" = "7" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"OEL7/opsware-agent-80.0.90150.0-linux-OEL7-X86_64"
-		else
-			echo "Unsupported OS or version."
-			exit 0
-		fi
-		;;
-	*Ubuntu*)
-		if [ "$MAJOR_VERSION" = "22" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"Ubuntu22.04/opsware-agent-90.0.96031.0-linux-UBUNTU-22.04-X86_64"
-		elif [ "$MAJOR_VERSION" = "18" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"Ubuntu18.04/opsware-agent-90.0.96031.0-linux-UBUNTU-18.04-X86_64"
-		elif [ "$MAJOR_VERSION" = "16" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"Ubuntu16.04/opsware-agent-90.0.96031.0-linux-UBUNTU-16.04-X86_64"
-		elif [ "$MAJOR_VERSION" = "14" ]; then
-			export AGENT_INSTALLER=$INSTALL_PATH"Ubuntu14.04/opsware-agent-90.0.96031.0-linux-UBUNTU-14.04-X86_64"
-		else
-			echo "Unsupported OS or version."
-			exit 0
-		fi
-		;;
-	*)
-		echo "Unsupported OS or version."
-		exit 0
-		;;
+        *Red*Hat*)
+                if [ "$MAJOR_VERSION" = "9" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"RHEL9/opsware-agent-90.0.96031.0-linux-RHEL9-X86_64"
+                elif [ "$MAJOR_VERSION" = "8" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"RHEL8/opsware-agent-90.0.96031.0-linux-RHEL8-X86_64"
+                elif [ "$MAJOR_VERSION" = "7" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"RHEL7/opsware-agent-90.0.96031.0-linux-7SERVER-X86_64"
+                elif [ "$MAJOR_VERSION" = "6" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"RHEL6/opsware-agent-90.0.96031.0-linux-6SERVER-X86_64"
+                elif [ "$MAJOR_VERSION" = "5" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"RHEL5/opsware-agent-80.0.92926.0-linux-5SERVER-X86_64"
+                else
+                        echo "Unsupported OS or version."
+                        exit 0
+                fi
+                ;;
+        *CentOS*)
+                if [ "$MAJOR_VERSION" = "7" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"CentOS7/opsware-agent-90.0.96031.0-linux-CENTOS7-X86_64"
+                elif [ "$MAJOR_VERSION" = "6" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"CentOS6/opsware-agent-80.0.92926.0-linux-CENTOS6-X86_64"
+                else
+                        echo "Unsupported OS or version."
+                        exit 0
+                fi
+                ;;
+        *AIX*)
+                if [ "$MAJOR_VERSION" = "6.1" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"AIX6.1/opsware-agent-90.0.96031.0-aix-6.1"
+                elif [ "$MAJOR_VERSION" = "7.1" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"AIX7.1/opsware-agent-90.0.96031.0-aix-7.1"
+                elif [ "$MAJOR_VERSION" = "7.2" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"AIX7.2/opsware-agent-90.0.96031.0-aix-7.2"
+                elif [ "$MAJOR_VERSION" = "7.3" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"AIX7.3/opsware-agent-90.0.96031.0-aix-7.3"
+                else
+                        echo "Unsupported OS or version."
+                        exit 0
+                fi
+                ;;
+        *SLES*)
+                if [ "$MAJOR_VERSION" = "15" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"SLESL15/opsware-agent-90.0.96031.0-linux-SLES-15-X86_64"
+                elif [ "$MAJOR_VERSION" = "12" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"SLESL12/opsware-agent-90.0.96031.0-linux-SLES-12-X86_64"
+                elif [ "$MAJOR_VERSION" = "11" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"SLESL11/opsware-agent-80.0.92926.0-linux-SLES-11-X86_64"
+                else
+                        echo "Unsupported OS or version."
+                        exit 0
+                fi
+                ;;
+        *Oracle*Linux*)
+                if [ "$MAJOR_VERSION" = "7" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"OEL7/opsware-agent-80.0.90150.0-linux-OEL7-X86_64"
+                else
+                        echo "Unsupported OS or version."
+                        exit 0
+                fi
+                ;;
+        *Ubuntu*)
+                if [ "$MAJOR_VERSION" = "22" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"Ubuntu22.04/opsware-agent-90.0.96031.0-linux-UBUNTU-22.04-X86_64"
+                elif [ "$MAJOR_VERSION" = "18" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"Ubuntu18.04/opsware-agent-90.0.96031.0-linux-UBUNTU-18.04-X86_64"
+                elif [ "$MAJOR_VERSION" = "16" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"Ubuntu16.04/opsware-agent-90.0.96031.0-linux-UBUNTU-16.04-X86_64"
+                elif [ "$MAJOR_VERSION" = "14" ]; then
+                        export AGENT_INSTALLER=$INSTALL_PATH"Ubuntu14.04/opsware-agent-90.0.96031.0-linux-UBUNTU-14.04-X86_64"
+                else
+                        echo "Unsupported OS or version."
+                        exit 0
+                fi
+                ;;
+        *)
+                echo "Unsupported OS or version."
+                exit 0
+                ;;
 esac
 ######################################################
 
 #Check if agent port is already in use
 if lsof -Pi :1002 -sTCP:LISTEN -t >/dev/null ; then
     echo "Port 1002 is already in use, either SA agent is already installed or the port is used by some process."
-	echo "SA agent can't be installed."
-	exit 0
+        echo "SA agent can't be installed."
+        exit 0
 fi
 #Check if SA agent is already installed
 if [ -f /etc/opt/opsware/agent/mid ]; then
-	echo "SA agent is already installed, Fix agent's reachability or uninstall SA agent."
-	echo "To uninstall SA agent execute the script at path:"
-	echo "/opt/opsware/agent/bin/agent_uninstall.sh --force"
-	exit 0
+        echo "SA agent is already installed, Fix agent's reachability or uninstall SA agent."
+        echo "To uninstall SA agent execute the script at path:"
+        echo "/opt/opsware/agent/bin/agent_uninstall.sh --force"
+        exit 0
 fi
 
 #Install SA agent
 if [ -f $AGENT_INSTALLER ]; then
-	$AGENT_INSTALLER$INSTALL_PARAMETERS
-	exit 0
+        $AGENT_INSTALLER$INSTALL_PARAMETERS
+        exit 0
 fi
