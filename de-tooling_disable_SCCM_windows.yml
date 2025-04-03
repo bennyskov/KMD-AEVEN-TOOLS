@@ -1,17 +1,17 @@
-- name: Create OS groups
+- name: 'Create OS groups'
   hosts: localhost
   become: false
   gather_facts: false
   connection: local
   tasks:
-    - name: Create OS group
+    - name: 'Create OS group'
       group_by:
-        key: "machine_{{ ostype }}"
+        key: 'machine_{{ ostype }}'
       changed_when: false
       when: ostype is defined
       delegate_to: localhost
 
-- name: Socks tunnel setup
+- name: 'Socks tunnel setup'
   hosts: localhost
   gather_facts: false
   tasks:
@@ -22,22 +22,18 @@
           run_once: true
           delegate_to: localhost
       vars:
-        acc_id: "{{ blueid_shortcode }}"
-        transaction_id: "{{ tower_job_id }}"
-        trans_num: "{{ tower_job_id }}"
+        acc_id: '{{ blueid_shortcode }}'
+        transaction_id: '{{ tower_job_id }}'
+        trans_num: '{{ tower_job_id }}'
 
     - set_fact:
         ansible_become_method: runas
         ansible_become_user: system
-
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-#
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #
 #
-#
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: 'disable SCCM services'
+- name: 'disable CcmExec services'
   hosts: '{{ nodename }}'
   become: true
   gather_facts: false
@@ -54,31 +50,31 @@
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     # disable block
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: disable block
+    - name: disable CcmExec block
       block:
-        # Check if SCCM service is already disabled
-        - name: "Check SCCM service status"
+        # Check if CcmExec service is already disabled
+        - name: 'Check CcmExec service status'
           run_once: true
-          win_shell: Get-Service "CcmExec" -ErrorAction SilentlyContinue | Select-Object -Property Name, Status, StartType
-          register: SCCM_service_status
+          win_shell: 'Get-Service "CcmExec" -ErrorAction SilentlyContinue | Select-Object -Property Name, Status, StartType'
+          register: CcmExec_service_status
           ignore_errors: true
 
-        - name: "Display current SCCM service status"
+        - name: 'Display current CcmExec service status'
           debug:
-            msg: "Current SCCM service status: {{ SCCM_service_status.stdout }}"
+            msg: 'Current CcmExec service status: {{ CcmExec_service_status.stdout }}'
 
-        - name: "Skip disabling if already disabled"
+        - name: 'Skip disabling if already disabled'
           set_fact:
-            skip_disable: "{{ 'Disabled' in SCCM_service_status.stdout }}"
+            skip_disable: '{{ "Disabled" in CcmExec_service_status.stdout }}'
 
-        - name: "Show skip status"
+        - name: 'Show skip status'
           debug:
-            msg: "Service is already disabled, skipping disable operation"
+            msg: 'Service is already disabled, skipping disable operation'
           when: skip_disable | default(false)
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # disable all SCCM services
+        # disable all CcmExec services
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: "Stop and disable SCCM service"
+        - name: 'Stop and disable CcmExec service'
           win_service:
             name: CcmExec
             state: stopped
@@ -86,19 +82,68 @@
           when: not skip_disable | default(false)
           register: service_disabled
 
-        - name: "Display service disable results"
+        - name: 'Display service disable results'
           debug:
-            msg: "SCCM service stopped and disabled successfully"
+            msg: 'CcmExec service stopped and disabled successfully'
           when: service_disabled is changed
-
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # disable all SCCM services
+        # disable all CcmExec services
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: "list CcmExec services"
+        - name: 'list CcmExec services'
           run_once: true
-          win_shell: Get-Service "CcmExec" -ErrorAction SilentlyContinue | format-list *
-          register: SCCM_services_list
-        - name: "Display SCCM_services_list"
+          win_shell: 'Get-Service "CcmExec" -ErrorAction SilentlyContinue | format-list *''
+          register: CcmExec_services_list
+        - name: 'Display CcmExec_services_list'
           debug:
             msg: |-
-              "SCCM_services_list: {{ SCCM_services_list.stdout }}"
+              'CcmExec_services_list: {{ CcmExec_services_list.stdout }}'
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # disable block
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: disable ccmsetup block
+      block:
+        # Check if ccmsetup service is already disabled
+        - name: 'Check ccmsetup service status'
+          run_once: true
+          win_shell: 'Get-Service "ccmsetup" -ErrorAction SilentlyContinue | Select-Object -Property Name, Status, StartType'
+          register: ccmsetup_service_status
+          ignore_errors: true
+
+        - name: 'Display current ccmsetup service status'
+          debug:
+            msg: 'Current ccmsetup service status: {{ ccmsetup_service_status.stdout }}'
+
+        - name: 'Skip disabling if already disabled'
+          set_fact:
+            skip_disable: '{{ "Disabled" in ccmsetup_service_status.stdout }}'
+
+        - name: 'Show skip status'
+          debug:
+            msg: 'Service is already disabled, skipping disable operation'
+          when: skip_disable | default(false)
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # disable all ccmsetup services
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: 'Stop and disable ccmsetup service'
+          win_service:
+            name: ccmsetup
+            state: stopped
+            start_mode: disabled
+          when: not skip_disable | default(false)
+          register: service_disabled
+
+        - name: 'Display service disable results'
+          debug:
+            msg: 'ccmsetup service stopped and disabled successfully'
+          when: service_disabled is changed
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # disable all ccmsetup services
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: 'list ccmsetup services'
+          run_once: true
+          win_shell: 'Get-Service "ccmsetup" -ErrorAction SilentlyContinue | format-list *''
+          register: ccmsetup_services_list
+        - name: 'Display ccmsetup_services_list'
+          debug:
+            msg: |-
+              'ccmsetup_services_list: {{ ccmsetup_services_list.stdout }}'
