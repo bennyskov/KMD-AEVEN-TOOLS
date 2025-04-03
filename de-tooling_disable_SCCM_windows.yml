@@ -91,7 +91,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: 'list CcmExec services'
           run_once: true
-          win_shell: 'Get-Service "CcmExec" -ErrorAction SilentlyContinue | format-list *''
+          win_shell: 'Get-Service "CcmExec" -ErrorAction SilentlyContinue | format-list *'
           register: CcmExec_services_list
         - name: 'Display CcmExec_services_list'
           debug:
@@ -141,7 +141,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: 'list ccmsetup services'
           run_once: true
-          win_shell: 'Get-Service "ccmsetup" -ErrorAction SilentlyContinue | format-list *''
+          win_shell: 'Get-Service "ccmsetup" -ErrorAction SilentlyContinue | format-list *'
           register: ccmsetup_services_list
         - name: 'Display ccmsetup_services_list'
           debug:
