@@ -61,25 +61,7 @@ global logfile, tower_host, tower_url, twusr, twpwd
 #
 nodenames       = ['udv19bfs01, udv19db2aws01, udv19avs01, udv19elk02, udv19cis01, udv19tdm03, udv19bfs02, udv19tdm02, udv19tdg01, udv19elk01, udv19tools, udv19gws01, udv19app01, udv19elk03, kmddbs2136']
 nodenames       = ['kmdwinitm001']
-debug           = True
-useRestAPI      = False #    True: REST API or False: awx
-hostname        = socket.gethostname().lower()
-RC              = 0
-result          = {}
-twtok           = ''
-cred_ids        = []
-cred_names      = []
-payload         = []
-sys_argv        = sys.argv
-scriptname      = sys.argv[0]
-scriptname      = scriptname.replace('\\','/').strip()
-scriptname      = scriptname.split('/')[-1]
-scriptname      = scriptname.split('.')[0]
-now             = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-Logdate_long    = datetime.now().strftime('%Y-%m-%d_%H-%M-%S_%f')
-project         = 'KMD-AEVEN-TOOLS'
-jsondir         = f'D:/scripts/GIT/{project}/backup_inventory'
-logdir          = f'D:/scripts/GIT/{project}/logs'
+debug           = bool
 debug           = True
 useRestAPI      = False #    True: REST API or False: awx
 hostname        = socket.gethostname().lower()

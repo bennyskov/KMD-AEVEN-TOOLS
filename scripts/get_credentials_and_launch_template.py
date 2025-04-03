@@ -1,9 +1,13 @@
 import sys, os, re, socket, platform, json, yaml, ast
 import requests
+from requests.auth import HTTPBasicAuth
 import subprocess
 import logging
 import logging.config
 import inspect
+import time
+from datetime import datetime
+from datetime import timedelta
 from subprocess import Popen, PIPE, CalledProcessError
 from datetime import datetime
 from sys import exit
@@ -12,6 +16,7 @@ from awxkit.api.pages import Api
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import warnings
+import re
 warnings.filterwarnings('ignore', 'This pattern is interpreted as a regular expression, and has match groups.')
 # ---------------------------------------------------------------------------------------------------------------------------------------
 #
@@ -47,158 +52,140 @@ warnings.filterwarnings('ignore', 'This pattern is interpreted as a regular expr
 # 2025-01-05    version V1.0    :   Initial release ( Benny.Skov@kyndryl.com )
 #
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-#  init
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-#region
-twusr               = '' # coming from isRunningLocally or from parsed args within playbook
-twpwd               = '' # coming from isRunningLocally or from parsed args within playbook
-debug               = bool
-debug               = True
-useRestAPI          = False #    True: REST API or False: awx
-isRunningLocally    = True
-hostname            = socket.gethostname().lower()
-if re.search(r".*kmdwinitm001.*", hostname, re.IGNORECASE): isRunningLocally = True
-if re.search(r"^automation-job.*", hostname, re.IGNORECASE): isRunningLocally = False
-if isRunningLocally:
-    project = 'KMD-AEVEN-TOOLS'
-    logfile = f'D:/scripts/GIT/{project}/archive/logs/get_credentials_and_launch_template.log'
-    if os.path.isfile(logfile):
-        os.remove(logfile)
-
-    nodename            = 'kmdwinitm001'
-    change              = 'CHG00000000'
-    #job_json_file = f'D:/scripts/GIT/{project}/archive/json_files/{stepName}_useRestAPI.json'
-    # not part of kmn_jobtemplate_de-tooling_begin
-    # launch_template_name= 'kmn_jobtemplate_de-tooling_REinstall_ITM_windows'
-    #
-    # launch_template_name= 'kmn_jobtemplate_de-tooling_cleanup_CACF_ansible'
-    launch_template_name= 'kmn_jobtemplate_de-tooling_disable_SCCM_windows'
-    # launch_template_name= 'kmn_jobtemplate_de-tooling_servercheck_windows'
-    # launch_template_name= 'kmn_jobtemplate_de-tooling_set_maintenancemode'
-    # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_windows'
-    # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_linux'
-    #
-    #nodename : 'udv19tdm03, udv19bfs02, udv19tdm02, udv19tdg01, udv19elk01, udv19tools, udv19gws01, udv19app01, udv19elk03, kmddbs2136'
-    #
-    sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/get_credentials_and_launch_template.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
-    print(f'sys_argv={sys_argv}')
-    argnum              = 11
-sys_argv        = sys.argv
-scriptname      = sys.argv[0]
-scriptname      = scriptname.replace('\\','/').strip()
-scriptname      = scriptname.split('/')[-1]
-scriptname      = scriptname.split('.')[0]
-RC              = 0
-cred_ids        = []
-cred_names      = []
-payload         = []
-now             = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-tower_host      = 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local'
-twusr           = 'functional_id_001'
-twpwd           = 'm9AHKuXYa*MeZZWLsHqB' # se i 1password
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# awx config settingss. awx is reading these
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-os.environ['TOWER_HOST']        = f'{tower_host}'
-os.environ['TOWER_USERNAME']    = f'{twusr}'
-os.environ['TOWER_PASSWORD']    = f'{twpwd}'
-os.environ['TOWER_VERIFY_SSL']  = 'False'
-#endregion
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# functions begin
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_dump_and_write(result,useRestAPI,stepName,debug):
-    if debug:
-        if useRestAPI:
-            job_json_file = f'D:/scripts/GIT/{project}/archive/json_files/{stepName}_useRestAPI.json'
-        else:
-            job_json_file = f'D:/scripts/GIT/{project}/archive/json_files/{stepName}_useAwxAPI.json'
-
-        result_dumps = json.dumps(result, indent=5)
-        # f_log(f'result_dumps',f'{result_dumps}',debug)
-
-        fhandle = open(job_json_file, 'w', encoding='utf-8')
-        fhandle.write(f"{result_dumps}")
-        fhandle.close()
+#region f_log
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_log
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_log(key,value,debug):
-    if debug: text = "{:30}: {:}".format(f'{key}',f'{value}'); logging.info(text)
+def f_log(key, value, debug, level='DEBUG'):
+    level = level.lower()
+    text = "{:60}: {:}".format(f'{key}', f'{value}')
+    if level !='debug':
+        print(text)
+    log_method = getattr(logging, level.lower(), logging.debug)
+    log_method(text)
+#endregion
+#region f_dump_and_write
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+# f_dump_and_write(result,useRestAPI,stepName,debug)
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+def f_dump_and_write(result,useRestAPI,stepName,debug):
+    if useRestAPI:
+        job_json_file = f'{jsondir}/{stepName}_useRestAPI.json'
+    else:
+        job_json_file = f'{jsondir}/{stepName}_useAwxAPI.json'
+
+    result_dumps = json.dumps(result, indent=5)
+    f_log(f'result_dumps',f'{result_dumps}',debug)
+    fhandle = open(job_json_file, 'w', encoding='utf-8')
+    fhandle.write(f"{result_dumps}")
+    fhandle.close()
+#endregion
+#region f_set_logging
+def f_end(RC):
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------------
+    # THE END
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------------
+    end = time.time()
+    hours, rem = divmod(end-start, 3600)
+    minutes, seconds = divmod(rem, 60)
+    endPrint = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    # Format values explicitly as strings where needed
+    text = "{:6} - {} - {} - {} - {:0>2}:{:0>2}:{:05.2f}".format(
+        'End of',
+        str(hostname),  # Convert hostname to string explicitly
+        str(scriptname),  # Convert scriptname to string explicitly
+        endPrint,
+        int(hours),
+        int(minutes),
+        seconds
+    )
+
+    f_log('finished - elapsed time:', text, debug, level='DEBUG')
+    exit(RC)
+#endregion
+#region f_set_logging
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_set_logging
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_set_logging(debug):
-    global isRunningLocally
-    if isRunningLocally:
-        logfile = f'D:/scripts/GIT/{project}/archive/logs/get_credentials_and_launch_template.log'
-
-        logging_schema = {
-            'version': 1,
-            'formatters': {
-                'standard': {
-                    'class': 'logging.Formatter',
-                    "format": "%(asctime)s\t%(levelname)s\t%(filename)s\t%(message)s",
-                    'datefmt': '%Y %b %d %H:%M:%S'
-                }
-            },
-            'handlers': {
-                'console': {
-                    'class': 'logging.StreamHandler',
-                    'formatter': 'standard',
-                    'level': 'INFO',
-                    'stream': 'ext://sys.stdout'
-                },
-                'file': {
-                    'class': 'logging.FileHandler',
-                    'formatter': 'standard',
-                    'level': 'INFO',
-                    'filename': logfile,
-                    'mode': 'w'
-                }
-            },
-            'loggers': {
-                '__main__': {
-                    'handlers': ['console', 'file'],
-                    'level': 'INFO',
-                    'propagate': False
-                }
-            },
-            'root': {
-                'level': 'INFO',
-                'handlers': ['console', 'file'],
+    logging_schema = {
+        'version': 1,
+        'formatters': {
+            'standard': {
+                'class': 'logging.Formatter',
+                "format": "%(asctime)s\t%(levelname)s\t%(filename)s\t%(message)s",
+                'datefmt': '%Y %b %d %H:%M:%S'
             }
+        },
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+                'formatter': 'standard',
+                'level': 'INFO',
+                'stream': 'ext://sys.stdout'
+            },
+            'file': {
+                'class': 'logging.FileHandler',
+                'formatter': 'standard',
+                'level': 'INFO',
+                'filename': logfile,
+                'mode': 'w'
+            }
+        },
+        'loggers': {
+            '__main__': {
+                'handlers': ['console', 'file'],
+                'level': 'INFO',
+                'propagate': False
+            }
+        },
+        'root': {
+            'level': 'INFO',
+            'handlers': ['console', 'file'],
         }
-        logging.config.dictConfig(logging_schema)
-        logging.info(f'Logging to file: {logfile}')
+    }
+    logging.config.dictConfig(logging_schema)
+    f_log('Logging to file', f'{logfile}', debug, level='DEBUG')
+#endregion
+#region f_load_data
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# load_data
+# f_load_data
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def load_data(string):
+def f_load_data(string):
     string = str(string)
+    if not string or string.isspace():
+        return ""
+
+    # First try to parse as JSON which is the most likely format from AWX CLI
+    try:
+        obj = json.loads(string)
+        return obj
+    except json.JSONDecodeError:
+        pass
+
+    # Try to parse as Python literal (dict, list, etc.)
     try:
         obj = ast.literal_eval(string)
         if isinstance(obj, (tuple, list, dict)):
             return obj
         else:
-            return None
-    except (ValueError, SyntaxError):
-        try:
-            obj = json.loads(string)
-            if isinstance(obj, dict):
-                return obj
-        except json.JSONDecodeError:
-            pass
-        try:
-            obj = yaml.safe_load(string)
-            if isinstance(obj, dict):
-                return obj
-        except yaml.YAMLError:
-            pass
-        if isinstance(string, str):
+            # Return the string as is if it's a valid literal but not a collection
             return string
-        return None
+    except (ValueError, SyntaxError):
+        pass
+
+    # Try to parse as YAML
+    try:
+        obj = yaml.safe_load(string)
+        return obj
+    except yaml.YAMLError:
+        pass
+
+    # If all parsing fails, return the original string
+    return string
+#endregion
+#region f_requests
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_requests
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -209,15 +196,15 @@ def f_requests(request='',twusr='',twpwd='', payload='', debug=False):
         f_log(f'url',f'{url}',debug)
         RC                      = 0
         if len(payload) == 0:
-            response                = requests.get(url, auth=(twusr, twpwd), verify=False, timeout=1440)
+            response            = requests.get(url, auth=(twusr, twpwd), verify=False, timeout=1440)
         else:
-            response                = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False, timeout=1440)
+            response            = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False, timeout=1440)
         response.raise_for_status()
         if response.status_code == 200 or response.status_code == 201:
-            result_decoded  = response.content.decode('utf-8')
-            result_loaded   = load_data(result_decoded)
-            result_dumps    = json.dumps(result_loaded, indent=5)
-            result          = json.loads(result_dumps)
+            result_decoded      = response.content.decode('utf-8')
+            result_loaded       = f_load_data(result_decoded)
+            result_dumps        = json.dumps(result_loaded, indent=5)
+            result              = json.loads(result_dumps)
             # f_log(f'result type',f'{type(result)}',debug)
             # f_log(f'result_dumps',f'\n{result_dumps}',debug)
 
@@ -231,6 +218,8 @@ def f_requests(request='',twusr='',twpwd='', payload='', debug=False):
             RC = 12
     finally:
         return result, RC
+#endregion
+#region f_cmdexec
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_cmdexec
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -242,11 +231,11 @@ def f_cmdexec(cmdexec='',debug=False):
         # f_log(f'cmdexec_result type',f'{type(cmdexec_result)}',debug)
         # f_log(f'cmdexec_result     ',f'{cmdexec_result}',debug)
         if RC > 0:
-            raise Exception('f_cmdexec failed')
+            raise Exception('f_cmdexec failed'); f_end(RC)
         else:
-            result = load_data(cmdexec_result.stdout)
+            result = f_load_data(cmdexec_result.stdout)
             if len(result) == 0:
-                raise Exception(f'result cannot be read. invalid syntax from input {result}',debug)
+                raise Exception(f'result cannot be read. invalid syntax from input {result}',debug); f_end(RC)
     except Exception as e:
         if debug:
             f_log(f'cmdexec',f'{cmdexec}',debug)
@@ -258,404 +247,374 @@ def f_cmdexec(cmdexec='',debug=False):
             RC = 12
     finally:
         return result, RC
+#endregion
+#region f_help_error
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_help_error
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_help_error():
-    if debug: logging.info('use: python get_cred_for_host.py -t {{ launch_template_name }} -n {{ nodename }} -s {{ change }} -u {{ twusr }} -p {{ twpwd }}')
+    if debug: logging.info('use: python get_cred_for_host.py -t {{ launch_template_name }} -n {{ hostname }} -s {{ change }} -u {{ twusr }} -p {{ twpwd }}')
     exit(12)
+#endregion
+#region read_input_sys_argv
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # end functions
-# -----
-# Begin
-#----------------------------------------------------------------------------------------------------------------------------------------------------------
-#region
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+global launch_template_name, isRunningLocally, hostname,sys_argv, twusr, twpwd, tower_host, tower_url
+tower_host          = 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local'
+tower_url           = f'{tower_host}/api/v2/'
+hostname            = socket.gethostname().lower()
+sys_argv            = sys.argv
+isRunningLocally    = False
+if re.search(r".*kmdwinitm001.*", hostname, re.IGNORECASE): isRunningLocally = True
+if re.search(r"^automation-job.*", hostname, re.IGNORECASE): isRunningLocally = False
+if isRunningLocally:
+    change              = "CHG000000"
+    twusr               = 'functional_id_001'
+    twpwd               = 'm9AHKuXYa*MeZZWLsHqB' # se i 1password
+    launch_template_name= 'kmn_jobtemplate_de-tooling_disable_SCCM_windows'
+    # launch_template_name= 'kmn_jobtemplate_de-tooling_REinstall_ITM_windows' # not part of kmn_jobtemplate_de-tooling_begin
+    # launch_template_name= 'kmn_jobtemplate_de-tooling_cleanup_CACF_ansible'
+    # launch_template_name= 'kmn_jobtemplate_de-tooling_servercheck_windows'
+    # launch_template_name= 'kmn_jobtemplate_de-tooling_set_maintenancemode'
+    # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_windows'
+    # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_linux'
+    sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/get_credentials_and_launch_template.py', '-t', f'{launch_template_name}', '-n', f'{hostname}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
+    argnum              = 11
+
+if len(sys_argv) > 1:
+    if bool(re.search(r'^(-h|-?|--?|--help)$', sys_argv[1], re.IGNORECASE)): f_help_error()
+    if len(sys_argv) < 4: f_help_error()
+    else:
+        for i, arg in enumerate(sys_argv):
+            checkArg = str(arg.strip())
+            if re.search(r'-n$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; hostname = sys_argv[argnum].lower()
+            if re.search(r'-s$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; change = sys_argv[argnum]
+            if re.search(r'-t$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; launch_template_name = sys_argv[argnum]
+else:
+    f_help_error()
+#endregion
+#region init}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+#  init
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+global hostnames, debug, useRestAPI, project
+global logfile, scriptname, payload
+global now, Logdate_long, jsondir, logdir
+global cred_names, credential_ids, credential_names, template_id, template_inv_id, CONTINUE, RC
+
+hostnames           = ['udv19bfs01, udv19db2aws01, udv19avs01, udv19elk02, udv19cis01, udv19tdm03, udv19bfs02, udv19tdm02, udv19tdg01, udv19elk01, udv19tools, udv19gws01, udv19app01, udv19elk03, kmddbs2136']
+cred_names          = []
+credential_ids      = []
+credential_names    = []
+template_id         = []
+payload             = []
+template_inv_id     = None
+useRestAPI          = False #    True: REST API or False: awx
+isRunningLocally    = True
+debug               = bool
+debug               = True
+CONTINUE            = True
+RC                  = 0
+project             = 'KMD-AEVEN-TOOLS'
+scriptname          = sys.argv[0]
+scriptname          = scriptname.replace('\\','/').strip()
+scriptname          = scriptname.split('/')[-1]
+scriptname          = scriptname.split('.')[0]
+start               = time.time()
+now                 = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+Logdate_long        = datetime.now().strftime('%Y-%m-%d_%H-%M-%S_%f')
+jsondir             = f'D:/scripts/GIT/{project}/archive/json_files/'
+if not os.path.isdir(f'{jsondir}'): os.mkdir(f'{jsondir}')
+logdir              = f'D:/scripts/GIT/{project}/logs'
+if not os.path.isdir(f'{logdir}'): os.mkdir(f'{logdir}')
+logfile             = f'{logdir}/{scriptname}_{Logdate_long}.log'
+if os.path.isfile(logfile): os.remove(logfile)
 f_set_logging(debug)
 f_log(f'Begin','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
 f_log(f'sys_argv',f'{sys_argv}',debug)
-if not isRunningLocally:
-    if len(sys_argv) > 1:
-        if bool(re.search(r'^(-h|-?|--?|--help)$', sys_argv[1], re.IGNORECASE)): f_help_error()
-        if len(sys_argv) < 4: f_help_error()
-        else:
-            for i, arg in enumerate(sys_argv):
-                checkArg = str(arg.strip())
-                if re.search(r'-n$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; nodename = sys_argv[argnum].lower()
-                if re.search(r'-s$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; change = sys_argv[argnum]
-                if re.search(r'-t$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; launch_template_name = sys_argv[argnum]
-    else:
-        f_help_error()
-#----------------------------------------------------------------------------------------------------------------------------------------------------------
 f_log(f'isRunningLocally',f'{isRunningLocally}',debug)
 f_log(f'useRestAPI',f'{useRestAPI}',debug)
-f_log(f'nodename',f'{nodename}',debug)
+f_log(f'hostname',f'{hostname}',debug)
+f_log(f'change',f'{change}',debug)
+f_log(f'hostname',f'{hostname}',debug)
 f_log(f'change',f'{change}',debug)
 f_log(f'launch_template_name',f'{launch_template_name}',debug)
+f_log(f'twusr',f'{twusr}',debug)
+f_log(f'tower_host',f'{tower_host}',debug)
+f_log(f'tower_url',f'{tower_url}',debug)
+f_log(f'isRunningLocally',f'{isRunningLocally}',debug)
+f_log(f'jsondir',f'{jsondir}',debug)
+f_log(f'logdir',f'{logdir}',debug)
+f_log(f'logfile',f'{logfile}',debug)
+f_log(f'scriptname',f'{scriptname}',debug)
+f_log(f'project',f'{project}',debug)
+f_log(f'useRestAPI',f'{useRestAPI}',debug)
+f_log(f'debug',f'{debug}',debug)
 #endregion
+exit(0)
+#region awx_login
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# get_nodename
+# awx config settingss. awx is reading these
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-try:
-    stepName = 'get_nodename'
-    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
+CONTINUE = False
+if CONTINUE:
+    if not useRestAPI:
+        stepName = 'login'
+        os.environ['TOWER_HOST']        = f'{tower_host}'
+        os.environ['TOWER_USERNAME']    = f'{twusr}'
+        os.environ['TOWER_PASSWORD']    = f'{twpwd}'
+        os.environ['TOWER_VERIFY_SSL']  = 'False'
+        os.environ['TOWER_FORMAT']      = 'json'
 
-    chosen = ''
-    nodenames = [f'{nodename.upper()}',f'{nodename.lower()}']
-    for nodename in nodenames:
-        nodename = nodename.strip()
+        cmdexec = ['awx', 'me', '--conf.format', 'yaml', '--conf.insecure']
+        try:
+            result, RC = f_cmdexec(cmdexec, debug)
+            if RC == 0 and 'username' in result:
+                f_log('AWX Auth Status', 'Already logged in', debug)
+                twtok = os.environ.get('TOWER_OAUTH_TOKEN', '')
+                f_log('Current token', f'{twtok[:10]}...' if twtok else 'None', debug)
+            else:
+                raise Exception("Not authenticated"); f_end(RC)
+        except Exception as e:
+            f_log('AWX Auth Status', f'Login required: {str(e)}', debug)
+
+            # Perform login to get new token
+            cmdexec = ['awx', 'login',
+                        '--conf.host', tower_host,
+                        '--conf.username', twusr,
+                        '--conf.password', twpwd,
+                        '--conf.insecure',
+                        '--conf.format', 'yaml']
+
+            result, RC = f_cmdexec(cmdexec, debug)
+
+            if RC == 0 and 'token' in result:
+                twtok = result['token']
+                os.environ['TOWER_OAUTH_TOKEN'] = twtok
+                f_log('New token obtained', f'{twtok[:10]}...', debug)
+
+                # Configure AWX client to use the token
+                cmdexec = ['awx', 'config', 'oauth_token', f'{twtok}']
+                result, RC = f_cmdexec(cmdexec, debug)
+                f_log('token config', f'{result}', debug)
+
+                cmdexec = ['awx', 'config', 'use_token', 'True']
+                result, RC = f_cmdexec(cmdexec, debug)
+                f_log('token usage config', f'{result}', debug)
+
+                # Verify login was successful
+                cmdexec = ['awx', 'me', '--conf.format', 'yaml', '--conf.insecure']
+                result, RC = f_cmdexec(cmdexec, debug)
+                if RC == 0 and 'username' in result:
+                    f_log('AWX Auth Verification', 'Successfully authenticated', debug)
+                else:
+                    f_log('AWX Auth Verification', 'Authentication still failing after login attempt', debug)
+            else:
+                f_log('Login failed', f'RC: {RC}, Result: {result}', debug)
+                raise Exception("Failed to authenticate with AWX"); f_end(RC)
+#endregion
+#region awx_hostname
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+# get_hostname
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+if CONTINUE:
+    try:
+        stepName = 'awx_hostname'
+        f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
+        chosen = None
+        hostnames = [f'{hostname.upper()}',f'{hostname.lower()}']
+        for hostname in hostnames:
+            hostname = hostname.strip()
+            if useRestAPI:
+                request = f'hosts/?name={hostname}'
+                result,RC = f_requests(request,twusr,twpwd,payload,debug)
+            else:
+                cmdexec = ['awx', 'host', 'list', '--name', f'{hostname}']
+                result,RC = f_cmdexec(cmdexec,debug)
+            if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
+            if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
+            if result['count'] > 0: chosen = hostname
+        if chosen is None:
+            raise Exception(f'hostname {hostname} not found'); f_end(RC)
+        else:
+            hostname = chosen
+            host_id = 111
+        f_log(f'hostname',f'{hostname}',debug)
+    except Exception as e:
+        if debug: logging.error(e)
+        RC = 12
+        f_end(RC)
+#endregion
+#region awx_allGroupsWithHost
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+# awx_allGroupsWithHost
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+if CONTINUE:
+    try:
+        stepName = 'awx_allGroupsWithHost'
+        f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
         if useRestAPI:
-            request = f'hosts/?name={nodename}'
+            request = f'hosts/{host_id}/all_groups'
             result,RC = f_requests(request,twusr,twpwd,payload,debug)
         else:
-            cmdexec = ['awx', 'host', 'list', '--name', f'{nodename}']
+            cmdexec = ['awx','host','get',f'{host_id}','--query','all_groups','--all-pages']
             result,RC = f_cmdexec(cmdexec,debug)
-
-        if RC > 0: raise Exception(f'step {stepName} failed')
+        if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
         if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
-
-        if result['count'] > 0:
-            chosen = nodename
-
-    if chosen == '':
-        raise Exception(f'nodename {nodename} not found')
-    else:
-        nodename = chosen
-
-    f_log(f'nodename',f'{nodename}',debug)
-except Exception as e:
-    if debug: logging.error(e)
-    RC = 12
-    exit(RC)
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# get_jobTemplateByName
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-try:
-    stepName = 'get_jobTemplateByName'
-    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
-    if useRestAPI:
-        request = f'job_templates/?name={launch_template_name}'
-        result,RC = f_requests(request,twusr,twpwd,payload,debug)
-    else:
-        cmdexec = ['awx', 'job_templates', 'list', '--name', f'{launch_template_name}']
-        result,RC = f_cmdexec(cmdexec,debug)
-
-    if RC > 0: raise Exception(f'step {stepName} failed')
-    if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
-
-    template_count = result['count']
-    if template_count != 1:
-        raise Exception(f'step get jobTemplateByName by launch_template_name: Requested job_template {launch_template_name} is not found')
-    else:
-        result                  = result['results'][0]
-        template_id             = result['id']
-        launch_template_name    = result['name']
-        template_org_name       = result['summary_fields']['organization']['name']
-        template_org_id         = result['summary_fields']['organization']['id']
-        template_inv_name       = result['summary_fields']['inventory']['name']
-        template_inv_id         = result['summary_fields']['inventory']['id']
-        template_link_to_cred   = result['related']['credentials']
-        template_cred           = result['summary_fields']['credentials']
-        f_log(f'template_id',f'{template_id}',debug)
-        f_log(f'launch_template_name',f'{launch_template_name}',debug)
-        f_log(f'template_org_name',f'{template_org_name}',debug)
-        f_log(f'template_org_id',f'{template_org_id}',debug)
-        f_log(f'template_inv_name',f'{template_inv_name}',debug)
-        f_log(f'template_inv_id',f'{template_inv_id}',debug)
-        f_log(f'template_link_to_cred',f'{template_link_to_cred}',debug)
-        f_log(f'template_cred',f'{template_cred}',debug)
-        f_log(f'type template_cred',f'{type(template_cred)}',debug)
-        # f_log(f'dump template_cred',f'\n{json.template_inv_id(template_cred, indent=4)}',debug)
-        if isinstance(template_cred, (list)):
-            for index, cred in enumerate(template_cred):
-                for key, value in cred.items():
-                    if key == 'id': cred_ids.append(value)
-                    if key == 'name': cred_names.append(value)
-        for index, item in enumerate(cred_ids):
-            f_log(f'cred_ids {index}',f'{item}',debug)
-        for index, item in enumerate(cred_names):
-            f_log(f'cred_names {index}',f'{item}',debug)
-except Exception as e:
-    if debug: logging.error(e)
-    RC = 12
-    exit(RC)
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# get_jobTemplatesById
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-try:
-    stepName = 'get_jobTemplatesById'
-    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
-    if useRestAPI:
-        request = f'job_templates/{template_id}'
-        result,RC = f_requests(request,twusr,twpwd,payload,debug)
-    else:
-        cmdexec = ['awx', 'job_template', 'get', f'{template_id}']
-        result,RC = f_cmdexec(cmdexec,debug)
-
-    if RC > 0: raise Exception(f'step {stepName} failed')
-    if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
-except Exception as e:
-    if debug: logging.error(e)
-    RC = 12
-    exit(RC)
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# get_inventoryByName
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-try:
-    stepName = 'get_inventoryByName'
-    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
-    if useRestAPI:
-        request = f'inventories/?name={template_inv_name}'
-        result,RC = f_requests(request,twusr,twpwd,payload,debug)
-    else:
-        cmdexec = ['awx', 'inventory', 'list', '--name', f'{template_inv_name}']
-        result,RC = f_cmdexec(cmdexec,debug)
-
-    if RC > 0: raise Exception(f'step {stepName} failed')
-    if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
-
-    inv_count = result['count']
-    if inv_count == 0:
-        raise Exception(f'step get_inventoryByName {template_inv_name} is not found')
-    else:
-        template_inv_id         = result['results'][0]['id']
-        template_inv_name       = result['results'][0]['name']
-        template_inv_variables  = result['results'][0]['variables']
-
-        result_loaded           = load_data(template_inv_variables)
-        inv_cred_name           = result_loaded.get('cyberark_credential')
-        cred_names.append(inv_cred_name)
-
-        f_log(f'template_inv_id',f'{template_inv_id}',debug)
-        f_log(f'template_inv_name',f'{template_inv_name}',debug)
-        f_log(f'inv_cred_name',f'{inv_cred_name}',debug)
-
-    for index, item in enumerate(cred_names):
-        f_log(f'cred_names {index}',f'{item}',debug)
-except Exception as e:
-    if debug: logging.error(e)
-    RC = 12
-    exit(RC)
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# get_allHostsByInvName
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-try:
-    stepName = 'get_allHostsByInvName'
-    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
-    if useRestAPI:
-        request = f'hosts/?inventory={template_inv_id}'
-        result,RC = f_requests(request,twusr,twpwd,payload,debug)
-    else:
-        cmdexec = ['awx', 'host', 'list', '--inventory', f'{template_inv_id}', '--all-pages']
-        result,RC = f_cmdexec(cmdexec,debug)
-
-    if RC > 0: raise Exception(f'step {stepName} failed')
-    if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
-except Exception as e:
-    if debug: logging.error(e)
-    RC = 12
-    exit(RC)
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# get_singleHostGetGroups
-#
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-try:
-    stepName = 'get_singleHostGetGroups'
-    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
-    allGroups_names = []
-    if useRestAPI:
-        request = f'hosts/?name={nodename}&inventory={template_inv_id}'
-        result,RC = f_requests(request,twusr,twpwd,payload,debug)
-    else:
-        cmdexec = ['awx', 'host', 'list', '--name', f'{nodename}', '--inventory', f'{template_inv_id}', '--all-pages']
-        result,RC = f_cmdexec(cmdexec,debug)
-
-    if RC > 0: raise Exception(f'step {stepName} failed')
-    if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
-
-    singleHostGetGroups_count = result['count']
-    if singleHostGetGroups_count != 1:
-         raise Exception(f'step get singleHostGetGroups failed. count={singleHostGetGroups_count}. Is host {nodename} part of inventory {template_inv_id} / {template_inv_name} ')
-    else:
-        result = result['results'][0]
-        host_id = result['id']
-        # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-        # removed. it takes special usages creds like kmn_grp_production, kmn_grp_access_event, kmn_grp_windows, kmn_grp_access_hc, kmn_grp_access_patchscan
-        # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-        singleHostGetGroups_names = result['summary_fields']['groups']['results']
-        f_log(f'singleHostGetGroups_names',f'{singleHostGetGroups_names}',debug)
-        if isinstance(singleHostGetGroups_names, (list)):
-            for index, group in enumerate(singleHostGetGroups_names):
+        if useRestAPI:
+            allGroupsWithHost = result['results']                               # REST way
+        else:
+            allGroupsWithHost = result['summary_fields']['groups']['results']   # AWX way
+        allGroups_names = []
+        if isinstance(allGroupsWithHost, (list)):
+            for index, group in enumerate(allGroupsWithHost):
                 for key, value in group.items():
                     if key == 'name': allGroups_names.append(value)
-        for index, item in enumerate(allGroups_names):
-            f_log(f'allGroups_names {index}',f'{item}',debug)
+        unique_group_list = list(set(allGroups_names))
+        f_log(f'unique_group_list',f'{unique_group_list}',debug)
+    except Exception as e:
+        if debug: logging.error(e)
+        f_log(f'exception:',f'{e}',debug)
 
-except Exception as e:
-    if debug: logging.error(e)
-    RC = 12
-    exit(RC)
+        RC = 12
+        f_end(RC)
+#endregion
+#region avx_credNameFromGroup
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# get_allGroupsWithHost
+# avx_credNameFromGroup
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-try:
-    stepName = 'get_allGroupsWithHost'
-    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
-    if useRestAPI:
-        request = f'hosts/{host_id}/all_groups'
-        result,RC = f_requests(request,twusr,twpwd,payload,debug)
-    else:
-        cmdexec = ['awx','host','get',f'{host_id}','--query','all_groups','--all-pages']
-        result,RC = f_cmdexec(cmdexec,debug)
-
-    if RC > 0: raise Exception(f'step {stepName} failed')
-    if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
-
-    if useRestAPI:
-        allGroupsWithHost = result['results']                               # REST way
-    else:
-        allGroupsWithHost = result['summary_fields']['groups']['results']   # AWX way
-
-    allGroups_names = []
-    if isinstance(allGroupsWithHost, (list)):
-        for index, group in enumerate(allGroupsWithHost):
-            for key, value in group.items():
-                if key == 'name': allGroups_names.append(value)
-
-    unique_group_list = list(set(allGroups_names))
-    f_log(f'unique_group_list',f'{unique_group_list}',debug)
-except Exception as e:
-    if debug: logging.error(e)
-    RC = 12
-    exit(RC)
+if CONTINUE:
+    try:
+        stepName = 'avx_credNameFromGroup'
+        f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
+        for grp_cred in unique_group_list:
+            if useRestAPI:
+                request = f'groups/?name={grp_cred}'
+                result,RC = f_requests(request,twusr,twpwd,payload,debug)
+            else:
+                cmdexec = ['awx', 'group', 'list', '--name', f'{grp_cred}', '--all-pages']
+                result,RC = f_cmdexec(cmdexec,debug)
+            if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
+            if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
+            grp_cred_count = result['count']
+            if grp_cred_count <= 1:
+                raise Exception(f'step get credNameFromGroup by {grp_cred}: Requested job_template {launch_template_name} is not found'); f_end(RC)
+            else:
+                result = result['results']
+                if isinstance(result, (list)):
+                    for index, group_element in enumerate(result):
+                        for key, value in group_element.items():
+                            if key == 'variables':
+                                data = f_load_data(value)
+                                if isinstance(data, (dict)):
+                                    for variables_key, variables_value in data.items():
+                                        if isinstance(variables_value, (str)):
+                                            if bool(re.search('_cred', variables_key, re.IGNORECASE)) or bool(re.search('_cred', variables_value, re.IGNORECASE)):
+                                                f_log(f'{variables_key}',f'{variables_value}',debug)
+                                                cred_names.append(variables_value)
+            unique_cred_name_list = list(set(cred_names))
+            f_log(f'unique_cred_name_list',f'{unique_cred_name_list}',debug)
+    except Exception as e:
+        if debug: logging.error(e)
+        RC = 12
+        f_end(RC)
+#endregion
+#region awx_credential_ids
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# get_credNameFromGroup
+# awx_credential_ids
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-try:
-    stepName = 'get_credNameFromGroup'
-    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
-    for grp_cred in unique_group_list:
-        if useRestAPI:
-            request = f'groups/?name={grp_cred}'
-            result,RC = f_requests(request,twusr,twpwd,payload,debug)
-        else:
-            cmdexec = ['awx', 'group', 'list', '--name', f'{grp_cred}', '--all-pages']
-            result,RC = f_cmdexec(cmdexec,debug)
+if CONTINUE:
+    try:
+        stepName = 'awx_credential_ids'
+        f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
+        credential_ids = []
+        credential_names = []
+        for cred_name in unique_cred_name_list:
+            if useRestAPI:
+                request = f'credentials/?name={cred_name}'
+                result,RC = f_requests(request,twusr,twpwd,payload,debug)
+            else:
+                cmdexec = ['awx', 'credential', 'list', '--name', f'{cred_name}', '--all-pages']
+                result,RC = f_cmdexec(cmdexec,debug)
 
-        if RC > 0: raise Exception(f'step {stepName} failed')
-        if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
+            if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
+            if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
 
-        grp_cred_count = result['count']
-        if grp_cred_count <= 1:
-            raise Exception(f'step get credNameFromGroup by {grp_cred}: Requested job_template {launch_template_name} is not found')
-        else:
-            result = result['results']
-            if isinstance(result, (list)):
-                for index, group_element in enumerate(result):
-                    for key, value in group_element.items():
-                        if key == 'variables':
-                            data = load_data(value)
-                            if isinstance(data, (dict)):
-                                for variables_key, variables_value in data.items():
-                                    if isinstance(variables_value, (str)):
-                                        if bool(re.search('_cred', variables_key, re.IGNORECASE)) or bool(re.search('_cred', variables_value, re.IGNORECASE)):
-                                            f_log(f'{variables_key}',f'{variables_value}',debug)
-                                            cred_names.append(variables_value)
-        unique_cred_name_list = list(set(cred_names))
-        f_log(f'unique_cred_name_list',f'{unique_cred_name_list}',debug)
-except Exception as e:
-    if debug: logging.error(e)
-    RC = 12
-    exit(RC)
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# get_credential_ids
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-try:
-    stepName = 'get_credential_ids'
-    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
-    credential_ids = []
-    credential_names = []
-    for cred_name in unique_cred_name_list:
-        if useRestAPI:
-            request = f'credentials/?name={cred_name}'
-            result,RC = f_requests(request,twusr,twpwd,payload,debug)
-        else:
-            cmdexec = ['awx', 'credential', 'list', '--name', f'{cred_name}', '--all-pages']
-            result,RC = f_cmdexec(cmdexec,debug)
-
-        if RC > 0: raise Exception(f'step {stepName} failed')
-        if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
-
-        credential_count = result['count']
-        if credential_count == 0:
-            if debug: text = "{:25}: {:}".format(f'credential_name: {cred_name}',f'is not found!'); logging.warning(text)
-        else:
-            result = result['results']
-            credential_id = result[0]['id']
-            credential_name = result[0]['name']
-            f_log(f'cred_name',f'{cred_name}',debug)
-            f_log(f'credential_name',f'{credential_name}',debug)
-            f_log(f'credential_id',f'{credential_id}',debug)
-            credential_ids.append(credential_id)
-            credential_names.append(credential_name)
-    # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-    # added to be able to use depot
-    # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-    kmn_cred_tower_and_sfs = 33
-    credential_names.append('kmn_cred_tower_and_sfs')
-    credential_ids.append(33)
-    # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-    unique_credential_names = list(set(credential_names))
-    f_log(f'unique_credential_names',f'{unique_credential_names}',debug)
-    unique_credential_ids = list(set(credential_ids))
-    f_log(f'unique_credential_ids',f'{unique_credential_ids}',debug)
-except Exception as e:
-    if debug: logging.error(e)
-    RC = 12
-    exit(RC)
+            credential_count = result['count']
+            if credential_count == 0:
+                if debug: text = "{:25}: {:}".format(f'credential_name: {cred_name}',f'is not found!'); logging.warning(text)
+            else:
+                result = result['results']
+                credential_id = result[0]['id']
+                credential_name = result[0]['name']
+                f_log(f'cred_name',f'{cred_name}',debug)
+                f_log(f'credential_name',f'{credential_name}',debug)
+                f_log(f'credential_id',f'{credential_id}',debug)
+                credential_ids.append(credential_id)
+                credential_names.append(credential_name)
+        # ----------------------------------------------------------------------------------------------------------------------------------------------------------
+        # added to be able to use depot
+        # ----------------------------------------------------------------------------------------------------------------------------------------------------------
+        kmn_cred_tower_and_sfs = 33
+        credential_names.append('kmn_cred_tower_and_sfs')
+        credential_ids.append(33)
+        # ----------------------------------------------------------------------------------------------------------------------------------------------------------
+        unique_credential_names = list(set(credential_names))
+        f_log(f'unique_credential_names',f'{unique_credential_names}',debug)
+        unique_credential_ids = list(set(credential_ids))
+        f_log(f'unique_credential_ids',f'{unique_credential_ids}',debug)
+    except Exception as e:
+        if debug: logging.error(e)
+        RC = 12
+        f_end(RC)
+#endregion
+#region launch_job_template
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # launch_job_template
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-try:
-    stepName = 'launch_job_template'
-    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
-    credential_ids = ','.join(map(str, unique_credential_ids))
+if CONTINUE:
+    try:
+        stepName = 'launch_job_template'
+        f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
+        credential_ids = ','.join(map(str, unique_credential_ids))
 
-    if re.search(r".*maintenancemode.*", launch_template_name, re.IGNORECASE):
-        job_template    = f'--name {launch_template_name} '
-        credential      = f'--credentials {credential_ids} '
-        inventory       = f'--inventory {template_inv_id} '
-        extra_vars = {
-            'nodename': f'{nodename}',
-            'change': f'{change}',
-        }
-    else:
-        job_template    = f'--name {launch_template_name} '
-        credential      = f'--credentials {credential_ids} '
-        inventory       = f'--inventory {template_inv_id} '
-        extra_vars = {
-            'nodename': f'{nodename}',
-            'change': f'{change}',
-        }
-    extra_vars  = f'--extra_vars \"{extra_vars}\"'
+        if re.search(r".*maintenancemode.*", launch_template_name, re.IGNORECASE):
+            job_template    = f'--name {launch_template_name} '
+            credential      = f'--credentials {credential_ids} '
+            inventory       = f'--inventory {template_inv_id} '
+            extra_vars = {
+                'hostname': f'{hostname}',
+                'change': f'{change}',
+            }
+        else:
+            job_template    = f'--name {launch_template_name} '
+            credential      = f'--credentials {credential_ids} '
+            inventory       = f'--inventory {template_inv_id} '
+            extra_vars = {
+                'hostname': f'{hostname}',
+                'change': f'{change}',
+            }
+        extra_vars  = f'--extra_vars \"{extra_vars}\"'
 
-    if useRestAPI:
-        request = f'job_templates/{template_id}/launch/'
-        f_log(f'request',f'{request}',debug)
-        result,RC = f_requests(request,twusr,twpwd,payload,debug)
-    else:
-        cmdexec = f"awx job_templates launch {launch_template_name} {credential} {inventory} {extra_vars}"
-        f_log(f'cmdexec',f'{cmdexec}',debug)
-        result,RC = f_cmdexec(cmdexec,debug)
+        if useRestAPI:
+            request = f'job_templates/{template_id}/launch/'
+            f_log(f'request',f'{request}',debug)
+            result,RC = f_requests(request,twusr,twpwd,payload,debug)
+        else:
+            cmdexec = f"awx job_templates launch {launch_template_name} {credential} {inventory} {extra_vars}"
+            f_log(f'cmdexec',f'{cmdexec}',debug)
+            result,RC = f_cmdexec(cmdexec,debug)
 
-    f_log(f'unique_credential_ids',f'{unique_credential_ids}',debug)
+        f_log(f'unique_credential_ids',f'{unique_credential_ids}',debug)
 
-    if RC > 0: raise Exception(f'step {stepName} failed')
-    if isRunningLocally:
-        f_dump_and_write(result,useRestAPI,stepName,debug)
-except Exception as e:
-    if debug: logging.error(e)
-    RC = 12
-    exit(RC)
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-f_log(f'END','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
-print(f'{unique_credential_ids}')
+        if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
+        if isRunningLocally:
+            f_dump_and_write(result,useRestAPI,stepName,debug)
+    except Exception as e:
+        if debug: logging.error(e)
+        RC = 12
+        f_end(RC)
+
+f_end(RC)
+#endregion
