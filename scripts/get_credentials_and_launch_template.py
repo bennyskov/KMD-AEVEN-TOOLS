@@ -299,15 +299,15 @@ else:
 global hostnames, project
 global logfile, scriptname, payload
 global now, Logdate_long, jsondir, logdir
-global cred_names, credential_ids, credential_names, template_id, template_inv_id, CONTINUE, RC
+global cred_names, credential_ids, credential_names, template_id, CONTINUE, RC
 
-hostnames           = ['udv19bfs01, udv19db2aws01, udv19avs01, udv19elk02, udv19cis01, udv19tdm03, udv19bfs02, udv19tdm02, udv19tdg01, udv19elk01, udv19tools, udv19gws01, udv19app01, udv19elk03, kmddbs2136']
+# hostnames           = ['udv19bfs01, udv19db2aws01, udv19avs01, udv19elk02, udv19cis01, udv19tdm03, udv19bfs02, udv19tdm02, udv19tdg01, udv19elk01, udv19tools, udv19gws01, udv19app01, udv19elk03, kmddbs2136']
+hostnames           = ['udv19bfs01']
 cred_names          = []
 credential_ids      = []
 credential_names    = []
 template_id         = []
 payload             = []
-template_inv_id     = None
 CONTINUE            = True
 RC                  = 0
 project             = 'KMD-AEVEN-TOOLS'
