@@ -63,6 +63,7 @@
         #   debug:
         #     var: script_run.stdout_lines
 
+
         - name: Delete /opt/IBM/ITM/ directory
           file:
             path: /opt/IBM/ITM/
