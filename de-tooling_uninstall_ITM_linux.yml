@@ -26,7 +26,6 @@
         acc_id: "{{ blueid_shortcode }}"
         transaction_id: "{{ tower_job_id }}"
         trans_num: "{{ tower_job_id }}"
-        itmuser: 'itmuser'
 
     - set_fact:
         ansible_become_user: root
@@ -86,24 +85,24 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # remove itmuser
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: "2.A2.1. Check if {{ itmuser }} exists"
+        - name: "2.A2.1. Check if itmuser exists"
           ansible.builtin.stat:
             path: "/etc/passwd"
             get_checksum: no
-            contains: "^{{ itmuser }}:"
+            contains: "^itmuser:"
           register: unix_user_info
           ignore_errors: true
 
-        - name: "2.A2.1. Delete user {{ itmuser }}"
+        - name: "2.A2.1. Delete user itmuser"
           ignore_errors: true
           ansible.builtin.user:
-            name: "{{ itmuser }}"
+            name: "itmuser"
             remove: "{{ data.remove_user_dirs | default(true) }}"
             state: absent
           when: unix_user_info.stat.exists
 
-        # - name: "2.A2.5. Delete sudoers profile for {{ itmuser }}"
+        # - name: "2.A2.5. Delete sudoers profile for itmuser"
         #   ignore_errors: true
         #   ansible.builtin.file:
-        #     path: "/etc/sudoers.d/{{ itmuser }}_sudo"
+        #     path: "/etc/sudoers.d/itmuser_sudo"
         #     state: absent
