@@ -85,13 +85,11 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # remove itmuser
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: "2.A2.1. Check if itmuser exists"
-          ansible.builtin.stat:
-            path: "/etc/passwd"
-            get_checksum: no
-            contains: "^itmuser:"
+        - name: "2.A2.1. Check if {{ itmuser }} exists"
+          shell: "grep -q '^{{ itmuser }}:' /etc/passwd"
           register: unix_user_info
           ignore_errors: true
+          changed_when: false
 
         - name: "2.A2.1. Delete user itmuser"
           ignore_errors: true
