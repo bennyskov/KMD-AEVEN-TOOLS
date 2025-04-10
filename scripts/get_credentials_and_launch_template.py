@@ -187,16 +187,17 @@ def f_load_data(string):
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_requests
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_requests(request='',twusr='',twpwd='', payload='', debug=False):
+def f_requests(request,twusr,twpwd,payload,debug):
     try:
         tower_url               = f'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local/api/v2/'
         url                     = f'{tower_url}{request}'
-        f_log(f'url',f'{url}',debug)
         RC                      = 0
-        if len(payload) == 0:
-            response            = requests.get(url, auth=(twusr, twpwd), verify=False, timeout=1440)
+        if isinstance(payload, dict) and payload:
+            f_log(f'payload',f'{payload}',debug)
+            f_log(f'url',f'{url}',debug)
+            response = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False, timeout=1440)
         else:
-            response            = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False, timeout=1440)
+            response = requests.get(url, auth=(twusr, twpwd), verify=False, timeout=1440)
         response.raise_for_status()
         if response.status_code == 200 or response.status_code == 201:
             result_decoded      = response.content.decode('utf-8')
@@ -282,36 +283,38 @@ if isRunningLocally:
     launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_linux'
     #
     #
-    sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/get_credentials_and_launch_template.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
-    argnum              = 11
-if len(sys_argv) > 1:
-    if bool(re.search(r'^(-h|-?|--?|--help)$', sys_argv[1], re.IGNORECASE)): f_help_error()
-    if len(sys_argv) < 4: f_help_error()
-    else:
-        for i, arg in enumerate(sys_argv):
-            checkArg = str(arg.strip())
-            if re.search(r'-n$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; nodename = sys_argv[argnum].lower()
-            if re.search(r'-s$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; change = sys_argv[argnum]
-            if re.search(r'-t$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; launch_template_name = sys_argv[argnum]
-else:
-    f_help_error()
+#     sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/get_credentials_and_launch_template.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
+#     argnum              = 11
+# if len(sys_argv) > 1:
+#     if bool(re.search(r'^(-h|-?|--?|--help)$', sys_argv[1], re.IGNORECASE)): f_help_error()
+#     if len(sys_argv) < 4: f_help_error()
+#     else:
+#         for i, arg in enumerate(sys_argv):
+#             checkArg = str(arg.strip())
+#             if re.search(r'-n$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; nodename = sys_argv[argnum].lower()
+#             if re.search(r'-s$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; change = sys_argv[argnum]
+#             if re.search(r'-t$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; launch_template_name = sys_argv[argnum]
+#             if re.search(r'-u$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; twusr = sys_argv[argnum]
+#             if re.search(r'-p$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; twpwd = sys_argv[argnum]
+# else:
+#     f_help_error()
 #endregion
 #region init}
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 #  init
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-global nodenames, project
+global project, checkCaps
 global logfile, scriptname, payload
 global now, Logdate_long, jsondir, logdir
 global cred_names, credential_ids, credential_names, template_id, CONTINUE, RC
 
-# nodenames           = ['udv19bfs01, udv19db2aws01, udv19avs01, udv19elk02, udv19cis01, udv19tdm03, udv19bfs02, udv19tdm02, udv19tdg01, udv19elk01, udv19tools, udv19gws01, udv19app01, udv19elk03, kmddbs2136']
-nodenames           = ['udv19bfs01']
+# checkCaps           = ['udv19bfs01, udv19db2aws01, udv19avs01, udv19elk02, udv19cis01, udv19tdm03, udv19bfs02, udv19tdm02, udv19tdg01, udv19elk01, udv19tools, udv19gws01, udv19app01, udv19elk03, kmddbs2136']
+# checkCaps           = ['udv19bfs01']
 cred_names          = []
 credential_ids      = []
 credential_names    = []
 template_id         = []
-payload             = []
+payload             = {}
 CONTINUE            = True
 RC                  = 0
 project             = 'KMD-AEVEN-TOOLS'
@@ -425,14 +428,14 @@ if CONTINUE:
         stepName = 'awx_hostname'
         f_log(f'{stepName}','',debug)
         acceptedInv = ['kmn_inventory','kmw_inventory','eng_inventory','enw_inventory']
-        nodenames = [f'{nodename.upper()}',f'{nodename.lower()}']
-        for nodename in nodenames:
-            nodename = nodename.strip()
+        checkCaps = [f'{nodename.upper()}',f'{nodename.lower()}']
+        for capsOrNot in checkCaps:
+            capsOrNot = capsOrNot.strip()
             if useRestAPI:
-                request = f'hosts/?name={nodename}'
+                request = f'hosts/?name={capsOrNot}'
                 result,RC = f_requests(request,twusr,twpwd,payload,debug)
             else:
-                cmdexec = ['awx', 'host', 'list', '--name', f'{nodename}']
+                cmdexec = ['awx', 'host', 'list', '--name', f'{capsOrNot}']
                 result,RC = f_cmdexec(cmdexec,debug)
             if RC > 0: continue
             if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
@@ -619,20 +622,22 @@ if CONTINUE:
     try:
         stepName = 'launch_job_template'
         f_log(f'{stepName}','',debug)
-        credential_ids = ','.join(map(str, unique_credential_ids))
-        f_log(f'unique_credential_ids',f'{unique_credential_ids}',debug)
+        f_log(f'credential_ids',f'{credential_ids}',debug)
         if useRestAPI:
-            payload = {
+            cons_payload = {
                 "inventory": inv_id,
-                "credentials": unique_credential_ids,
+                "credentials": credential_ids,
                 "extra_vars": {
-                    "nodename": nodename,
-                    "change": change
+                    "nodename": f"{nodename}",
+                    "change":  f"{change}",
                 }
             }
+            payload = json.dumps(cons_payload)
             request = f'job_templates/{template_id}/launch/'
             f_log(f'request',f'{request}',debug)
             result,RC = f_requests(request,twusr,twpwd,payload,debug)
+            f_log(f'result',f'{result}',debug)
+
             jobid = result['id']
             f_log(f'jobid',f'{jobid}',debug)
         else:
@@ -647,12 +652,13 @@ if CONTINUE:
             cmdexec = f"awx job_templates launch {launch_template_name} {credential} {inventory} {extra_vars}"
             f_log(f'cmdexec',f'{cmdexec}',debug)
             result,RC = f_cmdexec(cmdexec,debug)
-            jobid = result['id']
-            f_log(f'jobid',f'{jobid}',debug)
+            # jobid = result['id']
+            # f_log(f'jobid',f'{jobid}',debug)
 
         if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
         if isRunningLocally:
             f_dump_and_write(result,useRestAPI,stepName,debug)
+
     except Exception as e:
         if debug: logging.error(e)
         RC = 12
