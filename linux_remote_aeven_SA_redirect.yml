@@ -12,7 +12,7 @@
       delegate_to: localhost
 
 - name: Socks tunnel setup
-  hosts: '{{ hostlist }}'
+  hosts: '{{ nodename }}'
   gather_facts: false
   tasks:
     - include_role:
