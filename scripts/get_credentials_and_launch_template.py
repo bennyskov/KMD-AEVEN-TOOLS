@@ -271,7 +271,7 @@ if isRunningLocally:
     nodename            = 'udvsqlqc01'
     change              = "CHG000000"
     twusr               = 'functional_id_001'
-    twpwd               = 'm9AHKuXYa*MeZZWLsHqB' # se i 1password
+    twpwd               = 'm9AHKuXYa*MeZZWLsHqB'
     #
     #
     # launch_template_name= 'kmn_jobtemplate_de-tooling_disable_SCCM_windows'
@@ -628,8 +628,8 @@ if CONTINUE:
                 "inventory": inv_id,
                 "credentials": credential_ids,
                 "extra_vars": {
-                    "nodename": f"{nodename}",
-                    "change":  f"{change}",
+                    "nodename": nodename,
+                    "change":  change
                 }
             }
             payload = json.dumps(cons_payload)
