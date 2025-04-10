@@ -134,7 +134,7 @@ def f_end(RC):
     # Format values explicitly as strings where needed
     text = "{:6} - {} - {} - {} - {:0>2}:{:0>2}:{:05.2f}".format(
         'End of',
-        str(hostname),  # Convert hostname to string explicitly
+        str(nodename),  # Convert nodename to string explicitly
         str(scriptname),  # Convert scriptname to string explicitly
         endPrint,
         int(hours),
@@ -251,34 +251,38 @@ def f_cmdexec(cmdexec='',debug=False):
 # f_help_error
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_help_error():
-    if debug: logging.info('use: python get_cred_for_host.py -t {{ launch_template_name }} -n {{ hostname }} -s {{ change }} -u {{ twusr }} -p {{ twpwd }}')
+    if debug: logging.info('use: python get_cred_for_host.py -t {{ launch_template_name }} -n {{ nodename }} -s {{ change }} -u {{ twusr }} -p {{ twpwd }}')
     exit(12)
 #endregion
 #region read_input_sys_argv
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # end functions
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# global launch_template_name, isRunningLocally, hostname,sys_argv, twusr, twpwd, tower_host, tower_url
 tower_host          = 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local'
 tower_url           = f'{tower_host}/api/v2/'
-hostname            = socket.gethostname().lower()
+awx_hostname        = socket.gethostname().lower()
 sys_argv            = sys.argv
 isRunningLocally    = False
 useRestAPI          = True
-if re.search(r".*kmdwinitm001.*", hostname, re.IGNORECASE): isRunningLocally = True
-if re.search(r"^automation-job.*", hostname, re.IGNORECASE): isRunningLocally = False
+if re.search(r".*kmdwinitm001.*", awx_hostname, re.IGNORECASE): isRunningLocally = True
+if re.search(r"^automation-job.*", awx_hostname, re.IGNORECASE): isRunningLocally = False
 if isRunningLocally:
+    nodename            = 'udvsqlqc01'
     change              = "CHG000000"
     twusr               = 'functional_id_001'
     twpwd               = 'm9AHKuXYa*MeZZWLsHqB' # se i 1password
-    launch_template_name= 'kmn_jobtemplate_de-tooling_disable_SCCM_windows'
+    #
+    #
+    # launch_template_name= 'kmn_jobtemplate_de-tooling_disable_SCCM_windows'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_REinstall_ITM_windows' # not part of kmn_jobtemplate_de-tooling_begin
     # launch_template_name= 'kmn_jobtemplate_de-tooling_cleanup_CACF_ansible'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_servercheck_windows'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_set_maintenancemode'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_windows'
-    # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_linux'
-    sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/get_credentials_and_launch_template.py', '-t', f'{launch_template_name}', '-n', f'{hostname}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
+    launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_linux'
+    #
+    #
+    sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/get_credentials_and_launch_template.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
     argnum              = 11
 if len(sys_argv) > 1:
     if bool(re.search(r'^(-h|-?|--?|--help)$', sys_argv[1], re.IGNORECASE)): f_help_error()
@@ -286,7 +290,7 @@ if len(sys_argv) > 1:
     else:
         for i, arg in enumerate(sys_argv):
             checkArg = str(arg.strip())
-            if re.search(r'-n$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; hostname = sys_argv[argnum].lower()
+            if re.search(r'-n$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; nodename = sys_argv[argnum].lower()
             if re.search(r'-s$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; change = sys_argv[argnum]
             if re.search(r'-t$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; launch_template_name = sys_argv[argnum]
 else:
@@ -296,13 +300,13 @@ else:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 #  init
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-global hostnames, project
+global nodenames, project
 global logfile, scriptname, payload
 global now, Logdate_long, jsondir, logdir
 global cred_names, credential_ids, credential_names, template_id, CONTINUE, RC
 
-# hostnames           = ['udv19bfs01, udv19db2aws01, udv19avs01, udv19elk02, udv19cis01, udv19tdm03, udv19bfs02, udv19tdm02, udv19tdg01, udv19elk01, udv19tools, udv19gws01, udv19app01, udv19elk03, kmddbs2136']
-hostnames           = ['udv19bfs01']
+# nodenames           = ['udv19bfs01, udv19db2aws01, udv19avs01, udv19elk02, udv19cis01, udv19tdm03, udv19bfs02, udv19tdm02, udv19tdg01, udv19elk01, udv19tools, udv19gws01, udv19app01, udv19elk03, kmddbs2136']
+nodenames           = ['udv19bfs01']
 cred_names          = []
 credential_ids      = []
 credential_names    = []
@@ -331,7 +335,8 @@ f_log(f'{stepName}','',debug)
 f_log(f'sys_argv',f'{sys_argv}',debug)
 f_log(f'isRunningLocally',f'{isRunningLocally}',debug)
 f_log(f'useRestAPI',f'{useRestAPI}',debug)
-f_log(f'hostname',f'{hostname}',debug)
+f_log(f'awx_hostname',f'{awx_hostname}',debug)
+f_log(f'nodename',f'{nodename}',debug)
 f_log(f'change',f'{change}',debug)
 f_log(f'launch_template_name',f'{launch_template_name}',debug)
 f_log(f'twusr',f'{twusr}',debug)
@@ -420,14 +425,14 @@ if CONTINUE:
         stepName = 'awx_hostname'
         f_log(f'{stepName}','',debug)
         acceptedInv = ['kmn_inventory','kmw_inventory','eng_inventory','enw_inventory']
-        hostnames = [f'{hostname.upper()}',f'{hostname.lower()}']
-        for hostname in hostnames:
-            hostname = hostname.strip()
+        nodenames = [f'{nodename.upper()}',f'{nodename.lower()}']
+        for nodename in nodenames:
+            nodename = nodename.strip()
             if useRestAPI:
-                request = f'hosts/?name={hostname}'
+                request = f'hosts/?name={nodename}'
                 result,RC = f_requests(request,twusr,twpwd,payload,debug)
             else:
-                cmdexec = ['awx', 'host', 'list', '--name', f'{hostname}']
+                cmdexec = ['awx', 'host', 'list', '--name', f'{nodename}']
                 result,RC = f_cmdexec(cmdexec,debug)
             if RC > 0: continue
             if isRunningLocally: f_dump_and_write(result,useRestAPI,stepName,debug)
@@ -439,14 +444,14 @@ if CONTINUE:
                     inv_name     = row['summary_fields']['inventory']['name']
                     inv_id       = row['summary_fields']['inventory']['id']
                     host_id     = row['id']
-                    hostname    = row['name']
+                    nodename    = row['name']
                 else:
                     continue
 
         f_log(f'inv_id',f'{inv_id}',debug)
         f_log(f'inv_name',f'{inv_name}',debug)
         f_log(f'host_id',f'{host_id}',debug)
-        f_log(f'hostname',f'{hostname}',debug)
+        f_log(f'nodename',f'{nodename}',debug)
 
     except Exception as e:
         if debug: logging.error(e)
@@ -621,7 +626,7 @@ if CONTINUE:
                 "inventory": inv_id,
                 "credentials": unique_credential_ids,
                 "extra_vars": {
-                    "nodename": hostname,
+                    "nodename": nodename,
                     "change": change
                 }
             }
@@ -635,7 +640,7 @@ if CONTINUE:
             credential      = f'--credentials {credential_ids} '
             inventory       = f'--inventory {inv_id} '
             extra_vars = {
-                'hostname': f'{hostname}',
+                'nodename': f'{nodename}',
                 'change': f'{change}',
             }
             extra_vars  = f'--extra_vars \"{extra_vars}\"'
