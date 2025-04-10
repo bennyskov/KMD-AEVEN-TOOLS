@@ -46,6 +46,9 @@
     # tower_host: 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local'
     # tower_username: 'functional_id_001'
     # tower_password: 'm9AHKuXYa*MeZZWLsHqB'
+    ansib_user1: 'kmduxat1'
+    ansib_user2: 'kmduxat2'
+
   tasks:
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     # Export host from inventory
@@ -76,3 +79,68 @@
             msg: "Host {{ nodename }} found in inventory: {{ item.inventory_name }}"
           loop: "{{ host_data.results }}"
           when: host_data is defined and host_data.results | length > 0
+
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        #
+        # cleanup ansible
+        #
+        # "/var/opt/ansible/GTS",
+        # "/var/opt/ansible/tmp",
+        # "/var/opt/ansible/GTS/dataLake"
+        #
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+        - name: Delete ansible directory
+          ignore_errors: yes
+          file:
+            path: /var/opt/ansible
+            state: absent
+
+        - name: 'List /var/opt/ansible'
+          ignore_errors: yes
+          shell: 'ls -lrta /var/opt/ansible'
+          register: list_agentdir_out
+        - name: 'send output to ansible'
+          debug:
+            var: list_agentdir_out.stdout_lines
+
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # remove ansible users ansib_user1
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # - name: "2.A2.1. Check if {{ ansib_user1 }} already exists"
+        #   command: "id {{ ansib_user1 }}"
+        #   register: unix_user_info
+        #   ignore_errors: true
+
+        # - name: "2.A2.1. Delete user {{ ansib_user1 }}"
+        #   ignore_errors: true
+        #   ansible.builtin.user:
+        #     name: "{{ ansib_user1 }}"
+        #     remove: "{{ data.remove_user_dirs | default(true) }}"
+        #     state: absent
+
+        # - name: "2.A2.5. Delete sudoers profile for {{ ansib_user1 }}"
+        #   ignore_errors: true
+        #   ansible.builtin.file:
+        #     path: "/etc/sudoers.d/{{ ansib_user1 }}_sudo"
+        #     state: absent
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # remove ansible users ansib_user2
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # - name: "2.A2.1. Check if {{ ansib_user2 }} already exists"
+        #   command: "id {{ ansib_user2 }}"
+        #   register: unix_user_info
+        #   ignore_errors: true
+
+        # - name: "2.A2.1. Delete user {{ ansib_user2 }}"
+        #   ignore_errors: true
+        #   ansible.builtin.user:
+        #     name: "{{ ansib_user2 }}"
+        #     remove: "{{ data.remove_user_dirs | default(true) }}"
+        #     state: absent
+
+        # - name: "2.A2.5. Delete sudoers profile for {{ ansib_user2 }}"
+        #   ignore_errors: true
+        #   ansible.builtin.file:
+        #     path: "/etc/sudoers.d/{{ ansib_user2 }}_sudo"
+        #     state: absent
