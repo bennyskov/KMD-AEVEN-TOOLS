@@ -53,6 +53,8 @@
   gather_facts: false
   vars:
     tmpdir: '/opt/IBM/ITM/tmp/opsware-agent-linux/'
+    agentdir: '/opt/opsware/agent/bin/'
+    etcoptdir: '/etc/opt/opsware/agent/'
   tasks:
     - name: Copy, create, exec file
       block:
@@ -94,3 +96,62 @@
           ignore_errors: yes
           debug:
             msg: '#stderr_lines#{{ result_from_redirect.stderr_lines }}'
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # list {{ agentdir }}
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: 'Check if agentdir exists before'
+          stat:
+            path: '{{ agentdir }}'
+          register: check_agentdir
+
+        - name: Set permissions for dir recurse
+          ignore_errors: yes
+          file:
+            path: '{{ agentdir }}'
+            state: directory
+            mode: 0755
+            recurse: yes
+            force: yes
+          when: check_agentdir.stat.exists
+
+        - name: 'List {{ agentdir }} before'
+          shell: 'ls -lrta {{ agentdir }}'
+          register: list_agentdir_out
+          when: check_agentdir.stat.exists
+
+        - name: 'send content to ansible before'
+          debug:
+            var: list_agentdir_out.stdout_lines
+          when: check_agentdir.stat.exists
+
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # list {{ etcoptdir }}
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: 'Check if agentdir exists before'
+          stat:
+            path: '{{ etcoptdir }}'
+          register: check_etcoptdir
+
+        - name: Set permissions for file
+          ignore_errors: yes
+          file:
+            path: '{{ etcoptdir }}mid'
+            mode: 0644
+          when: check_etcoptdir.stat.exists
+
+        - name: Set permissions for file
+          ignore_errors: yes
+          file:
+            path: '{{ etcoptdir }}agent_custom.args'
+            mode: 0644
+          when: check_etcoptdir.stat.exists
+
+        - name: 'List {{ etcoptdir }} before'
+          shell: 'ls -lrta {{ etcoptdir }}'
+          register: list_etcoptdir_out
+          when: check_etcoptdir.stat.exists
+
+        - name: 'send content to ansible before'
+          debug:
+            var: list_etcoptdir_out.stdout_lines
+          when: check_etcoptdir.stat.exists
