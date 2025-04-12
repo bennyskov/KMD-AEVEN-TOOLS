@@ -86,7 +86,7 @@
         # remove itmuser
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: '2.A2.1. Check if itmuser exists'
-          shell: 'grep -q "^itmuser:"" /etc/passwd'
+          shell: 'grep -q "^itmuser:" /etc/passwd'
           register: unix_user_info
           ignore_errors: true
           changed_when: false
