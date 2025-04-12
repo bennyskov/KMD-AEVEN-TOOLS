@@ -94,7 +94,7 @@
         - name: 'send output to ansible'
           debug:
             var: unix_user_info.stdout_lines
-            when: unix_user_info.rc == 0
+          when: unix_user_info.rc == 0
 
         # - name: '2.A2.1. Delete user itmuser'
         #   ignore_errors: true
