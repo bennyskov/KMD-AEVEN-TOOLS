@@ -86,18 +86,24 @@
         # remove itmuser
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: '2.A2.1. Check if itmuser exists'
-          shell: 'grep -q "^itmuser:" /etc/passwd'
+          shell: 'grep -i "^itmuser:" /etc/passwd'
           register: unix_user_info
           ignore_errors: true
           changed_when: false
 
-        - name: '2.A2.1. Delete user itmuser'
-          ignore_errors: true
-          ansible.builtin.user:
-            name: 'itmuser'
-            remove: '{{ data.remove_user_dirs | default(true) }}'
-            state: absent
-            when: unix_user_info.rc == 0    # - name: '2.A2.5. Delete sudoers profile for itmuser'
+        - name: 'send output to ansible'
+          debug:
+            var: unix_user_info.stdout_lines
+            when: unix_user_info.rc == 0
+
+        # - name: '2.A2.1. Delete user itmuser'
+        #   ignore_errors: true
+        #   ansible.builtin.user:
+        #     name: 'itmuser'
+        #     remove: '{{ data.remove_user_dirs | default(true) }}'
+        #     state: absent
+        #     when: unix_user_info.rc == 0
+        # - name: '2.A2.5. Delete sudoers profile for itmuser'
         #   ignore_errors: true
         #   ansible.builtin.file:
         #     path: '/etc/sudoers.d/itmuser_sudo'
