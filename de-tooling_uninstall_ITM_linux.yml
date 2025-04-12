@@ -1,19 +1,19 @@
 ---
 - name: Create OS groups
-  hosts: "{{ nodename }}"
+  hosts: '{{ nodename }}'
   become: false
   gather_facts: false
   connection: local
   tasks:
     - name: Create OS group
       group_by:
-        key: "machine_{{ ostype }}"
+        key: 'machine_{{ ostype }}'
       changed_when: false
       when: ostype is defined
       delegate_to: localhost
 
 - name: Socks tunnel setup
-  hosts: "{{ nodename }}"
+  hosts: '{{ nodename }}'
   gather_facts: false
   tasks:
     - include_role:
@@ -23,15 +23,15 @@
           run_once: true
           delegate_to: localhost
       vars:
-        acc_id: "{{ blueid_shortcode }}"
-        transaction_id: "{{ tower_job_id }}"
-        trans_num: "{{ tower_job_id }}"
+        acc_id: '{{ blueid_shortcode }}'
+        transaction_id: '{{ tower_job_id }}'
+        trans_num: '{{ tower_job_id }}'
 
     - set_fact:
         ansible_become_user: root
 
 - name: Get script result on linux nodes
-  hosts: "{{ nodename }}"
+  hosts: '{{ nodename }}'
   become: true
   gather_facts: false
   tasks:
@@ -45,8 +45,8 @@
 
         - name: copy multiple items
           copy:
-            src: "{{ item.src }}"
-            dest: "{{ item.dest }}"
+            src: '{{ item.src }}'
+            dest: '{{ item.dest }}'
             mode: 0777
 
           loop:
@@ -85,22 +85,20 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # remove itmuser
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: "2.A2.1. Check if itmuser exists"
-          shell: "grep -q '^itmuser:' /etc/passwd"
+        - name: '2.A2.1. Check if itmuser exists'
+          shell: 'grep -q "^itmuser:"" /etc/passwd'
           register: unix_user_info
           ignore_errors: true
           changed_when: false
 
-        - name: "2.A2.1. Delete user itmuser"
+        - name: '2.A2.1. Delete user itmuser'
           ignore_errors: true
           ansible.builtin.user:
-            name: "itmuser"
-            remove: "{{ data.remove_user_dirs | default(true) }}"
+            name: 'itmuser'
+            remove: '{{ data.remove_user_dirs | default(true) }}'
             state: absent
-          when: unix_user_info.stat.exists
-
-        # - name: "2.A2.5. Delete sudoers profile for itmuser"
+            when: unix_user_info.rc == 0    # - name: '2.A2.5. Delete sudoers profile for itmuser'
         #   ignore_errors: true
         #   ansible.builtin.file:
-        #     path: "/etc/sudoers.d/itmuser_sudo"
+        #     path: '/etc/sudoers.d/itmuser_sudo'
         #     state: absent
