@@ -63,10 +63,10 @@
         #     var: script_run.stdout_lines
 
 
-        - name: Delete /opt/IBM/ITM/ directory
-          file:
-            path: /opt/IBM/ITM/
-            state: absent
+        # - name: Delete /opt/IBM/ITM/ directory
+        #   file:
+        #     path: /opt/IBM/ITM/
+        #     state: absent
 
         - name: 'List /opt/IBM/ITM/'
           ignore_errors: yes
@@ -76,11 +76,11 @@
           debug:
             var: list_agentdir_out.stdout_lines
 
-        - name: Delete scripttemp_dir directory
-          ignore_errors: yes
-          file:
-            path: /tmp/scripttemp_dir
-            state: absent
+        # - name: Delete scripttemp_dir directory
+        #   ignore_errors: yes
+        #   file:
+        #     path: /tmp/scripttemp_dir
+        #     state: absent
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         # remove itmuser
