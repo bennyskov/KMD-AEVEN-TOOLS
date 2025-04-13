@@ -2,24 +2,24 @@
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #step: begin and setup tunnel and credentials
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: '1.A.00. - Create OS groups'
+- name: '1.A - Create OS groups'
   hosts: '{{ nodename }}'
   become: false
   gather_facts: false
   connection: local
   tasks:
-    - name: '1.A.00. - Create OS group'
+    - name: '1.A.00 - Create OS group'
       group_by:
         key: 'machine_{{ ostype }}'
       changed_when: false
       when: ostype is defined
       delegate_to: localhost
 
-- name: '1.B.00. - Socks tunnel setup'
+- name: '2.B - Socks tunnel setup'
   hosts: '{{ nodename }}'
   gather_facts: false
   tasks:
-    - include_role:
+    - include_role: # Not numbered per rules
         name: ansible-role-event-socks-tunnel
         apply:
           check_mode: false
@@ -30,30 +30,30 @@
         transaction_id: '{{ tower_job_id }}'
         trans_num: '{{ tower_job_id }}'
 
-    - set_fact:
+    - name: '2.B.00 - Set become user'
+      set_fact:
         ansible_become_user: root
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #step:  uninstall ITM on linux, and then cleanup
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: '1.C.00. - uninstall ITM on linux, and then cleanup'
+- name: '3.C - uninstall ITM on linux, and then cleanup'
   hosts: '{{ nodename }}'
   become: true
   gather_facts: false
   tasks:
-    - name: '1.C.00. - Copy, create, fetch file'
+    - name: '3.C.00 - Copy, create, fetch file block'
       block:
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step:  Copy, create, fetch file
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-        - name: '1.C.00. - Create prtemp_dir directory'
+        - name: '3.C.01 - Create prtemp_dir directory'
           file:
             path: /tmp/scripttemp_dir
             state: directory
             mode: 0777
 
-        - name: '1.C.01. - copy multiple items'
+        - name: '3.C.02 - copy multiple items'
           copy:
             src: '{{ item.src }}'
             dest: '{{ item.dest }}'
@@ -66,58 +66,56 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step:  run uninstall
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-        - name: '1.C.02. - Run command'
+        - name: '3.C.03 - Run command'
           shell: perl -w ITMAgentUNinstall_linux.pl -d
           args:
             chdir: /tmp/scripttemp_dir
           register: script_run
 
-        - name: '1.C.03. - Output list'
+        - name: '3.C.04 - Output list'
           debug:
             var: script_run.stdout_lines
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step:  Delete ITM files
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-        - name: '1.C.04. - Delete /opt/IBM/ITM/ directory'
+        - name: '3.C.05 - Delete /opt/IBM/ITM/ directory'
           file:
             path: /opt/IBM/ITM/
             state: absent
 
-        - name: '1.C.05. - List /opt/IBM/ITM/'
+        - name: '3.C.06 - List /opt/IBM/ITM/'
           ignore_errors: yes
           shell: 'ls -lrta /opt/IBM/ITM/'
           register: list_agentdir_out
 
-        - name: '1.C.06. - send output to ansible'
+        - name: '3.C.07 - send output to ansible'
           debug:
             var: list_agentdir_out.stdout_lines
 
-        - name: '1.C.07. - Delete scripttemp_dir directory'
+        - name: '3.C.08 - Delete scripttemp_dir directory'
           ignore_errors: yes
           file:
             path: /tmp/scripttemp_dir
             state: absent
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        ##step:  remove itmuser
+        #step:  remove itmuser
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '1.D.00. - Check if itmuser exists'
+        - name: '3.C.09 - Check if itmuser exists'
           shell: 'grep -i "^itmuser:" /etc/passwd'
           register: unix_user_info
           ignore_errors: true
           changed_when: false
 
-        - name: '1.D.01. - send output to ansible'
+        - name: '3.C.10 - send output to ansible'
           debug:
             var: unix_user_info.stdout_lines
           when:
             - unix_user_info.rc == 0
             - unix_user_info.stdout is match("itmuser")
 
-        - name: '1.D.02. - Delete user itmuser'
+        - name: '3.C.11 - Delete user itmuser'
           ignore_errors: true
           user:
             name: 'itmuser'
@@ -127,7 +125,7 @@
             - unix_user_info.rc == 0
             - unix_user_info.stdout is match("itmuser")
 
-        - name: '1.D.02. - list /etc/sudoers.d/itm*'
+        - name: '3.C.12 - list /etc/sudoers.d/itm*'
           ignore_errors: yes
           shell: 'ls -lrta /etc/sudoers.d/itm*'
           register: list_agentdir_out
@@ -135,12 +133,12 @@
             - unix_user_info.rc == 0
             - unix_user_info.stdout is match("itmuser")
 
-        - name: "1.D.03. - Delete sudoers profile for itmuser"
+        - name: '3.C.13 - Delete sudoers profile for itmuser'
           ignore_errors: true
           ansible.builtin.file:
             path: "/etc/sudoers.d/itmuser_sudo"
             state: absent
 
-        - name: "1.D.03. - Additional task example"
+        - name: '3.C.14 - Additional task example'
           debug:
             msg: "This is a placeholder for the next task."
