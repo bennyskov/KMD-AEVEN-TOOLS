@@ -8,7 +8,7 @@
   gather_facts: false
   connection: local
   tasks:
-    - name: '1.A.00 - Create OS group'
+    - name: '1.A.00 - Create OS machine_{{ ostype }}'
       group_by:
         key: 'machine_{{ ostype }}'
       changed_when: false
