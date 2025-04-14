@@ -45,6 +45,14 @@
     - name: '3.C.00 - Copy, create, fetch file block'
       block:
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        #step:  check if /opt/IBM/ITM/ exists
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: 'Check if the /opt/IBM/ITM/ exists'
+          ignore_errors: yes
+          stat:
+            path: '/opt/IBM/ITM/'
+          register: file_stat_ITM
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step:  Copy, create, fetch file
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: '3.C.01 - Create prtemp_dir directory'
@@ -52,8 +60,10 @@
             path: /tmp/scripttemp_dir
             state: directory
             mode: 0777
+          when: file_stat_ITM.stat.exists
 
         - name: '3.C.02 - copy multiple items'
+          ignore_errors: yes
           copy:
             src: '{{ item.src }}'
             dest: '{{ item.dest }}'
@@ -62,27 +72,32 @@
           loop:
             - src: scripts/ITMAgentUNinstall_linux.pl
               dest: /tmp/scripttemp_dir/ITMAgentUNinstall_linux.pl
-
+          when: file_stat_ITM.stat.exists
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step:  run uninstall
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: '3.C.03 - Run command'
+          ignore_errors: yes
           shell: perl -w ITMAgentUNinstall_linux.pl -d
           args:
             chdir: /tmp/scripttemp_dir
           register: script_run
+          when: file_stat_ITM.stat.exists
 
         - name: '3.C.04 - Output list'
+          ignore_errors: yes
           debug:
             var: script_run.stdout_lines
-
+          when: file_stat_ITM.stat.exists
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step:  Delete ITM files
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: '3.C.05 - Delete /opt/IBM/ITM/ directory'
+          ignore_errors: yes
           file:
             path: /opt/IBM/ITM/
             state: absent
+          when: file_stat_ITM.stat.exists
 
         - name: '3.C.06 - List /opt/IBM/ITM/'
           ignore_errors: yes
@@ -90,8 +105,10 @@
           register: list_agentdir_out
 
         - name: '3.C.07 - send output to ansible'
+          ignore_errors: yes
           debug:
             var: list_agentdir_out.stdout_lines
+          when: file_stat_ITM.stat.exists
 
         - name: '3.C.08 - Delete scripttemp_dir directory'
           ignore_errors: yes
@@ -103,12 +120,13 @@
         #step:  remove itmuser
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: '3.C.09 - Check if itmuser exists'
+          ignore_errors: yes
           shell: 'grep -i "^itmuser:" /etc/passwd'
           register: unix_user_info
-          ignore_errors: true
           changed_when: false
 
         - name: '3.C.10 - send output to ansible'
+          ignore_errors: yes
           debug:
             var: unix_user_info.stdout_lines
           when:
@@ -133,12 +151,13 @@
             - unix_user_info.rc == 0
             - unix_user_info.stdout is match("itmuser")
 
-        - name: '3.C.13 - Delete sudoers profile for itmuser'
-          ignore_errors: true
-          ansible.builtin.file:
-            path: "/etc/sudoers.d/itmuser_sudo"
-            state: absent
+        # - name: '3.C.13 - Delete sudoers profile for itmuser'
+        #   ignore_errors: true
+        #   ansible.builtin.file:
+        #     path: "/etc/sudoers.d/itmuser_sudo"
+        #     state: absent
 
-        - name: '3.C.14 - Additional task example'
-          debug:
-            msg: "This is a placeholder for the next task."
+        # - name: '3.C.14 - Additional task example'
+        #   ignore_errors: yes
+        #   debug:
+        #     msg: "This is a placeholder for the next task."
