@@ -132,10 +132,11 @@ sub check_itmuser_run_securemain() {
         ++$step;
         undef( @out );
         @out = ();$baz = '';
+        $userid = "itmuser";
+
         $text = "check if ${userid} exists";
         plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
 
-        $userid = "itmuser";
         $cmdexec = "id -g ${userid} | xargs getent group | cut -d: -f1 2>&1";
         if ( $debug ) { plog("\n$cmdexec\n"); }
         @out = `$cmdexec`;
