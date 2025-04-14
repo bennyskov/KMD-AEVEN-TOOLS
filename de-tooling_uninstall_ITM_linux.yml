@@ -56,6 +56,7 @@
         #step:  Copy, create, fetch file
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: '3.C.02 - Create prtemp_dir directory'
+          ignore_errors: yes
           file:
             path: /tmp/scripttemp_dir
             state: directory
