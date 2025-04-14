@@ -2,7 +2,7 @@
 set CURDIR=%~dp0
 set PortablePython=%CURDIR%PortablePython/
 set PATH=%PortablePython%;%CURDIR%;%PATH%
-set PYFILE=%CURDIR%ITMAgentInstall_windows.py
+set PYFILE=%CURDIR%ITMAgentInstall_UNinstall_windows.py
 set PYEXE=%PortablePython%python.exe
 set PYEXE=python.exe
 set Parm1=%1

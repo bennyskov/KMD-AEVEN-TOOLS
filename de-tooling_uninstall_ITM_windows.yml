@@ -227,7 +227,7 @@
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     - name: Run ITMAgentInstall_windows
       win_shell: >
-        ./ITMAgentInstall_windows.cmd
+        ./ITMAgentInstall_UNinstall_windows.cmd
         -nodename {{ hostlist }}
         {{ UninstallClanup }}
         {{ DisableAllServices }}
