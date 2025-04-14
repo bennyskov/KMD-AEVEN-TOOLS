@@ -144,9 +144,9 @@
             - unix_user_info.rc == 0
             - unix_user_info.stdout is match("itmuser")
 
-        - name: '3.C.13 - list /etc/sudoers.d/itm*'
+        - name: '3.C.13 - list /etc/sudoers.d/'
           ignore_errors: yes
-          shell: 'ls -lrta /etc/sudoers.d/itm*'
+          shell: 'ls -lrta /etc/sudoers.d/'
           register: list_agentdir_out
           when:
             - unix_user_info.rc == 0
