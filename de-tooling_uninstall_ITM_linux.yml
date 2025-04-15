@@ -57,11 +57,10 @@
           ignore_errors: yes
           file:
             path: /opt/IBM
-            state: directory
             mode: 0777
             owner: root
             group: root
-            force: true
+            recurse: true
           when: file_stat_ITM.stat.exists
 
         - name: '3.C.03 - Create scripttemp_dir directory'
