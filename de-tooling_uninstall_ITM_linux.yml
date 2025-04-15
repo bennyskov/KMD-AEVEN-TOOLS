@@ -59,7 +59,6 @@
             path: /opt/IBM
             state: directory
             mode: 0777
-            recurse: true
             owner: root
             group: root
             force: true
@@ -103,13 +102,15 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step:  Delete ITM files
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '3.C.06 - Delete /opt/IBM/ITM/ directory'
+        - name: '3.C.06 - Delete /opt/IBM'
           ignore_errors: yes
           file:
-            path: /opt/IBM/ITM/
+            path: /opt/IBM
             state: absent
+            mode: 0777
+            owner: root
+            group: root
             force: true
-            register: delete_dir_result
           when: file_stat_ITM.stat.exists
 
         - name: '3.C.06a - Check what is locking /opt/IBM/ITM/ directory'
