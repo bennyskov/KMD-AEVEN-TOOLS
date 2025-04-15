@@ -104,7 +104,8 @@
           file:
             path: /opt/IBM/ITM/
             state: absent
-          register: delete_dir_result
+            force: true
+            register: delete_dir_result
           when: file_stat_ITM.stat.exists
 
         - name: '3.C.06a - Check what is locking /opt/IBM/ITM/ directory'
@@ -117,10 +118,10 @@
 
         - name: '3.C.06b - Display locking processes for /opt/IBM/ITM/'
           debug:
-            var: locking_processes.stdout_lines
+            msg: >-
+              "No locking processes found for /opt/IBM/ITM/" if locking_processes.stdout_lines | length == 0 else locking_processes.stdout_lines
           when:
             - locking_processes is defined
-            - locking_processes.stdout_lines is defined
 
         - name: '3.C.06c - List /opt/IBM/ITM/'
           ignore_errors: yes
