@@ -60,6 +60,8 @@
             state: directory
             mode: 0777
             recurse: true
+            owner: root
+            group: root
             force: true
           when: file_stat_ITM.stat.exists
 
