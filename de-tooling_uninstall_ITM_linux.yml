@@ -144,6 +144,38 @@
             - unix_user_info.rc == 0
             - unix_user_info.stdout is match("itmuser")
 
+            - name: '3.C.12a - Parse process ID when user deletion fails'
+              set_fact:
+                process_id: "{{ unix_user_info.stderr | regex_search('process ([0-9]+)', '\\1') | first | default('') }}"
+              when:
+                - unix_user_info.rc == 0
+                - unix_user_info.stdout is match("itmuser")
+                - unix_user_info.stderr is defined and unix_user_info.stderr is search("user itmuser is currently used by process")
+
+            - name: '3.C.12b - Show process information that is locking the user'
+              shell: "ps -p {{ process_id }} -o pid,ppid,user,cmd,etime"
+              register: process_info
+              ignore_errors: yes
+              when: process_id is defined and process_id != ''
+
+            - name: '3.C.12c - Display process information'
+              debug:
+                var: process_info.stdout_lines
+              when: process_id is defined and process_id != ''
+
+            - name: '3.C.12d - Get all processes running as itmuser'
+              shell: "ps -u itmuser -o pid,ppid,user,cmd,etime"
+              register: itmuser_processes
+              ignore_errors: yes
+              when:
+                - unix_user_info.rc == 0
+                - unix_user_info.stdout is match("itmuser")
+
+            - name: '3.C.12e - Display all itmuser processes'
+              debug:
+                var: itmuser_processes.stdout_lines
+              when: itmuser_processes is defined
+
         - name: '3.C.13 - list /etc/sudoers.d/'
           ignore_errors: yes
           shell: 'ls -lrta /etc/sudoers.d/'
@@ -157,6 +189,9 @@
         #   ansible.builtin.file:
         #     path: "/etc/sudoers.d/itmuser_sudo"
         #     state: absent
+        #   when:
+        #     - unix_user_info.rc == 0
+        #     - unix_user_info.stdout is match("itmuser")
 
         # - name: '3.C.15 - Additional task example'
         #   ignore_errors: yes
