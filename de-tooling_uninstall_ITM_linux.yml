@@ -147,8 +147,9 @@
 
         - name: '3.C.12a - Parse process ID when user deletion fails'
           set_fact:
-            # Parse the error message from the failed task
-            process_id: "{{ delete_user_result.msg | regex_search('process ([0-9]+)', '\\\\1') | first | default('') }}"
+            # Use regex_findall to get a list of matches (process IDs)
+            # Take the first match if it exists, otherwise default to empty string
+            process_id: "{{ (delete_user_result.msg | regex_findall('process ([0-9]+)')) | first | default('') }}"
           when:
             # Check if the previous task failed and the message matches
             - delete_user_result is defined
