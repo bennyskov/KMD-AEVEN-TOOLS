@@ -98,20 +98,36 @@
           file:
             path: /opt/IBM/ITM/
             state: absent
+          register: delete_dir_result
           when: file_stat_ITM.stat.exists
 
-        - name: '3.C.07 - List /opt/IBM/ITM/'
+        - name: '3.C.06a - Check what is locking /opt/IBM/ITM/ directory'
+          shell: "lsof +D /opt/IBM/ITM/"
+          register: locking_processes
+          ignore_errors: yes
+          when:
+            - delete_dir_result is defined
+            - delete_dir_result.failed
+
+        - name: '3.C.06b - Display locking processes for /opt/IBM/ITM/'
+          debug:
+            var: locking_processes.stdout_lines
+          when:
+            - locking_processes is defined
+            - locking_processes.stdout_lines is defined
+
+        - name: '3.C.06c - List /opt/IBM/ITM/'
           ignore_errors: yes
           shell: 'ls -lrta /opt/IBM/ITM/'
           register: list_agentdir_out
 
-        - name: '3.C.08 - send output to ansible'
+        - name: '3.C.06d - send output to ansible'
           ignore_errors: yes
           debug:
             var: list_agentdir_out.stdout_lines
           when: file_stat_ITM.stat.exists
 
-        - name: '3.C.09 - Delete scripttemp_dir directory'
+        - name: '3.C.06e - Delete scripttemp_dir directory'
           ignore_errors: yes
           file:
             path: /tmp/scripttemp_dir
