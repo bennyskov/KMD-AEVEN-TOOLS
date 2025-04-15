@@ -101,9 +101,12 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step:  Delete ITM files
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '3.C.06 - Delete /opt/IBM'
+        - name: '3.C.06 - test if /opt/IBM is a mountpoint'
           ignore_errors: yes
-          shell: mountpoint -q "/opt/IBM"
+          stat:
+            path: "/opt/IBM"
+            get_attributes: true
+          register: file_mountpoint_ITM
           when: file_mountpoint_ITM.stat.exists
 
         - name: '3.C.06 - Delete /opt/IBM'
