@@ -57,7 +57,7 @@
           ignore_errors: yes
           file:
             path: /opt/IBM
-            mode: 0777
+            mode: 0775
             owner: root
             group: root
             recurse: true
@@ -68,7 +68,7 @@
           file:
             path: /tmp/scripttemp_dir
             state: directory
-            mode: 0777
+            mode: 0775
           when: file_stat_ITM.stat.exists
 
         - name: '3.C.04 - copy multiple items'
@@ -76,7 +76,7 @@
           copy:
             src: '{{ item.src }}'
             dest: '{{ item.dest }}'
-            mode: 0777
+            mode: 0775
 
           loop:
             - src: scripts/ITMAgentUNinstall_linux.pl
@@ -103,10 +103,15 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: '3.C.06 - Delete /opt/IBM'
           ignore_errors: yes
+          shell: mountpoint -q "/opt/IBM"
+          when: file_mountpoint_ITM.stat.exists
+
+        - name: '3.C.06 - Delete /opt/IBM'
+          ignore_errors: yes
           file:
             path: /opt/IBM
             state: absent
-            mode: 0777
+            mode: 0775
             owner: root
             group: root
             force: true
