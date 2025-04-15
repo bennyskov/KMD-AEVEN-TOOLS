@@ -83,7 +83,7 @@
           args:
             chdir: /tmp/scripttemp_dir
           register: script_run
-          when: file_stat_ITM.stat.exists
+          # when: file_stat_ITM.stat.exists
 
         - name: '3.C.05 - Output list'
           ignore_errors: yes
