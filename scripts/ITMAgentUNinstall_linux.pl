@@ -177,7 +177,7 @@ sub check_itmuser_run_securemain() {
                         plog("OK: ITM is stated using ${userid}, so we must run securemain");
                 } else {
                         $itmuser_found = 0 ;
-                        plog("OK: ITM is stated using ${foo}, no need for securemain");
+                        plog("OK: ITM is stated as root, no need for securemain");
                 }
         }
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
