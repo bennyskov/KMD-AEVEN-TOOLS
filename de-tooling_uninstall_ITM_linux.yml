@@ -98,7 +98,8 @@
           file:
             path: /opt/IBM/ITM/
             state: absent
-          register: delete_dir_result
+            force: true
+            register: delete_dir_result
           when: file_stat_ITM.stat.exists
 
         - name: '3.C.06a - Check what is locking /opt/IBM/ITM/ directory'

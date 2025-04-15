@@ -45,7 +45,7 @@ my($foo,$bar,$baz,$qux,$quux,$quuz,$corge,$grault,$garply,$waldo,$fred,$plugh,$x
 my($envirShore,$step,$scriptname,$scriptn,@words);
 my(@foo,@bar,@baz,@out,@trimin,$argnum);
 my($cmdexec,$text,$debug,$csv_data,%hash_rtems,@csv_rows,@csv_lines,@fields,$line,$row,$count,$status,$ccode,$hostname,$itm_nodename);
-my($rtemsCi,$rtemsIP,$rtemsConnect,$rtemsPairs,$rtemsFunction,$rtemsPrimSec,$rtemsTier,$rtemsEnvir,$rtemsShore,$result,$itmuser);
+my($rtemsCi,$rtemsIP,$rtemsConnect,$rtemsPairs,$rtemsFunction,$rtemsPrimSec,$rtemsTier,$rtemsEnvir,$rtemsShore,$result,$itmuser_found);
 my($primary,$secondary,$pairsNumber,$CT_CMSLIST,$rtems_file,$handle,$agent,$shore,$envir);
 my($silent_config_data,$silent_config_linux_git,$silent_config_linux,$pingonly);
 my($env_file,$env_file_git,$env_data);
@@ -166,14 +166,14 @@ sub trimout {
         }
 }
 sub check_itmuser_run_securemain() {
-        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+       # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # check if itmuser exists
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         ++$step;
         undef( @out );
         @out = ();$baz = '';
-
         $userid = "itmuser";
+        $itmuser_found = 0 ;
 
         $text = "check if ${userid} exists";
         plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
@@ -183,18 +183,18 @@ sub check_itmuser_run_securemain() {
         @out = `$cmdexec`;
         # if ( $debug ) { plog("\nout=>\n@out\n"); }
         trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
-        if ( $baz !~ /^$/i ) {
-                $itmuser = 1;
+        if ( $baz =~ /no such user/i ) {
+                $itmuser_found = 0 ;
+                plog("OK: ${userid} NOT found: $baz");
+        } else {
+                $itmuser_found = 1;
                 $group = $baz;
                 plog("OK: ${userid} found in group: $group");
-        } else {
-                $itmuser = 0 ;
-                plog("OK: ${userid} NOT found: $baz");
         }
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # doublecheck to see if ITM is started under itmuser user
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-        if ( $itmuser ) {
+        if ( $itmuser_found ) {
                 ++$step;
                 undef( @out );
                 @out = ();$baz = '';
@@ -212,18 +212,18 @@ sub check_itmuser_run_securemain() {
                 ($foo,$bar) = split(/ /, $baz, -1);
 
                 if ( $baz =~ /^${userid}/i ) {
-                        $itmuser = 1;
+                        $itmuser_found = 1;
                         $group = $baz;
                         plog("OK: ITM is stated using ${userid}, so we must run securemain");
                 } else {
-                        $itmuser = 0 ;
+                        $itmuser_found = 0 ;
                         plog("OK: ITM is stated using ${foo}, no need for securemain");
                 }
         }
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # secureMain for itmuser
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-        if ( $itmuser ) {
+        if ( $itmuser_found ) {
 
                 ++$step;
                 undef( @out );
@@ -642,7 +642,7 @@ sub install_agents {
         $text = "install ITM agents";
         plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
 
-        if ( $itmuser ) {
+        if ( $itmuser_found ) {
                 $cmdexec = "sudo -u ${userid} /opt/IBM/ITM/bin/itmcmd agent start lz 2>&1";
         } else {
                 $cmdexec = " /opt/IBM/ITM/bin/install.sh";
@@ -666,7 +666,7 @@ sub configure_agent {
         $text = "run configure using silent_config_linux";
         plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
 
-        if ( $itmuser ) {
+        if ( $itmuser_found ) {
                 $cmdexec = "sudo -u ${userid} /opt/IBM/ITM/bin/itmcmd config -A -p $silent_config_linux ${agent} 2>&1";
         } else {
                 $cmdexec = "/opt/IBM/ITM/bin/itmcmd config -A -p $silent_config_linux ${agent} 2>&1";
@@ -690,7 +690,7 @@ sub start_agents {
         $text = "start lz agents";
         plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
 
-        if ( $itmuser ) {
+        if ( $itmuser_found ) {
                 $cmdexec = "sudo -u ${userid} /opt/IBM/ITM/bin/itmcmd agent start lz 2>&1";
         } else {
                 $cmdexec = "/opt/IBM/ITM/bin/itmcmd agent start lz 2>&1";
@@ -712,7 +712,7 @@ sub start_agents {
         $text = "start 08 agents";
         plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
 
-        if ( $itmuser ) {
+        if ( $itmuser_found ) {
                 $cmdexec = "sudo -u ${userid} /opt/IBM/ITM/bin/itmcmd agent start 08 2>&1";
         } else {
                 $cmdexec = "/opt/IBM/ITM/bin/itmcmd agent start 08 2>&1";
@@ -734,7 +734,7 @@ sub start_agents {
         $text = "start all agents";
         plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
 
-        if ( $itmuser ) {
+        if ( $itmuser_found ) {
                 $cmdexec = "sudo -u ${userid} /opt/IBM/ITM/bin/itmcmd agent start all 2>&1";
         } else {
                 $cmdexec = "/opt/IBM/ITM/bin/itmcmd agent start all 2>&1";
