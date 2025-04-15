@@ -315,7 +315,7 @@ sub listLogs {
         $text = "list Logs";
         plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
 
-        $cmdexec = "ls -lrt /opt/IBM/ITM/* 2>&1";
+        $cmdexec = "ls -lrt /opt/IBM/ITM/ 2>&1";
         if ( $debug ) { plog("\n$cmdexec\n"); }
         @out = `$cmdexec`;
         if ( $debug ) { plog("\nout=>\n@out\n"); }

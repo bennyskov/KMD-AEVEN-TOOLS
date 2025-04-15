@@ -53,12 +53,14 @@
             path: /opt/IBM/ITM/
           register: file_stat_ITM
 
-        - name: '3.C.02 - set /opt/IBM/ITM/'
+        - name: '3.C.02 - set /opt/IBM/'
           ignore_errors: yes
           file:
-            path: /opt/IBM/ITM/
+            path: /opt/IBM
             state: directory
             mode: 0777
+            recurse: true
+            force: true
           when: file_stat_ITM.stat.exists
 
         - name: '3.C.03 - Create scripttemp_dir directory'
