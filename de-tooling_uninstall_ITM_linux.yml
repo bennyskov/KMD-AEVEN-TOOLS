@@ -136,7 +136,7 @@
 
         - name: '3.C.12 - Handle itmuser deletion and related processes'
           block:
-            - name: '3.C.12.00 - Delete user itmuser'
+            - name: '3.C.12a - Delete user itmuser'
               ignore_errors: true
               user:
                 name: 'itmuser'
@@ -147,7 +147,7 @@
                 - unix_user_info.rc == 0
                 - unix_user_info.stdout is match("itmuser")
 
-            - name: '3.C.12.01 - Parse process ID when user deletion fails'
+            - name: '3.C.12b - Parse process ID when user deletion fails'
               set_fact:
                 process_id: "{{ (delete_user_result.msg | regex_findall('process ([0-9]+)')) | first | default('') }}"
               when:
@@ -156,28 +156,28 @@
                 - delete_user_result.msg is defined
                 - delete_user_result.msg is search("user itmuser is currently used by process")
 
-            - name: '3.C.12.02 - Show process information that is locking the user'
+            - name: '3.C.12c - Show process information that is locking the user'
               shell: "ps -p {{ process_id }} -o pid,ppid,user,cmd,etime"
               register: process_info
               ignore_errors: yes
               when: process_id is defined and process_id != ''
 
-            - name: '3.C.12.03 - Verify locking process command contains ITM path'
+            - name: '3.C.12d - Verify locking process command contains ITM path'
               set_fact:
                 locking_process_is_itm: "{{ process_info.stdout is defined and '/opt/IBM/ITM/' in process_info.stdout }}"
               when: process_id is defined and process_id != '' and process_info is defined
 
-            - name: '3.C.12.04 - Display verification result'
+            - name: '3.C.12e - Display verification result'
               debug:
                 msg: "Locking process {{ process_id }} command contains '/opt/IBM/ITM/': {{ locking_process_is_itm }}"
               when: process_id is defined and process_id != '' and locking_process_is_itm is defined
 
-            - name: '3.C.12.05 - Display process information'
+            - name: '3.C.12f - Display process information'
               debug:
                 var: process_info.stdout_lines
               when: process_id is defined and process_id != ''
 
-            - name: '3.C.12.06 - Get all processes running as itmuser'
+            - name: '3.C.12g - Get all processes running as itmuser'
               shell: "ps -u itmuser -o pid,ppid,user,cmd,etime"
               register: itmuser_processes
               ignore_errors: yes
@@ -187,7 +187,7 @@
                 - delete_user_result.msg is defined
                 - delete_user_result.msg is search("user itmuser is currently used by process")
 
-            - name: '3.C.12.07 - Display all itmuser processes'
+            - name: '3.C.12h - Display all itmuser processes'
               debug:
                 var: itmuser_processes.stdout_lines
               when:
@@ -197,7 +197,7 @@
                 - delete_user_result.msg is search("user itmuser is currently used by process")
                 - itmuser_processes is defined
 
-            - name: '3.C.12.08 - Kill locking process (if found)'
+            - name: '3.C.12i - Kill locking process (if found)'
               shell: "kill -9 {{ process_id }}"
               register: kill_process_result
               ignore_errors: yes
@@ -205,7 +205,7 @@
                 - process_id is defined
                 - process_id != ''
 
-            - name: '3.C.12.09 - Retry delete user itmuser after killing process'
+            - name: '3.C.12j - Retry delete user itmuser after killing process'
               user:
                 name: 'itmuser'
                 remove: '{{ data.remove_user_dirs | default(true) }}'
@@ -216,7 +216,7 @@
                 - process_id is defined
                 - process_id != ''
 
-            - name: '3.C.12.10 - Show result of retry delete user'
+            - name: '3.C.12k - Show result of retry delete user'
               debug:
                 var: retry_delete_user_result
               when:
