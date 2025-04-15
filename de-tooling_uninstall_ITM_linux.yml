@@ -50,7 +50,7 @@
         - name: '3.C.01 - Check if the /opt/IBM/ITM/ exists'
           ignore_errors: yes
           stat:
-            path: '/opt/IBM/ITM/'
+            path: /opt/IBM/ITM/
           register: file_stat_ITM
 
         - name: '3.C.02 - set /opt/IBM/ITM/'
@@ -60,10 +60,8 @@
             state: directory
             mode: 0777
           when: file_stat_ITM.stat.exists
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        #step:  Copy, create, fetch file
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '3.C.02 - Create prtemp_dir directory'
+
+        - name: '3.C.03 - Create scripttemp_dir directory'
           ignore_errors: yes
           file:
             path: /tmp/scripttemp_dir
@@ -71,7 +69,7 @@
             mode: 0777
           when: file_stat_ITM.stat.exists
 
-        - name: '3.C.03 - copy multiple items'
+        - name: '3.C.04 - copy multiple items'
           ignore_errors: yes
           copy:
             src: '{{ item.src }}'
@@ -106,8 +104,7 @@
           file:
             path: /opt/IBM/ITM/
             state: absent
-            force: true
-            register: delete_dir_result
+          register: delete_dir_result
           when: file_stat_ITM.stat.exists
 
         - name: '3.C.06a - Check what is locking /opt/IBM/ITM/ directory'
@@ -246,30 +243,6 @@
                 var: retry_delete_user_result
               when:
                 - retry_delete_user_result is defined
-            # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-            #step:  list /etc/sudoers.d/
-            # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-            - name: '3.C.12l - list /etc/sudoers.d/'
-              ignore_errors: yes
-              shell: 'ls -lrta /etc/sudoers.d/'
-              register: list_agentdir_out
-              when:
-                - unix_user_info.rc == 0
-                - unix_user_info.stdout is match("itmuser")
-
-            # - name: '3.C.12m - Delete sudoers profile for itmuser'
-            #   ignore_errors: true
-            #   ansible.builtin.file:
-            #     path: "/etc/sudoers.d/itmuser_sudo"
-            #     state: absent
-            #   when:
-            #     - unix_user_info.rc == 0
-            #     - unix_user_info.stdout is match("itmuser")
-
-            # - name: '3.C.12n - Additional task example'
-            #   ignore_errors: yes
-            #   debug:
-            #     msg: "This is a placeholder for the next task."                -
           when:
             - unix_user_info.rc == 0
             - unix_user_info.stdout is match("itmuser")
