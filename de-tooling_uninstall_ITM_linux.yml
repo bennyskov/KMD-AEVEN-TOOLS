@@ -221,28 +221,30 @@
                 var: retry_delete_user_result
               when:
                 - retry_delete_user_result is defined
+            # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+            #step:  list /etc/sudoers.d/
+            # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+            - name: '3.C.12l - list /etc/sudoers.d/'
+              ignore_errors: yes
+              shell: 'ls -lrta /etc/sudoers.d/'
+              register: list_agentdir_out
+              when:
+                - unix_user_info.rc == 0
+                - unix_user_info.stdout is match("itmuser")
 
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        #step:  list /etc/sudoers.d/
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '3.C.13 - list /etc/sudoers.d/'
-          ignore_errors: yes
-          shell: 'ls -lrta /etc/sudoers.d/'
-          register: list_agentdir_out
+            # - name: '3.C.12m - Delete sudoers profile for itmuser'
+            #   ignore_errors: true
+            #   ansible.builtin.file:
+            #     path: "/etc/sudoers.d/itmuser_sudo"
+            #     state: absent
+            #   when:
+            #     - unix_user_info.rc == 0
+            #     - unix_user_info.stdout is match("itmuser")
+
+            # - name: '3.C.12n - Additional task example'
+            #   ignore_errors: yes
+            #   debug:
+            #     msg: "This is a placeholder for the next task."                -
           when:
             - unix_user_info.rc == 0
             - unix_user_info.stdout is match("itmuser")
-
-        # - name: '3.C.14 - Delete sudoers profile for itmuser'
-        #   ignore_errors: true
-        #   ansible.builtin.file:
-        #     path: "/etc/sudoers.d/itmuser_sudo"
-        #     state: absent
-        #   when:
-        #     - unix_user_info.rc == 0
-        #     - unix_user_info.stdout is match("itmuser")
-
-        # - name: '3.C.15 - Additional task example'
-        #   ignore_errors: yes
-        #   debug:
-        #     msg: "This is a placeholder for the next task."
