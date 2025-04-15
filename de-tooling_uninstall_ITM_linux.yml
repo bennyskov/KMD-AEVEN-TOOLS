@@ -14,7 +14,6 @@
       changed_when: false
       when: ostype is defined
       delegate_to: localhost
-
 - name: '2.B - Socks tunnel setup'
   hosts: '{{ nodename }}'
   gather_facts: false
@@ -33,7 +32,6 @@
     - name: '2.B.00 - Set become user'
       set_fact:
         ansible_become_user: root
-
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #step:  uninstall ITM on linux, and then cleanup
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -85,7 +83,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step:  run uninstall
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '3.C.04 - Run command'
+        - name: '3.C.05 - Run command'
           ignore_errors: yes
           shell: perl -w ITMAgentUNinstall_linux.pl
           args:
@@ -93,7 +91,7 @@
           register: script_run
           # when: file_stat_ITM.stat.exists
 
-        - name: '3.C.05 - Output list'
+        - name: '3.C.06 - Output list'
           ignore_errors: yes
           debug:
             var: script_run.stdout_lines
@@ -101,7 +99,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step:  Delete ITM files
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '3.C.06 - test if /opt/IBM is a mountpoint'
+        - name: '3.C.07 - test if /opt/IBM is a mountpoint'
           ignore_errors: yes
           stat:
             path: "/opt/IBM"
@@ -109,7 +107,7 @@
           register: file_mountpoint_ITM
           when: file_stat_ITM.stat.exists
 
-        - name: '3.C.06 - Delete /opt/IBM'
+        - name: '3.C.08 - Delete /opt/IBM'
           ignore_errors: yes
           file:
             path: /opt/IBM
@@ -121,7 +119,7 @@
           register: delete_dir_result
           when: file_stat_ITM.stat.exists
 
-        - name: '3.C.06a - Check what is locking /opt/IBM/ITM/ directory'
+        - name: '3.C.08a - Check what is locking /opt/IBM/ITM/ directory'
           shell: "lsof +D /opt/IBM/ITM/"
           register: locking_processes
           ignore_errors: yes
@@ -129,25 +127,25 @@
             - delete_dir_result is defined
             - delete_dir_result.failed
 
-        - name: '3.C.06b - Display locking processes for /opt/IBM/ITM/'
+        - name: '3.C.08b - Display locking processes for /opt/IBM/ITM/'
           debug:
             msg: >-
               "No locking processes found for /opt/IBM/ITM/" if locking_processes.stdout_lines | length == 0 else locking_processes.stdout_lines
           when:
             - locking_processes is defined
 
-        - name: '3.C.06c - List /opt/IBM/ITM/'
+        - name: '3.C.08c - List /opt/IBM/ITM/'
           ignore_errors: yes
           shell: 'ls -lrta /opt/IBM/ITM/'
           register: list_agentdir_out
 
-        - name: '3.C.06d - send output to ansible'
+        - name: '3.C.08d - send output to ansible'
           ignore_errors: yes
           debug:
             var: list_agentdir_out.stdout_lines
           when: file_stat_ITM.stat.exists
 
-        - name: '3.C.06e - Delete scripttemp_dir directory'
+        - name: '3.C.09 - Delete scripttemp_dir directory'
           ignore_errors: yes
           file:
             path: /tmp/scripttemp_dir
