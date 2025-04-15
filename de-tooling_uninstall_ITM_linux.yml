@@ -103,9 +103,13 @@
           ignore_errors: yes
           stat:
             path: "/opt/IBM"
-            get_attributes: true
           register: file_mountpoint_ITM
           when: file_stat_ITM.stat.exists
+
+        - name: '3.C.07a - Display mountpoint status'
+          debug:
+            msg: "Path /opt/IBM is a mountpoint: {{ file_mountpoint_ITM.stat.ismount | default(false) }}"
+          when: file_stat_ITM.stat.exists and file_mountpoint_ITM.stat is defined
 
         - name: '3.C.08 - Delete /opt/IBM'
           ignore_errors: yes
@@ -117,7 +121,9 @@
             group: root
             force: true
           register: delete_dir_result
-          when: file_stat_ITM.stat.exists
+          when:
+            - file_stat_ITM.stat.exists
+            - not (file_mountpoint_ITM.stat.ismount | default(false))
 
         - name: '3.C.08a - Check what is locking /opt/IBM/ITM/ directory'
           shell: "lsof +D /opt/IBM/ITM/"
