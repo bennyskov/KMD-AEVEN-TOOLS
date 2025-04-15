@@ -79,7 +79,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: '3.C.04 - Run command'
           ignore_errors: yes
-          shell: perl -w ITMAgentUNinstall_linux.pl -d
+          shell: perl -w ITMAgentUNinstall_linux.pl
           args:
             chdir: /tmp/scripttemp_dir
           register: script_run
