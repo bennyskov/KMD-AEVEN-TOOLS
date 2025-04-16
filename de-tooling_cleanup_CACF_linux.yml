@@ -3,7 +3,7 @@
 #step: begin and setup tunnel and credentials
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 - name: '1.A - Create OS groups'
-  hosts: '{{ nodename }}'
+  hosts: localhost
   become: false
   gather_facts: false
   connection: local
@@ -14,8 +14,9 @@
       changed_when: false
       when: ostype is defined
       delegate_to: localhost
+
 - name: '2.B - Socks tunnel setup'
-  hosts: '{{ nodename }}'
+  hosts: localhost
   gather_facts: false
   tasks:
     - include_role: # Not numbered per rules
@@ -30,16 +31,15 @@
         trans_num: '{{ tower_job_id }}'
 
     - name: '2.B.00 - Set become user'
-      set_fact:
-        ansible_become_user: root
+    - set_fact:
+        ansible_become_method: runas
+        ansible_become_user: system
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-#step working on LOCALHOST
+#step working on localhost
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: '3.C - gather_facts LOCALHOST'
+- name: '3.C - gather_facts localhost'
   hosts: localhost
-  become: true
   gather_facts: true
-  connection: local
   vars:
     tower_host: 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local'
     tower_username: 'functional_id_001'
