@@ -99,17 +99,16 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step:  Delete ITM files
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '3.C.07 - test if /opt/IBM is a mountpoint'
+        - name: '3.C.07 - test if /opt/IBM is a mountpoint using shell command'
           ignore_errors: yes
-          stat:
-            path: "/opt/IBM"
+          shell: "findmnt -n /opt/IBM > /dev/null 2>&1 && echo 'is_mount' || echo 'not_mount'"
           register: file_mountpoint_ITM
           when: file_stat_ITM.stat.exists
 
         - name: '3.C.07a - Display mountpoint status'
           debug:
-            msg: "Path /opt/IBM is a mountpoint: {{ file_mountpoint_ITM.stat.ismount | default(false) }}"
-          when: file_stat_ITM.stat.exists and file_mountpoint_ITM.stat is defined
+            msg: "Path /opt/IBM is a mountpoint: {{ 'is_mount' in file_mountpoint_ITM.stdout }}"
+          when: file_stat_ITM.stat.exists and file_mountpoint_ITM.stdout is defined
 
         - name: '3.C.08 - Delete /opt/IBM'
           ignore_errors: yes
@@ -123,7 +122,7 @@
           register: delete_dir_result
           when:
             - file_stat_ITM.stat.exists
-            - not (file_mountpoint_ITM.stat.ismount | default(false))
+            - not ('is_mount' in file_mountpoint_ITM.stdout | default(''))
 
         - name: '3.C.08a - Check what is locking /opt/IBM/ITM/ directory'
           shell: "lsof +D /opt/IBM/ITM/"
