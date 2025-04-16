@@ -99,15 +99,15 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step:  Delete ITM files
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '3.C.07 - test if /opt/IBM/ITM is a mountpoint using shell command'
+        - name: '3.C.07 - test if /opt/IBM is a mountpoint using shell command'
           ignore_errors: yes
-          shell: "findmnt -n /opt/IBM/ITM > /dev/null 2>&1 && echo 'is_mount' || echo 'not_mount'"
+          shell: "findmnt -n /opt/IBM > /dev/null 2>&1 && echo 'is_mount' || echo 'not_mount'"
           register: file_mountpoint_ITM
           when: file_stat_ITM.stat.exists
 
         - name: '3.C.07a - Display mountpoint status'
           debug:
-            msg: "Path /opt/IBM/ITM is a mountpoint: {{ 'is_mount' in file_mountpoint_ITM.stdout }}"
+            msg: "Path /opt/IBM is a mountpoint: {{ 'is_mount' in file_mountpoint_ITM.stdout }}"
           when: file_stat_ITM.stat.exists and file_mountpoint_ITM.stdout is defined
 
         - name: '3.C.08 - Delete /opt/IBM/ITM'
@@ -155,7 +155,7 @@
         - name: '3.C.09 - Delete scripttemp_dir directory'
           ignore_errors: yes
           file:
-            path: /tmp/scripttemp_dirs
+            path: /tmp/scripttemp_dir
             state: absent
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
