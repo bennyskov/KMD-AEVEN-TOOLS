@@ -1,3 +1,4 @@
+---
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #step: begin and setup tunnel and credentials
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -34,7 +35,7 @@
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #step working on LOCALHOST
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: gather_facts LOCALHOST
+- name: '3.C - gather_facts LOCALHOST'
   hosts: localhost
   become: true
   gather_facts: true
@@ -47,51 +48,53 @@
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     #step Export host from inventory
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: 'Export host from inventory'
+    - name: '3.C.00 - Export host from inventory'
       block:
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step debug facts and list local directories for ansible localhost
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: Debug facts
+        - name: '3.C.01 - Debug facts'
           debug:
             msg: |-
               '{{ ansible_facts }}'
           tags:
             - debug_facts
 
-        - name: 'List homedir files'
+        - name: '3.C.02 - List homedir files'
           shell: 'ls -lrt'
           register: script_homedir
-        - name: Output list homedir
+
+        - name: '3.C.03 - Output list homedir'
           debug:
             var: script_homedir.stdout_lines
 
-        - name: 'List /tmp/'
+        - name: '3.C.04 - List /tmp/'
           shell: 'ls -lrt /tmp/'
           register: script_tmp
-        - name: Output list tmp
+
+        - name: '3.C.05 - Output list tmp'
           debug:
             var: script_tmp.stdout_lines
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step list host from inventory
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: Create tower-cli config
+        - name: '3.C.06 - Create tower-cli config'
           include_role:
             name: towercli-init
 
-        - name: Get host information using AWX command
+        - name: '3.C.07 - Get host information using AWX command'
           shell: 'awx-cli host list --name={{ nodename }} -f yaml'
           register: host_response
           delegate_to: localhost
           failed_when: false
           changed_when: false
 
-        - name: Set host data from command output
+        - name: '3.C.08 - Set host data from command output'
           set_fact:
             host_data: '{{ host_response.stdout | from_yaml }}'
           when: host_response.rc == 0
 
-        - name: List inventories for the host
+        - name: '3.C.09 - List inventories for the host'
           debug:
             msg: 'Host {{ nodename }} found in inventory: {{ item.inventory_name }}'
           loop: '{{ host_data.results }}'
@@ -101,7 +104,7 @@
 #step we are now running from remote host
 #
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: 'Export of on host from ansible itower inventory and then remove the host from all inventories'
+- name: '4.D - Export of on host from ansible itower inventory and then remove the host from all inventories'
   hosts: '{{ nodename }}'
   gather_facts: false
   become: false
@@ -115,7 +118,7 @@
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     #step Export host from inventory
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: 'cleanup ansible files on host { nodename }}'
+    - name: '4.D.00 - cleanup ansible files on host {{ nodename }}'
       block:
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #
@@ -126,50 +129,50 @@
         # '/var/opt/ansible/GTS/dataLake'
         #
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: Delete ansible directory
+        - name: '4.D.01 - Delete ansible directory'
           file:
             path: /var/opt/ansible
             state: absent
 
-        - name: 'List /var/opt/ansible'
-          shell: 'ls -lrta /var/opt/ansible'
-          register: list_agentdir_out
+        # - name: '4.D.02 - List /var/opt/ansible'
+        #   shell: 'ls -lrta /var/opt/ansible'
+        #   register: list_agentdir_out
 
-        - name: 'send output to ansible'
-          debug:
-            var: list_agentdir_out.stdout_lines
+        # - name: '4.D.03 - send output to ansible'
+        #   debug:
+        #     var: list_agentdir_out.stdout_lines
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step remove ansible users ansib_user1
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: 'Check if {{ ansib_user1 }} already exists'
+        - name: '4.D.04 - Check if {{ ansib_user1 }} already exists'
           command: 'id {{ ansib_user1 }}'
           register: unix_user_info
 
-        - name: 'Delete user {{ ansib_user1 }}'
-          ignore_errors: true
-          user:
-            name: '{{ ansib_user1 }}'
-            remove: '{{ data.remove_user_dirs | default(true) }}'
-            state: absent
+        # - name: '4.D.05 - Delete user {{ ansib_user1 }}'
+        #   ignore_errors: true
+        #   user:
+        #     name: '{{ ansib_user1 }}'
+        #     remove: '{{ data.remove_user_dirs | default(true) }}'
+        #     state: absent
 
-        - name: ' Delete sudoers profile for {{ ansib_user1 }}'
-          file:
-            path: '/etc/sudoers.d/{{ ansib_user1 }}_sudo'
-            state: absent
+        # - name: '4.D.06 - Delete sudoers profile for {{ ansib_user1 }}'
+        #   file:
+        #     path: '/etc/sudoers.d/{{ ansib_user1 }}_sudo'
+        #     state: absent
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step remove ansible users ansib_user2
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: 'Check if {{ ansib_user2 }} already exists'
+        - name: '4.D.07 - Check if {{ ansib_user2 }} already exists'
           command: 'id {{ ansib_user2 }}'
-          register: unix_user_info
+          register: unix_user_info_2
 
-        - name: 'Delete user {{ ansib_user2 }}'
-          user:
-            name: '{{ ansib_user2 }}'
-            remove: '{{ data.remove_user_dirs | default(true) }}'
-            state: absent
+        # - name: '4.D.08 - Delete user {{ ansib_user2 }}'
+        #   user:
+        #     name: '{{ ansib_user2 }}'
+        #     remove: '{{ data.remove_user_dirs | default(true) }}'
+        #     state: absent
 
-        - name: ' Delete sudoers profile for {{ ansib_user2 }}'
-          file:
-            path: '/etc/sudoers.d/{{ ansib_user2 }}_sudo'
-            state: absent
+        # - name: '4.D.09 - Delete sudoers profile for {{ ansib_user2 }}'
+        #   file:
+        #     path: '/etc/sudoers.d/{{ ansib_user2 }}_sudo'
+        #     state: absent
