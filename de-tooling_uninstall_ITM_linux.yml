@@ -131,6 +131,8 @@
           when:
             - delete_dir_result is defined
             - delete_dir_result.failed
+            - file_stat_ITM.stat.exists
+            - not ('is_mount' in file_mountpoint_ITM.stdout | default(''))
 
         - name: '3.C.08b - Display locking processes for /opt/IBM/ITM/'
           debug:
@@ -153,7 +155,7 @@
         - name: '3.C.09 - Delete scripttemp_dir directory'
           ignore_errors: yes
           file:
-            path: /tmp/scripttemp_dir
+            path: /tmp/scripttemp_dirs
             state: absent
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
