@@ -1,21 +1,23 @@
-- name: Create OS groups
-  hosts: '{{ hostlist }}'
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+#step: begin and setup tunnel and credentials
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+- name: '1.A - Create OS groups'
+  hosts: '{{ nodename }}'
   become: false
   gather_facts: false
   connection: local
   tasks:
-    - name: Create OS group
+    - name: '1.A.00 - Create OS machine_{{ ostype }}'
       group_by:
         key: 'machine_{{ ostype }}'
       changed_when: false
       when: ostype is defined
       delegate_to: localhost
-
-- name: Socks tunnel setup
-  hosts: 'machine_windows'
+- name: '2.B - Socks tunnel setup'
+  hosts: '{{ nodename }}'
   gather_facts: false
   tasks:
-    - include_role:
+    - include_role: # Not numbered per rules
         name: ansible-role-event-socks-tunnel
         apply:
           check_mode: false
@@ -26,44 +28,59 @@
         transaction_id: '{{ tower_job_id }}'
         trans_num: '{{ tower_job_id }}'
 
-    - set_fact:
-        ansible_become_method: runas
-        ansible_become_user: system
-
+    - name: '2.B.00 - Set become user'
+      set_fact:
+        ansible_become_user: root
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-#
-# The whole playbook is running from ansible tower host
-#
+#step working on LOCALHOST
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: 'Export of on host from ansible itower inventory and then remove the host from all inventories'
+- name: gather_facts LOCALHOST
   hosts: localhost
-  gather_facts: false
-  become: false
-  run_once: true
-  ignore_errors: yes
+  become: true
+  gather_facts: true
+  connection: local
   vars:
-    nodename: '{{ nodename }}'
-    # tower_host: 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local'
-    # tower_username: 'functional_id_001'
-    # tower_password: 'm9AHKuXYa*MeZZWLsHqB'
-    ansib_user1: 'kmduxat1'
-    ansib_user2: 'kmduxat2'
-
+    tower_host: 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local'
+    tower_username: 'functional_id_001'
+    tower_password: 'm9AHKuXYa*MeZZWLsHqB'
   tasks:
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    # Export host from inventory
+    #step Export host from inventory
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: 'A.0.0 Export host from inventory'
+    - name: 'Export host from inventory'
       block:
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # run uninstall using ccmsetup
+        #step debug facts and list local directories for ansible localhost
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: Debug facts
+          debug:
+            msg: |-
+              '{{ ansible_facts }}'
+          tags:
+            - debug_facts
+
+        - name: 'List homedir files'
+          shell: 'ls -lrt'
+          register: script_homedir
+        - name: Output list homedir
+          debug:
+            var: script_homedir.stdout_lines
+
+        - name: 'List /tmp/'
+          shell: 'ls -lrt /tmp/'
+          register: script_tmp
+        - name: Output list tmp
+          debug:
+            var: script_tmp.stdout_lines
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        #step list host from inventory
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: Create tower-cli config
           include_role:
             name: towercli-init
 
         - name: Get host information using AWX command
-          shell: "awx-cli host list --name={{ nodename }} -f yaml"
+          shell: 'awx-cli host list --name={{ nodename }} -f yaml'
           register: host_response
           delegate_to: localhost
           failed_when: false
@@ -71,76 +88,88 @@
 
         - name: Set host data from command output
           set_fact:
-            host_data: "{{ host_response.stdout | from_yaml }}"
+            host_data: '{{ host_response.stdout | from_yaml }}'
           when: host_response.rc == 0
 
         - name: List inventories for the host
           debug:
-            msg: "Host {{ nodename }} found in inventory: {{ item.inventory_name }}"
-          loop: "{{ host_data.results }}"
+            msg: 'Host {{ nodename }} found in inventory: {{ item.inventory_name }}'
+          loop: '{{ host_data.results }}'
           when: host_data is defined and host_data.results | length > 0
-
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+#
+#step we are now running from remote host
+#
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+- name: 'Export of on host from ansible itower inventory and then remove the host from all inventories'
+  hosts: '{{ nodename }}'
+  gather_facts: false
+  become: false
+  run_once: true
+  ignore_errors: yes
+  vars:
+    nodename: '{{ nodename }}'
+    ansib_user1: 'kmduxat1'
+    ansib_user2: 'kmduxat2'
+  tasks:
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    #step Export host from inventory
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: 'cleanup ansible files on host { nodename }}'
+      block:
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #
-        # cleanup ansible
+        #step cleanup ansible
         #
-        # "/var/opt/ansible/GTS",
-        # "/var/opt/ansible/tmp",
-        # "/var/opt/ansible/GTS/dataLake"
+        # '/var/opt/ansible/GTS',
+        # '/var/opt/ansible/tmp',
+        # '/var/opt/ansible/GTS/dataLake'
         #
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-
         - name: Delete ansible directory
-          ignore_errors: yes
           file:
             path: /var/opt/ansible
             state: absent
 
         - name: 'List /var/opt/ansible'
-          ignore_errors: yes
           shell: 'ls -lrta /var/opt/ansible'
           register: list_agentdir_out
+
         - name: 'send output to ansible'
           debug:
             var: list_agentdir_out.stdout_lines
-
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # remove ansible users ansib_user1
+        #step remove ansible users ansib_user1
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # - name: "2.A2.1. Check if {{ ansib_user1 }} already exists"
-        #   command: "id {{ ansib_user1 }}"
-        #   register: unix_user_info
-        #   ignore_errors: true
+        - name: 'Check if {{ ansib_user1 }} already exists'
+          command: 'id {{ ansib_user1 }}'
+          register: unix_user_info
 
-        # - name: "2.A2.1. Delete user {{ ansib_user1 }}"
-        #   ignore_errors: true
-        #   ansible.builtin.user:
-        #     name: "{{ ansib_user1 }}"
-        #     remove: "{{ data.remove_user_dirs | default(true) }}"
-        #     state: absent
+        - name: 'Delete user {{ ansib_user1 }}'
+          ignore_errors: true
+          user:
+            name: '{{ ansib_user1 }}'
+            remove: '{{ data.remove_user_dirs | default(true) }}'
+            state: absent
 
-        # - name: "2.A2.5. Delete sudoers profile for {{ ansib_user1 }}"
-        #   ignore_errors: true
-        #   ansible.builtin.file:
-        #     path: "/etc/sudoers.d/{{ ansib_user1 }}_sudo"
-        #     state: absent
+        - name: ' Delete sudoers profile for {{ ansib_user1 }}'
+          file:
+            path: '/etc/sudoers.d/{{ ansib_user1 }}_sudo'
+            state: absent
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # remove ansible users ansib_user2
+        #step remove ansible users ansib_user2
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # - name: "2.A2.1. Check if {{ ansib_user2 }} already exists"
-        #   command: "id {{ ansib_user2 }}"
-        #   register: unix_user_info
-        #   ignore_errors: true
+        - name: 'Check if {{ ansib_user2 }} already exists'
+          command: 'id {{ ansib_user2 }}'
+          register: unix_user_info
 
-        # - name: "2.A2.1. Delete user {{ ansib_user2 }}"
-        #   ignore_errors: true
-        #   ansible.builtin.user:
-        #     name: "{{ ansib_user2 }}"
-        #     remove: "{{ data.remove_user_dirs | default(true) }}"
-        #     state: absent
+        - name: 'Delete user {{ ansib_user2 }}'
+          user:
+            name: '{{ ansib_user2 }}'
+            remove: '{{ data.remove_user_dirs | default(true) }}'
+            state: absent
 
-        # - name: "2.A2.5. Delete sudoers profile for {{ ansib_user2 }}"
-        #   ignore_errors: true
-        #   ansible.builtin.file:
-        #     path: "/etc/sudoers.d/{{ ansib_user2 }}_sudo"
-        #     state: absent
+        - name: ' Delete sudoers profile for {{ ansib_user2 }}'
+          file:
+            path: '/etc/sudoers.d/{{ ansib_user2 }}_sudo'
+            state: absent
