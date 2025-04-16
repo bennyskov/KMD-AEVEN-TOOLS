@@ -192,9 +192,15 @@ def f_requests(request,twusr,twpwd,payload,debug):
         tower_url               = f'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local/api/v2/'
         url                     = f'{tower_url}{request}'
         RC                      = 0
+        f_log(f'url',f'{url}',debug)
+        # f_log(f'payload type',f'{type(payload)}',debug)
+        # f_log(f'payload',f'{payload}',debug)
+        # f_log(f'request',f'{request}',debug)
+        # f_log(f'twusr',f'{twusr}',debug)
+        # f_log(f'twpwd',f'{twpwd}',debug)
         if isinstance(payload, dict) and payload:
-            f_log(f'payload',f'{payload}',debug)
-            f_log(f'url',f'{url}',debug)
+            # f_log(f'payload',f'{payload}',debug)
+            # f_log(f'url',f'{url}',debug)
             response = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False, timeout=1440)
         else:
             response = requests.get(url, auth=(twusr, twpwd), verify=False, timeout=1440)
@@ -263,12 +269,12 @@ tower_host          = 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.admin
 tower_url           = f'{tower_host}/api/v2/'
 awx_hostname        = socket.gethostname().lower()
 sys_argv            = sys.argv
-isRunningLocally    = False
+isRunningLocally    = True
 useRestAPI          = True
 if re.search(r".*kmdwinitm001.*", awx_hostname, re.IGNORECASE): isRunningLocally = True
 if re.search(r"^automation-job.*", awx_hostname, re.IGNORECASE): isRunningLocally = False
 if isRunningLocally:
-    nodename            = 'udvsqlqc01'
+    nodename            = 'kmdlnxitm004'
     change              = "CHG000000"
     twusr               = 'functional_id_001'
     twpwd               = 'm9AHKuXYa*MeZZWLsHqB'
@@ -276,11 +282,11 @@ if isRunningLocally:
     #
     # launch_template_name= 'kmn_jobtemplate_de-tooling_disable_SCCM_windows'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_REinstall_ITM_windows' # not part of kmn_jobtemplate_de-tooling_begin
-    # launch_template_name= 'kmn_jobtemplate_de-tooling_cleanup_CACF_ansible'
+    launch_template_name= 'kmn_jobtemplate_de-tooling_cleanup_CACF_linux'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_servercheck_windows'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_set_maintenancemode'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_windows'
-    launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_linux'
+    # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_linux'
     #
     #
 #     sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/get_credentials_and_launch_template.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
@@ -306,12 +312,12 @@ if isRunningLocally:
 global project, checkCaps
 global logfile, scriptname, payload
 global now, Logdate_long, jsondir, logdir
-global cred_names, credential_ids, credential_names, template_id, CONTINUE, RC
+global cred_names, credentials_ids, credential_names, template_id, CONTINUE, RC
 
 # checkCaps           = ['udv19bfs01, udv19db2aws01, udv19avs01, udv19elk02, udv19cis01, udv19tdm03, udv19bfs02, udv19tdm02, udv19tdg01, udv19elk01, udv19tools, udv19gws01, udv19app01, udv19elk03, kmddbs2136']
 # checkCaps           = ['udv19bfs01']
 cred_names          = []
-credential_ids      = []
+credentials_ids      = []
 credential_names    = []
 template_id         = []
 payload             = {}
@@ -445,13 +451,13 @@ if CONTINUE:
                 checkName = row['summary_fields']['inventory']['name']
                 if checkName in acceptedInv:
                     inv_name     = row['summary_fields']['inventory']['name']
-                    inv_id       = row['summary_fields']['inventory']['id']
+                    inventory_id       = row['summary_fields']['inventory']['id']
                     host_id     = row['id']
                     nodename    = row['name']
                 else:
                     continue
 
-        f_log(f'inv_id',f'{inv_id}',debug)
+        f_log(f'inventory_id',f'{inventory_id}',debug)
         f_log(f'inv_name',f'{inv_name}',debug)
         f_log(f'host_id',f'{host_id}',debug)
         f_log(f'nodename',f'{nodename}',debug)
@@ -538,15 +544,15 @@ if CONTINUE:
         RC = 12
         f_end(RC)
 #endregion
-#region awx_credential_ids
+#region awx_credentials_ids
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# awx_credential_ids
+# awx_credentials_ids
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 if CONTINUE:
     try:
-        stepName = 'awx_credential_ids'
+        stepName = 'awx_credentials_ids'
         f_log(f'{stepName}','',debug)
-        credential_ids = []
+        credentials_ids = []
         credential_names = []
         for cred_name in unique_cred_name_list:
             if useRestAPI:
@@ -569,19 +575,19 @@ if CONTINUE:
                 f_log(f'cred_name',f'{cred_name}',debug)
                 f_log(f'credential_name',f'{credential_name}',debug)
                 f_log(f'credential_id',f'{credential_id}',debug)
-                credential_ids.append(credential_id)
+                credentials_ids.append(credential_id)
                 credential_names.append(credential_name)
         # ----------------------------------------------------------------------------------------------------------------------------------------------------------
         # added to be able to use depot
         # ----------------------------------------------------------------------------------------------------------------------------------------------------------
         kmn_cred_tower_and_sfs = 33
         credential_names.append('kmn_cred_tower_and_sfs')
-        credential_ids.append(33)
+        credentials_ids.append(33)
         # ----------------------------------------------------------------------------------------------------------------------------------------------------------
         unique_credential_names = list(set(credential_names))
         f_log(f'unique_credential_names',f'{unique_credential_names}',debug)
-        unique_credential_ids = list(set(credential_ids))
-        f_log(f'unique_credential_ids',f'{unique_credential_ids}',debug)
+        unique_credentials_ids = list(set(credentials_ids))
+        f_log(f'unique_credentials_ids',f'{unique_credentials_ids}',debug)
     except Exception as e:
         if debug: logging.error(e)
         RC = 12
@@ -622,28 +628,26 @@ if CONTINUE:
     try:
         stepName = 'launch_job_template'
         f_log(f'{stepName}','',debug)
-        f_log(f'credential_ids',f'{credential_ids}',debug)
+        f_log(f'credentials_ids',f'{credentials_ids}',debug)
         if useRestAPI:
-            cons_payload = {
-                "inventory": inv_id,
-                "credentials": credential_ids,
+            payload = {
+                "inventory": inventory_id,
+                "credentials": credentials_ids,
                 "extra_vars": {
-                    "nodename": nodename,
-                    "change":  change
+                    "nodename": f"{nodename}",
+                    "change" : "CHG000000"
                 }
             }
-            payload = json.dumps(cons_payload)
             request = f'job_templates/{template_id}/launch/'
-            f_log(f'request',f'{request}',debug)
             result,RC = f_requests(request,twusr,twpwd,payload,debug)
-            f_log(f'result',f'{result}',debug)
+            # f_log(f'result',f'{result}',debug)
 
-            jobid = result['id']
-            f_log(f'jobid',f'{jobid}',debug)
+            # jobid = result['id']
+            # f_log(f'jobid',f'{jobid}',debug)
         else:
             job_template    = f'--name {launch_template_name} '
-            credential      = f'--credentials {credential_ids} '
-            inventory       = f'--inventory {inv_id} '
+            credential      = f'--credentials {credentials_ids} '
+            inventory       = f'--inventory {inventory_id} '
             extra_vars = {
                 'nodename': f'{nodename}',
                 'change': f'{change}',
