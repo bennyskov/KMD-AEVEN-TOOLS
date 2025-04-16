@@ -2,35 +2,34 @@
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #step: begin and setup tunnel and credentials
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: '1.A - Create OS groups'
+- name: Create OS groups
   hosts: localhost
   become: false
   gather_facts: false
   connection: local
   tasks:
-    - name: '1.A.00 - Create OS machine_{{ ostype }}'
+    - name: Create OS group
       group_by:
-        key: 'machine_{{ ostype }}'
+        key: "machine_{{ ostype }}"
       changed_when: false
       when: ostype is defined
       delegate_to: localhost
 
-- name: '2.B - Socks tunnel setup'
+- name: Socks tunnel setup
   hosts: localhost
   gather_facts: false
   tasks:
-    - include_role: # Not numbered per rules
+    - include_role:
         name: ansible-role-event-socks-tunnel
         apply:
           check_mode: false
           run_once: true
           delegate_to: localhost
       vars:
-        acc_id: '{{ blueid_shortcode }}'
-        transaction_id: '{{ tower_job_id }}'
-        trans_num: '{{ tower_job_id }}'
+        acc_id: "{{ blueid_shortcode }}"
+        transaction_id: "{{ tower_job_id }}"
+        trans_num: "{{ tower_job_id }}"
 
-    - name: '2.B.00 - Set become user'
     - set_fact:
         ansible_become_method: runas
         ansible_become_user: system
