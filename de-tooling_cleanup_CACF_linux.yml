@@ -40,18 +40,12 @@
   hosts: localhost
   gather_facts: true
   vars:
-    tower_host: 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local'
-    tower_username: 'functional_id_001'
-    tower_password: 'm9AHKuXYa*MeZZWLsHqB'
   tasks:
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    #step Export host from inventory
+    #step debug facts and list local directories for ansible localhost
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: '3.C.00 - Export host from inventory'
+    - name: '3.C.00 - debug facts and list local directories for ansible localhost'
       block:
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        #step debug facts and list local directories for ansible localhost
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: '3.C.01 - Debug facts'
           debug:
             msg: |-
@@ -74,36 +68,12 @@
         - name: '3.C.05 - Output list tmp'
           debug:
             var: script_tmp.stdout_lines
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        #step list host from inventory
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '3.C.06 - Create tower-cli config'
-          include_role:
-            name: towercli-init
-
-        - name: '3.C.07 - Get host information using AWX command'
-          shell: 'awx-cli host list --name={{ nodename }} -f yaml'
-          register: host_response
-          delegate_to: localhost
-          failed_when: false
-          changed_when: false
-
-        - name: '3.C.08 - Set host data from command output'
-          set_fact:
-            host_data: '{{ host_response.stdout | from_yaml }}'
-          when: host_response.rc == 0
-
-        - name: '3.C.09 - List inventories for the host'
-          debug:
-            msg: 'Host {{ nodename }} found in inventory: {{ item.inventory_name }}'
-          loop: '{{ host_data.results }}'
-          when: host_data is defined and host_data.results | length > 0
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #
 #step we are now running from remote host
 #
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: '4.D - Export of on host from ansible itower inventory and then remove the host from all inventories'
+- name: '4.D - cleanup ansible / CACF files on host '
   hosts: '{{ nodename }}'
   gather_facts: false
   become: false
@@ -113,9 +83,10 @@
     nodename: '{{ nodename }}'
     ansib_user1: 'kmduxat1'
     ansib_user2: 'kmduxat2'
+    cacfdir: '/var/opt/ansible'
   tasks:
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    #step Export host from inventory
+    #step cleanup ansible / CACF files on host
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     - name: '4.D.00 - cleanup ansible files on host {{ nodename }}'
       block:
@@ -128,18 +99,61 @@
         # '/var/opt/ansible/GTS/dataLake'
         #
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '4.D.01 - Delete ansible directory'
+        - name: '3.C.07 - test if {{ cacfdir }} is a mountpoint using shell command'
+          ignore_errors: yes
+          shell: "findmnt -n {{ cacfdir }} > /dev/null 2>&1 && echo 'is_mount' || echo 'not_mount'"
+          register: file_mountpoint_CACF
+          when: file_stat_CACF.stat.exists
+
+        - name: '3.C.07a - Display mountpoint status'
+          debug:
+            msg: "Path {{ cacfdir }} is a mountpoint: {{ 'is_mount' in file_mountpoint_CACF.stdout }}"
+          when: file_stat_CACF.stat.exists and file_mountpoint_CACF.stdout is defined
+
+        - name: '3.C.08 - Delete {{ cacfdir }}'
+          ignore_errors: yes
           file:
-            path: /var/opt/ansible
+            path: '{{ cacfdir }}'
             state: absent
+            mode: 0775
+            owner: root
+            group: root
+            force: true
+          register: delete_dir_result
+          when:
+            - file_stat_CACF.stat.exists
+            - not ('is_mount' in file_mountpoint_CACF.stdout | default(''))
 
-        # - name: '4.D.02 - List /var/opt/ansible'
-        #   shell: 'ls -lrta /var/opt/ansible'
-        #   register: list_agentdir_out
+        - name: '3.C.08a - Check what is locking {{ cacfdir }}/ directory'
+          shell: "lsof +D {{ cacfdir }}/"
+          register: locking_processes
+          ignore_errors: yes
+          when:
+            - delete_dir_result is defined
+            - delete_dir_result.failed
+            - file_stat_CACF.stat.exists
+            - not ('is_mount' in file_mountpoint_CACF.stdout | default(''))
 
-        # - name: '4.D.03 - send output to ansible'
-        #   debug:
-        #     var: list_agentdir_out.stdout_lines
+        - name: '3.C.08b - Display locking processes for {{ cacfdir }}/'
+          debug:
+            msg: >-
+              "No locking processes found for {{ cacfdir }}/" if locking_processes.stdout_lines | length == 0 else locking_processes.stdout_lines
+          when:
+            - locking_processes is defined
+
+        - name: '3.C.08c - List {{ cacfdir }}/'
+          ignore_errors: yes
+          shell: 'ls -lrta {{ cacfdir }}/'
+          register: list_agentdir_out
+
+        - name: '3.C.08d - send output to ansible'
+          ignore_errors: yes
+          debug:
+            var: list_agentdir_out.stdout_lines
+          when: file_stat_CACF.stat.exists
+
+
+
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step remove ansible users ansib_user1
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
