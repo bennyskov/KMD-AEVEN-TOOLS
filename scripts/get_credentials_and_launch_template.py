@@ -187,14 +187,7 @@ def f_requests(request,twusr,twpwd,payload,debug):
         url                     = f'{tower_url}{request}'
         RC                      = 0
         f_log(f'url',f'{url}',debug)
-        # f_log(f'payload exectype',f'{exectype(payload)}',debug)
-        # f_log(f'payload',f'{payload}',debug)
-        # f_log(f'request',f'{request}',debug)
-        # f_log(f'twusr',f'{twusr}',debug)
-        # f_log(f'twpwd',f'{twpwd}',debug)
         if isinstance(payload, dict) and payload:
-            # f_log(f'payload',f'{payload}',debug)
-            # f_log(f'url',f'{url}',debug)
             response = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False, timeout=1440)
         else:
             response = requests.get(url, auth=(twusr, twpwd), verify=False, timeout=1440)
@@ -204,9 +197,6 @@ def f_requests(request,twusr,twpwd,payload,debug):
             result_loaded       = f_load_data(result_decoded)
             result_dumps        = json.dumps(result_loaded, indent=5)
             result              = json.loads(result_dumps)
-            # f_log(f'result exectype',f'{exectype(result)}',debug)
-            # f_log(f'result_dumps',f'\n{result_dumps}',debug)
-
     except Exception as e:
         if debug:
             f_log(f'request',f'{request}',debug)
@@ -227,8 +217,6 @@ def f_cmdexec(cmdexec='',debug=False):
         f_log(f'cmdexec',f'{cmdexec}',debug)
         cmdexec_result = subprocess.run(cmdexec, capture_output=True, text=True)
         RC = cmdexec_result.returncode
-        # f_log(f'cmdexec_result exectype',f'{exectype(cmdexec_result)}',debug)
-        # f_log(f'cmdexec_result     ',f'{cmdexec_result}',debug)
         if RC > 0:
             raise Exception('f_cmdexec failed'); f_end(RC)
         else:
@@ -370,7 +358,6 @@ if CONTINUE:
         os.environ['TOWER_PASSWORD']    = f'{twpwd}'
         os.environ['TOWER_VERIFY_SSL']  = 'False'
         os.environ['TOWER_FORMAT']      = 'json'
-
         try:
             cmdexec = ['awx', 'me', '--conf.format', 'yaml', '--conf.insecure']
             result, RC = f_cmdexec(cmdexec, debug)
@@ -472,6 +459,31 @@ if CONTINUE:
         RC = 12
         f_end(RC)
 #endregion
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+# ansible_facts
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+if CONTINUE:
+    try:
+        inv_name = None
+        stepName = f'{exectype}_ansible_facts'
+        f_log(f'{stepName}','',debug)
+        if useRestAPI:
+            request = f'hosts/{host_id}/ansible_facts/?page_size=all'
+            result,RC = f_requests(request,twusr,twpwd,payload,debug)
+        else:
+            cmdexec = ['awx', 'host', 'facts', '--host', f'{host_id}']  # do not work!!!!!!!!!!!!!!!! use rest
+            result,RC = f_cmdexec(cmdexec,debug)
+
+        if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
+        if isRunningLocally: f_dump_and_write(result,stepName,debug)
+        os_facts = result['ansible_system']
+        f_log(f'os_facts',f'{os_facts}',debug)
+
+    except Exception as e:
+        if debug: logging.error(e)
+        RC = 12
+        f_end(RC)
+#endregion
 #region awx_allGroupsWithHost
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # awx_allGroupsWithHost
@@ -484,8 +496,8 @@ if CONTINUE:
             request = f'hosts/{host_id}/all_groups/?page_size=all'
             result,RC = f_requests(request,twusr,twpwd,payload,debug)
         else:
-            cmdexec = ['awx','groups','list','--host',f'{host_id}','--inventory',f'{inventory_id}','--all-pages']
-            # cmdexec = ['awx','host','get',f'{host_id}','--query','all_groups','--all-pages']
+            # cmdexec = ['awx','groups','list','--host',f'{host_id}','--inventory',f'{inventory_id}','--all-pages']
+            cmdexec = ['awx', 'host', 'groups', 'list', '--host', f'{host_id}', '--all-pages']
             result,RC = f_cmdexec(cmdexec,debug)
 
         if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)

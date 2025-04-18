@@ -99,6 +99,12 @@
         # '/var/opt/ansible/GTS/dataLake'
         #
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: '3.C.01 - Check if the {{ cacfdir }} exists'
+          ignore_errors: yes
+          stat:
+            path: '{{ cacfdir }}'
+          register: file_stat_CACF
+
         - name: '3.C.07 - test if {{ cacfdir }} is a mountpoint using shell command'
           ignore_errors: yes
           shell: "findmnt -n {{ cacfdir }} > /dev/null 2>&1 && echo 'is_mount' || echo 'not_mount'"
