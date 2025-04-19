@@ -497,7 +497,7 @@ if CONTINUE:
             result,RC = f_requests(request,twusr,twpwd,payload,debug)
         else:
             # cmdexec = ['awx','groups','list','--host',f'{host_id}','--inventory',f'{inventory_id}','--all-pages']
-            cmdexec = ['awx', 'host', 'groups', 'list', '--host', f'{host_id}', '--all-pages']
+            cmdexec = ['awx', 'host', 'groups', 'list', '--host', f'{host_id}','--inventory',f'{inventory_id}','--all-pages']
             result,RC = f_cmdexec(cmdexec,debug)
 
         if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
