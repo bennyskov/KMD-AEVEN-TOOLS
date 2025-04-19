@@ -76,7 +76,7 @@
 - name: '4.D - cleanup ansible / CACF files on host '
   hosts: '{{ nodename }}'
   gather_facts: false
-  become: false
+  become: true
   run_once: true
   ignore_errors: yes
   vars:
@@ -107,6 +107,7 @@
 
         - name: '3.C.02 - set {{ cacfdir }}'
           ignore_errors: yes
+          become: true
           file:
             path: '{{ cacfdir }}'
             mode: 0775
@@ -125,9 +126,9 @@
           debug:
             msg: "Path {{ cacfdir }} is a mountpoint: {{ 'is_mount' in file_mountpoint_CACF.stdout }}"
           when: file_stat_CACF.stat.exists and file_mountpoint_CACF.stdout is defined
-
         - name: '3.C.08 - Delete {{ cacfdir }}'
           ignore_errors: yes
+          become: true
           file:
             path: '{{ cacfdir }}'
             state: absent
@@ -135,6 +136,7 @@
             owner: root
             group: root
             force: true
+          register: delete_dir_result
           register: delete_dir_result
           when:
             - file_stat_CACF.stat.exists
