@@ -345,7 +345,7 @@ f_log(f'scriptname',f'{scriptname}',debug)
 f_log(f'project',f'{project}',debug)
 f_log(f'debug',f'{debug}',debug)
 #endregion
-#region awx_login
+#region login
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # awx config settingss. awx is reading these
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -410,7 +410,7 @@ if CONTINUE:
                 f_log('Login failed', f'RC: {RC}, Result: {result}', debug)
                 raise Exception("Failed to authenticate with AWX"); f_end(RC)
 #endregion
-#region awx_hostname
+#region get_hostname
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_hostname
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -459,8 +459,9 @@ if CONTINUE:
         RC = 12
         f_end(RC)
 #endregion
+#region get_ansible_facts
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# ansible_facts
+# get_ansible_facts
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 if CONTINUE:
     try:
@@ -484,9 +485,9 @@ if CONTINUE:
         RC = 12
         f_end(RC)
 #endregion
-#region awx_allGroupsWithHost
+#region get_allGroupsWithHost
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# awx_allGroupsWithHost
+# get_allGroupsWithHost
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 if CONTINUE:
     try:
@@ -496,10 +497,8 @@ if CONTINUE:
             request = f'hosts/{host_id}/all_groups/?page_size=all'
             result,RC = f_requests(request,twusr,twpwd,payload,debug)
         else:
-            # cmdexec = ['awx','groups','list','--host',f'{host_id}','--inventory',f'{inventory_id}','--all-pages']
             cmdexec = ['awx', 'host', 'groups', 'list', '--host', f'{host_id}','--inventory',f'{inventory_id}','--all-pages']
             result,RC = f_cmdexec(cmdexec,debug)
-
         if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
         if isRunningLocally: f_dump_and_write(result,stepName,debug)
         allGroupsWithHost = result['results']                               # REST way
@@ -531,9 +530,9 @@ if CONTINUE:
         RC = 12
         f_end(RC)
 #endregion
-#region awx_credentials_ids
+#region get_credentials_ids
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# awx_credentials_ids
+# get_credentials_ids
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 if CONTINUE:
     try:
