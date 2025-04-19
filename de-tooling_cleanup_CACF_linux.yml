@@ -1,21 +1,22 @@
+# filepath: d:\scripts\GIT\KMD-AEVEN-TOOLS\de-tooling_cleanup_CACF_linux.yml
 ---
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #step: begin and setup tunnel and credentials
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: Create OS groups
+- name: '1.A - Create OS groups'
   hosts: localhost
   become: false
   gather_facts: false
   connection: local
   tasks:
-    - name: Create OS group
+    - name: '1.A.00 - Create OS group'
       group_by:
         key: "machine_{{ ostype }}"
       changed_when: false
       when: ostype is defined
       delegate_to: localhost
 
-- name: Socks tunnel setup
+- name: '2.B - Socks tunnel setup'
   hosts: localhost
   gather_facts: false
   tasks:
@@ -30,13 +31,14 @@
         transaction_id: "{{ tower_job_id }}"
         trans_num: "{{ tower_job_id }}"
 
-    - set_fact:
+    - name: '2.B.00 - Set become method and user'
+      set_fact:
         ansible_become_method: runas
         ansible_become_user: system
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #step working on localhost
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: '3.C - gather_facts localhost'
+- name: '3.C - Gather facts localhost'
   hosts: localhost
   gather_facts: true
   vars:
@@ -44,7 +46,7 @@
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     #step debug facts and list local directories for ansible localhost
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: '3.C.00 - debug facts and list local directories for ansible localhost'
+    - name: '3.C.00 - Debug facts and list local directories for ansible localhost'
       block:
         - name: '3.C.01 - Debug facts'
           debug:
@@ -73,7 +75,7 @@
 #step we are now running from remote host
 #
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: '4.D - cleanup ansible / CACF files on host '
+- name: '4.D - Cleanup ansible / CACF files on host'
   hosts: '{{ nodename }}'
   gather_facts: false
   become: true
@@ -88,7 +90,7 @@
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     #step cleanup ansible / CACF files on host
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: '4.D.00 - cleanup ansible files on host {{ nodename }}'
+    - name: '4.D.00 - Cleanup ansible files on host {{ nodename }}'
       block:
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #
@@ -99,13 +101,13 @@
         # '/var/opt/ansible/GTS/dataLake'
         #
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '3.C.01 - Check if the {{ cacfdir }} exists'
+        - name: '4.D.01 - Check if the {{ cacfdir }} exists'
           ignore_errors: yes
           stat:
             path: '{{ cacfdir }}'
           register: file_stat_CACF
 
-        - name: '3.C.02 - set {{ cacfdir }}'
+        - name: '4.D.02 - Set {{ cacfdir }} permissions'
           ignore_errors: yes
           become: true
           file:
@@ -116,17 +118,18 @@
             recurse: true
           when: file_stat_CACF.stat.exists
 
-        - name: '3.C.07 - test if {{ cacfdir }} is a mountpoint using shell command'
+        - name: '4.D.03 - Test if {{ cacfdir }} is a mountpoint using shell command'
           ignore_errors: yes
           shell: "findmnt -n {{ cacfdir }} > /dev/null 2>&1 && echo 'is_mount' || echo 'not_mount'"
           register: file_mountpoint_CACF
           when: file_stat_CACF.stat.exists
 
-        - name: '3.C.07a - Display mountpoint status'
+        - name: '4.D.03a - Display mountpoint status'
           debug:
             msg: "Path {{ cacfdir }} is a mountpoint: {{ 'is_mount' in file_mountpoint_CACF.stdout }}"
           when: file_stat_CACF.stat.exists and file_mountpoint_CACF.stdout is defined
-        - name: '3.C.08 - Delete {{ cacfdir }}'
+
+        - name: '4.D.04 - Delete {{ cacfdir }}'
           ignore_errors: yes
           become: true
           file:
@@ -141,7 +144,7 @@
             - file_stat_CACF.stat.exists
             - not ('is_mount' in file_mountpoint_CACF.stdout | default(''))
 
-        - name: '3.C.08a - Check what is locking {{ cacfdir }}/ directory'
+        - name: '4.D.04a - Check what is locking {{ cacfdir }}/ directory'
           shell: "lsof +D {{ cacfdir }}/"
           register: locking_processes
           ignore_errors: yes
@@ -151,58 +154,80 @@
             - file_stat_CACF.stat.exists
             - not ('is_mount' in file_mountpoint_CACF.stdout | default(''))
 
-        - name: '3.C.08b - Display locking processes for {{ cacfdir }}/'
+        - name: '4.D.04b - Display locking processes for {{ cacfdir }}/'
           debug:
             msg: >-
               "No locking processes found for {{ cacfdir }}/" if locking_processes.stdout_lines | length == 0 else locking_processes.stdout_lines
           when:
             - locking_processes is defined
 
-        - name: '3.C.08c - List {{ cacfdir }}/'
+        - name: '4.D.04c - List {{ cacfdir }}/'
           ignore_errors: yes
           shell: 'ls -lrta {{ cacfdir }}/'
           register: list_agentdir_out
 
-        - name: '3.C.08d - send output to ansible'
+        - name: '4.D.04d - Send output to ansible'
           ignore_errors: yes
           debug:
             var: list_agentdir_out.stdout_lines
           when: file_stat_CACF.stat.exists
 
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        #step find system components
+        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        - name: '4.D.05 - Find bigfix ignore case'
+          command: 'find / -iname "bigfix" 2>/dev/null'
+          register: search_bigfix
 
+        - name: '4.D.06 - Find BESClient ignore case'
+          command: 'find / -iname "BESClient" 2>/dev/null'
+          register: search_bigfix
+
+        - name: '4.D.07 - Find ITM case'
+          command: 'find / -name "ITM" 2>/dev/null'
+          register: search_ITM
+
+        - name: '4.D.08 - Find ansible ignore case'
+          command: 'find / -name "ITM" 2>/dev/null'
+          register: search_ansible
+
+        - name: '4.D.09 - Find ILMT ignore case'
+          command: 'find / -name "ILMT" 2>/dev/null'
+          register: search_ILMT
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step remove ansible users ansib_user1
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '4.D.04 - Check if {{ ansib_user1 }} already exists'
+        - name: '4.D.10 - Check if {{ ansib_user1 }} already exists'
           command: 'id {{ ansib_user1 }}'
           register: unix_user_info
 
-        # - name: '4.D.05 - Delete user {{ ansib_user1 }}'
+
+        # - name: '4.D.11 - Delete user {{ ansib_user1 }}'
         #   ignore_errors: true
         #   user:
         #     name: '{{ ansib_user1 }}'
         #     remove: '{{ data.remove_user_dirs | default(true) }}'
         #     state: absent
 
-        # - name: '4.D.06 - Delete sudoers profile for {{ ansib_user1 }}'
+        # - name: '4.D.12 - Delete sudoers profile for {{ ansib_user1 }}'
         #   file:
         #     path: '/etc/sudoers.d/{{ ansib_user1 }}_sudo'
         #     state: absent
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step remove ansible users ansib_user2
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '4.D.07 - Check if {{ ansib_user2 }} already exists'
+        - name: '4.D.13 - Check if {{ ansib_user2 }} already exists'
           command: 'id {{ ansib_user2 }}'
           register: unix_user_info_2
 
-        # - name: '4.D.08 - Delete user {{ ansib_user2 }}'
+        # - name: '4.D.14 - Delete user {{ ansib_user2 }}'
         #   user:
         #     name: '{{ ansib_user2 }}'
         #     remove: '{{ data.remove_user_dirs | default(true) }}'
         #     state: absent
 
-        # - name: '4.D.09 - Delete sudoers profile for {{ ansib_user2 }}'
+        # - name: '4.D.15 - Delete sudoers profile for {{ ansib_user2 }}'
         #   file:
         #     path: '/etc/sudoers.d/{{ ansib_user2 }}_sudo'
         #     state: absent
