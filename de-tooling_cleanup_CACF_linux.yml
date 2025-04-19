@@ -137,7 +137,6 @@
             group: root
             force: true
           register: delete_dir_result
-          register: delete_dir_result
           when:
             - file_stat_CACF.stat.exists
             - not ('is_mount' in file_mountpoint_CACF.stdout | default(''))
