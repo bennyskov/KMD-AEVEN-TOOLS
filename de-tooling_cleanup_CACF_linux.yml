@@ -145,7 +145,7 @@
             - not ('is_mount' in file_mountpoint_CACF.stdout | default(''))
 
         - name: '4.D.04a - Check what is locking {{ cacfdir }}/ directory'
-          shell: "lsof +D {{ cacfdir }}/"
+          shell: "/usr/sbin/lsof +D {{ cacfdir }}/"
           register: locking_processes
           ignore_errors: yes
           when:
