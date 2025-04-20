@@ -1,3 +1,4 @@
+# filepath: d:\scripts\GIT\KMD-AEVEN-TOOLS\roles\remove_user_cleanup\tasks\main.yml
 ---
 # tasks/main.yml for remove_user_cleanup role
 # This role provides a reusable way to remove users and clean up their files
@@ -21,10 +22,9 @@
     changed_when: false
 
   - name: 'Find processes running as user'
-    shell: "ps -u {{ username }} -o pid,cmd | grep -v PID"
+    shell: "id {{ username }} >/dev/null 2>&1 && ps -u {{ username }} -o pid,cmd | grep -v PID || echo ''"
     register: user_processes
     changed_when: false
-    ignore_errors: true
 
   - name: 'Kill user processes if requested'
     shell: "pkill -9 -u {{ username }}"
