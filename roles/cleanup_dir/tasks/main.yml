@@ -1,75 +1,67 @@
 ---
-# Main tasks file for cleanup_dir role
+# tasks/main.yml for cleanup_dir role
+# This role provides a reusable way to clean up directories with proper checks
 
 - name: 'Check if directory {{ cleanup_path }} exists'
-  ignore_errors: yes
   stat:
-    path: '{{ cleanup_path }}'
-  register: file_stat_dir
+    path: "{{ cleanup_path }}"
+  register: dir_exists
 
-- name: 'Set {{ cleanup_path }} permissions'
-  ignore_errors: yes
-  become: true
-  file:
-    path: '{{ cleanup_path }}'
-    mode: '{{ dir_mode }}'
-    owner: '{{ dir_owner }}'
-    group: '{{ dir_group }}'
-    recurse: true
-  when: file_stat_dir.stat.exists
-
-- name: 'Test if {{ cleanup_path }} is a mountpoint using shell command'
-  ignore_errors: yes
-  shell: "findmnt -n {{ cleanup_path }} > /dev/null 2>&1 && echo 'is_mount' || echo 'not_mount'"
-  register: file_mountpoint
-  when: file_stat_dir.stat.exists
-
-- name: 'Display mountpoint status'
+- name: 'Directory does not exist - skipping cleanup for {{ cleanup_path }}'
   debug:
-    msg: "Path {{ cleanup_path }} is a mountpoint: {{ 'is_mount' in file_mountpoint.stdout }}"
-  when: file_stat_dir.stat.exists and file_mountpoint.stdout is defined
+    msg: "Directory {{ cleanup_path }} does not exist, skipping cleanup"
+  when: not dir_exists.stat.exists
 
-- name: 'Delete {{ cleanup_path }}'
-  ignore_errors: yes
-  become: true
-  file:
-    path: '{{ cleanup_path }}'
-    state: absent
-    mode: '{{ dir_mode }}'
-    owner: '{{ dir_owner }}'
-    group: '{{ dir_group }}'
-    force: '{{ force_delete }}'
-  register: delete_dir_result
-  when:
-    - file_stat_dir.stat.exists
-    - not ('is_mount' in file_mountpoint.stdout | default(''))
+- name: 'Get size of directory before cleanup'
+  shell: "du -sh {{ cleanup_path }} 2>/dev/null || echo '0'"
+  register: dir_size_before
+  changed_when: false
+  when: dir_exists.stat.exists
 
-- name: 'Handle locked files and provide diagnostics'
-  when:
-    - delete_dir_result is defined
-    - delete_dir_result.failed is defined
-    - delete_dir_result.failed
-    - file_stat_dir.stat.exists
-    - not ('is_mount' in file_mountpoint.stdout | default(''))
+- name: 'Check for locked files in {{ cleanup_path }}'
+  shell: "{{ lsof_command | default('/usr/sbin/lsof') }} +D {{ cleanup_path }} 2>/dev/null || echo ''"
+  register: locked_files
+  changed_when: false
+  when: dir_exists.stat.exists
+
+- name: 'Display locked files if any'
+  debug:
+    msg: "Found locked files that may prevent full cleanup: {{ locked_files.stdout_lines }}"
+  when: dir_exists.stat.exists and locked_files.stdout | length > 0
+
+- name: 'Clean up directory content without removing the directory itself (safer option)'
   block:
-    - name: 'Check what is locking {{ cleanup_path }} directory'
-      shell: "{{ lsof_command }} +D {{ cleanup_path }}/"
-      register: locking_processes
-      ignore_errors: yes
+    - name: 'List directory content before cleanup'
+      shell: "ls -la {{ cleanup_path }}"
+      register: dir_content_before
+      changed_when: false
 
-    - name: 'Display locking processes for {{ cleanup_path }}'
-      debug:
-        msg: >-
-          "No locking processes found for {{ cleanup_path }}" if locking_processes.stdout_lines | length == 0 else locking_processes.stdout_lines
-      when: locking_processes is defined
+    - name: 'Remove directory content recursively (preserving directory)'
+      shell: "find {{ cleanup_path }} -mindepth 1 -delete"
+      register: cleanup_result
+      when: not force_delete | default(false)
 
-    - name: 'List {{ cleanup_path }}/'
-      ignore_errors: yes
-      shell: 'ls -lrta {{ cleanup_path }}/'
-      register: list_dir_out
+  when: dir_exists.stat.exists and not force_delete | default(false)
 
-    - name: 'Send output to ansible'
-      ignore_errors: yes
-      debug:
-        var: list_dir_out.stdout_lines
-      when: list_dir_out is defined
+- name: 'Force delete directory completely'
+  block:
+    - name: 'Remove entire directory and contents'
+      file:
+        path: "{{ cleanup_path }}"
+        state: absent
+      register: force_delete_result
+
+    - name: 'Recreate empty directory with specified permissions'
+      file:
+        path: "{{ cleanup_path }}"
+        state: directory
+        mode: "{{ dir_mode | default('0755') }}"
+        owner: "{{ dir_owner | default('root') }}"
+        group: "{{ dir_group | default('root') }}"
+
+  when: dir_exists.stat.exists and force_delete | default(false)
+
+- name: 'Report cleanup operation result'
+  debug:
+    msg: "Cleanup operation for {{ cleanup_path }} completed successfully"
+  when: dir_exists.stat.exists

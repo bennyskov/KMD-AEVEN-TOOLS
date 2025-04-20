@@ -1,179 +1,143 @@
 ---
-# Main tasks file for git_operations role
+# tasks/main.yml for git_operations role
+# This role provides functionality to push files back to a Git repository
 
-- name: "Ensure git is installed"
+- name: 'Set temporary directory for Git operations'
+  set_fact:
+    git_temp_dir: "{{ local_repo_path | default('/tmp/git_operations_temp') }}"
+
+- name: 'Ensure Git is installed'
   package:
     name: git
     state: present
-  when: ansible_system != "Win32NT"
-  ignore_errors: true
+  become: true
 
-- name: "Create local directory for Git operations"
+- name: 'Remove any existing temporary Git directory'
   file:
-    path: "{{ local_repo_path }}"
+    path: "{{ git_temp_dir }}"
+    state: absent
+
+- name: 'Create temporary directory for Git operations'
+  file:
+    path: "{{ git_temp_dir }}"
     state: directory
     mode: '0755'
-  ignore_errors: true
 
-- name: "Set Git configuration for user"
-  command: "git config --global user.name '{{ git_user_name }}'"
-  ignore_errors: true
-  changed_when: false
-
-- name: "Set Git configuration for email"
-  command: "git config --global user.email '{{ git_user_email }}'"
-  ignore_errors: true
-  changed_when: false
-
-- name: "Clone repository"
+- name: 'Set up Git configuration'
   block:
-    - name: "Clone repository with HTTPS and token"
-      git:
-        repo: "{{ git_repo_url }}"
-        dest: "{{ local_repo_path }}"
-        version: "{{ git_branch }}"
-        force: yes
-        depth: 1
-      environment:
-        GIT_TERMINAL_PROMPT: "0"
-        GIT_ASKPASS: /bin/echo
-        GIT_USERNAME: "{{ git_user_name }}"
-        GIT_PASSWORD: "{{ git_token }}"
-      when: git_credentials_method == 'https_token'
-      ignore_errors: true
-
-    - name: "Clone repository with SSH key"
-      git:
-        repo: "{{ git_repo_url }}"
-        dest: "{{ local_repo_path }}"
-        version: "{{ git_branch }}"
-        key_file: "{{ git_ssh_key_path }}"
-        force: yes
-        depth: 1
-      when: git_credentials_method == 'ssh_key'
-      ignore_errors: true
-
-    - name: "Clone repository without authentication"
-      git:
-        repo: "{{ git_repo_url }}"
-        dest: "{{ local_repo_path }}"
-        version: "{{ git_branch }}"
-        force: yes
-        depth: 1
-      when: git_credentials_method == 'none'
-      ignore_errors: true
-
-  rescue:
-    - name: "Report Git clone failure"
-      debug:
-        msg: "Failed to clone repository: {{ ansible_failed_result | default('Unknown error') }}"
-      failed_when: true
-
-- name: "Create results directory in repository if it doesn't exist"
-  file:
-    path: "{{ local_repo_path }}/{{ item.dest | regex_replace('/[^/]+$','') }}"
-    state: directory
-    mode: '0755'
-  loop: "{{ files_to_commit }}"
-  loop_control:
-    label: "Creating directory for {{ item.dest }}"
-  ignore_errors: true
-  when: "item.dest is defined and '/' in item.dest"
-
-- name: "Copy files to commit"
-  copy:
-    src: "{{ item.source }}"
-    dest: "{{ local_repo_path }}/{{ item.dest }}"
-    mode: "0644"
-    remote_src: yes
-  loop: "{{ files_to_commit }}"
-  loop_control:
-    label: "Copying {{ item.source }} to {{ item.dest }}"
-  ignore_errors: true
-  register: copy_results
-  failed_when: false
-
-- name: "Add timestamp to filenames"
-  command: >
-    mv {{ local_repo_path }}/{{ item.0.dest }}
-    {{ local_repo_path }}/{{ item.0.dest | regex_replace('\.([^\.]+)$', '_' + ansible_date_time.date | regex_replace('-', '') + '_' + ansible_date_time.time | regex_replace(':', '') + '.\1') }}
-  with_indexed_items: "{{ files_to_commit }}"
-  ignore_errors: true
-  when: item.1.rc is defined and item.1.rc == 0
-  loop_control:
-    index_var: index
-  failed_when: false
-
-- name: "Add, commit and push changes"
-  block:
-    - name: "Git add files"
-      command: "git add ."
-      args:
-        chdir: "{{ local_repo_path }}"
-      ignore_errors: true
-
-    - name: "Check if there are changes to commit"
-      command: "git status --porcelain"
-      args:
-        chdir: "{{ local_repo_path }}"
-      register: git_status
-      ignore_errors: true
+    - name: 'Set global Git user name'
+      shell: "git config --global user.name '{{ git_user_name | default('Ansible Automation') }}'"
       changed_when: false
 
-    - name: "Git commit changes"
-      command: "git commit -m '{{ commit_message }} - {{ ansible_date_time.iso8601 }}'"
-      args:
-        chdir: "{{ local_repo_path }}"
-      register: commit_result
-      ignore_errors: true
-      when: git_status.stdout | trim != ""
-      changed_when: commit_result.rc == 0
+    - name: 'Set global Git user email'
+      shell: "git config --global user.email '{{ git_user_email | default('ansible@automation.local') }}'"
+      changed_when: false
 
-    - name: "Push changes to repository with HTTPS token"
-      command: "git push origin {{ git_branch }}"
-      args:
-        chdir: "{{ local_repo_path }}"
-      environment:
-        GIT_TERMINAL_PROMPT: "0"
-        GIT_ASKPASS: /bin/echo
-        GIT_USERNAME: "{{ git_user_name }}"
-        GIT_PASSWORD: "{{ git_token }}"
-      when:
-        - git_status.stdout | trim != ""
-        - commit_result.rc is defined and commit_result.rc == 0
-        - git_credentials_method == 'https_token'
-      ignore_errors: true
+- name: 'Clone Git repository based on authentication method'
+  block:
+    - name: 'Clone repository using HTTPS with token'
+      shell: >
+        git clone https://{{ git_user }}:{{ git_token }}@{{ git_repo_url | regex_replace('^https?://','') }} {{ git_temp_dir }}
+      when: git_credentials_method == 'https_token' and git_token is defined and git_token != ''
+      no_log: true
 
-    - name: "Push changes to repository with SSH"
-      command: "git push origin {{ git_branch }}"
-      args:
-        chdir: "{{ local_repo_path }}"
-      when:
-        - git_status.stdout | trim != ""
-        - commit_result.rc is defined and commit_result.rc == 0
-        - git_credentials_method == 'ssh_key' or git_credentials_method == 'none'
-      ignore_errors: true
+    - name: 'Clone repository using HTTPS with username/password'
+      shell: >
+        git clone https://{{ git_user }}:{{ git_password }}@{{ git_repo_url | regex_replace('^https?://','') }} {{ git_temp_dir }}
+      when: git_credentials_method == 'https_basic' and git_user is defined and git_password is defined
+      no_log: true
 
-    - name: "Report successful push"
-      debug:
-        msg: "Successfully pushed changes to repository"
-      when:
-        - git_status.stdout | trim != ""
-        - commit_result.rc is defined and commit_result.rc == 0
+    - name: 'Clone repository using SSH key'
+      shell: >
+        GIT_SSH_COMMAND="ssh -i {{ git_ssh_key_path }} -o StrictHostKeyChecking=no" git clone {{ git_repo_url }} {{ git_temp_dir }}
+      when: git_credentials_method == 'ssh_key' and git_ssh_key_path is defined
 
-    - name: "Report no changes to push"
-      debug:
-        msg: "No changes to commit and push"
-      when: git_status.stdout | trim == ""
+    - name: 'Clone repository without authentication (public repo)'
+      shell: >
+        git clone {{ git_repo_url }} {{ git_temp_dir }}
+      when: git_credentials_method == 'none' or git_credentials_method is not defined
 
-  rescue:
-    - name: "Report Git push failure"
-      debug:
-        msg: "Failed to push changes: {{ ansible_failed_result | default('Unknown error') }}"
+- name: 'Switch to specified branch if provided'
+  shell: "cd {{ git_temp_dir }} && git checkout {{ git_branch | default('main') }}"
+  register: checkout_result
+  failed_when:
+    - checkout_result.rc != 0
+    - "'did not match any file(s) known to git' not in checkout_result.stderr"
+  changed_when: false
 
-- name: "Cleanup local repository"
+- name: 'Create branch if it does not exist'
+  shell: "cd {{ git_temp_dir }} && git checkout -b {{ git_branch | default('main') }}"
+  when: "'did not match any file(s) known to git' in checkout_result.stderr"
+  changed_when: true
+
+- name: 'Create directory for cleanup results if it does not exist'
   file:
-    path: "{{ local_repo_path }}"
+    path: "{{ git_temp_dir }}/cleanup_results"
+    state: directory
+    mode: '0755'
+
+- name: 'Get current timestamp'
+  set_fact:
+    timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+
+- name: 'Copy cleanup candidates file to Git repository'
+  copy:
+    src: "{{ cleanup_candidates_file }}"
+    dest: "{{ git_temp_dir }}/cleanup_results/cleanup_candidates_{{ ansible_hostname }}_{{ timestamp }}.txt"
+    mode: '0644'
+  when: cleanup_candidates_file is defined
+
+- name: 'Add files to Git'
+  shell: "cd {{ git_temp_dir }} && git add -A"
+  changed_when: false
+
+- name: 'Check if there are changes to commit'
+  shell: "cd {{ git_temp_dir }} && git status --porcelain"
+  register: git_status
+  changed_when: false
+
+- name: 'Commit changes if any'
+  shell: >
+    cd {{ git_temp_dir }} &&
+    git commit -m "Automated: Cleanup candidates from {{ ansible_hostname }} on {{ ansible_date_time.date }}"
+  when: git_status.stdout != ""
+  register: git_commit
+  changed_when: git_commit.rc == 0
+
+- name: 'Push changes to remote repository'
+  block:
+    - name: 'Push using token authentication'
+      shell: >
+        cd {{ git_temp_dir }} &&
+        git push https://{{ git_user }}:{{ git_token }}@{{ git_repo_url | regex_replace('^https?://','') }} {{ git_branch | default('main') }}
+      when: git_credentials_method == 'https_token' and git_token is defined and git_token != ''
+      no_log: true
+
+    - name: 'Push using username/password authentication'
+      shell: >
+        cd {{ git_temp_dir }} &&
+        git push https://{{ git_user }}:{{ git_password }}@{{ git_repo_url | regex_replace('^https?://','') }} {{ git_branch | default('main') }}
+      when: git_credentials_method == 'https_basic' and git_user is defined and git_password is defined
+      no_log: true
+
+    - name: 'Push using SSH key authentication'
+      shell: >
+        cd {{ git_temp_dir }} &&
+        GIT_SSH_COMMAND="ssh -i {{ git_ssh_key_path }} -o StrictHostKeyChecking=no" git push origin {{ git_branch | default('main') }}
+      when: git_credentials_method == 'ssh_key' and git_ssh_key_path is defined
+
+    - name: 'Push without specific authentication'
+      shell: >
+        cd {{ git_temp_dir }} && git push origin {{ git_branch | default('main') }}
+      when: git_credentials_method == 'none' or git_credentials_method is not defined
+  when: git_status.stdout != "" and git_commit.rc == 0
+
+- name: 'Clean up temporary Git directory'
+  file:
+    path: "{{ git_temp_dir }}"
     state: absent
-  when: cleanup_local_repo | bool
-  ignore_errors: true
+  when: git_cleanup | default(true)
+
+- name: 'Report Git operation results'
+  debug:
+    msg: "{{ 'Changes committed and pushed to Git repository' if git_status.stdout != '' and git_commit is defined and git_commit.rc == 0 else 'No changes to commit' if git_status.stdout == '' else 'Failed to push changes to Git repository' }}"
