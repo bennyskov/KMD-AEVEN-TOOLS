@@ -149,7 +149,6 @@
           register: locking_processes
           ignore_errors: yes
           when:
-            - delete_dir_result is defined
             - delete_dir_result.failed
             - file_stat_CACF.stat.exists
             - not ('is_mount' in file_mountpoint_CACF.stdout | default(''))
@@ -165,41 +164,48 @@
           ignore_errors: yes
           shell: 'ls -lrta {{ cacfdir }}/'
           register: list_agentdir_out
+          when:
+            - delete_dir_result.failed
+            - file_stat_CACF.stat.exists
+            - not ('is_mount' in file_mountpoint_CACF.stdout | default(''))
 
         - name: '4.D.04d - Send output to ansible'
           ignore_errors: yes
           debug:
             var: list_agentdir_out.stdout_lines
-          when: file_stat_CACF.stat.exists
+          when:
+            - delete_dir_result.failed
+            - file_stat_CACF.stat.exists
+            - not ('is_mount' in file_mountpoint_CACF.stdout | default(''))
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step find system components
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: '4.D.05 - Find bigfix ignore case'
-          command: 'find / -iname "bigfix" 2>/dev/null'
+          shell: 'find / -iname "bigfix" 2>/dev/null'
           register: search_bigfix
 
         - name: '4.D.06 - Find BESClient ignore case'
-          command: 'find / -iname "BESClient" 2>/dev/null'
+          shell: 'find / -iname "BESClient" 2>/dev/null'
           register: search_bigfix
 
         - name: '4.D.07 - Find ITM case'
-          command: 'find / -name "ITM" 2>/dev/null'
+          shell: 'find / -name "ITM" 2>/dev/null'
           register: search_ITM
 
         - name: '4.D.08 - Find ansible ignore case'
-          command: 'find / -name "ITM" 2>/dev/null'
+          shell: 'find / -name "ITM" 2>/dev/null'
           register: search_ansible
 
         - name: '4.D.09 - Find ILMT ignore case'
-          command: 'find / -name "ILMT" 2>/dev/null'
+          shell: 'find / -name "ILMT" 2>/dev/null'
           register: search_ILMT
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step remove ansible users ansib_user1
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: '4.D.10 - Check if {{ ansib_user1 }} already exists'
-          command: 'id {{ ansib_user1 }}'
+          shell: 'id {{ ansib_user1 }}'
           register: unix_user_info
 
 
@@ -218,7 +224,7 @@
         #step remove ansible users ansib_user2
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: '4.D.13 - Check if {{ ansib_user2 }} already exists'
-          command: 'id {{ ansib_user2 }}'
+          shell: 'id {{ ansib_user2 }}'
           register: unix_user_info_2
 
         # - name: '4.D.14 - Delete user {{ ansib_user2 }}'
