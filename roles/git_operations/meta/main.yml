@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  role_name: git_operations
+  description: A role to perform Git operations from Ansible Tower, including pushing results back to repositories
+  author: KMD-AEVEN-TOOLS
+  min_ansible_version: 2.9
+  platforms:
+    - name: Linux
+      versions:
+        - all
+
+dependencies: []

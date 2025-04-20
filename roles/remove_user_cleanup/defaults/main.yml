@@ -1,0 +1,26 @@
+---
+# Default variables for remove_user_cleanup role
+
+# Username to remove
+username: ""
+
+# Home directory path (defaults to /home/{{ username }})
+user_home: ""
+
+# Whether to remove user's home directory
+remove_home: true
+
+# Whether to force removal of home directory
+force_removal: true
+
+# Path to sudoers file for this user
+sudoers_path: "/etc/sudoers.d/{{ username }}_sudo"
+
+# Whether to handle locked processes (advanced cleanup)
+handle_locked_processes: true
+
+# Path to check for specific application paths in user processes
+application_path_check: ""
+
+# Whether to check and display remaining files
+check_remaining_files: true

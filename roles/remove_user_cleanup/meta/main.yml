@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  role_name: remove_user_cleanup
+  description: A role to safely remove users, clean up their files, and handle locked processes
+  author: KMD-AEVEN-TOOLS
+  min_ansible_version: 2.9
+  platforms:
+    - name: Linux
+      versions:
+        - all
+
+dependencies: []

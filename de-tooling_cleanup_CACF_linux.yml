@@ -55,21 +55,38 @@
           tags:
             - debug_facts
 
-        - name: '3.C.02 - List homedir files'
+        - name: '3.C.02 - whoami'
+          shell: 'whoami'
+          register: script_whoami
+
+        - name: '3.C.03 - Output list whoami'
+          debug:
+            var: script_whoami.stdout_lines
+
+        - name: '3.C.04 - List homedir files'
           shell: 'ls -lrt'
           register: script_homedir
 
-        - name: '3.C.03 - Output list homedir'
+        - name: '3.C.05 - Output list homedir'
           debug:
             var: script_homedir.stdout_lines
 
-        - name: '3.C.04 - List /tmp/'
+        - name: '3.C.06 - List /tmp/'
           shell: 'ls -lrt /tmp/'
           register: script_tmp
 
-        - name: '3.C.05 - Output list tmp'
+        - name: '3.C.07 - Output list tmp'
           debug:
             var: script_tmp.stdout_lines
+
+        - name: '3.C.08 - df -k'
+          shell: 'df -k'
+          register: script_df
+
+        - name: '3.C.09 - Output of df'
+          debug:
+            var: script_df.stdout_lines
+
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #
 #step we are now running from remote host
@@ -85,285 +102,112 @@
     nodename: '{{ nodename }}'
     ansib_user1: 'kmduxat1'
     ansib_user2: 'kmduxat2'
-    cacfdir: '/var/opt/ansible'
+    cleanup_directories:
+      - path: '/var/opt/ansible'
+        description: 'CACF Directory'
+      - path: '/var/opt/ansible_workdir'
+        description: 'Ansible Workdir'
+      - path: '/etc/ansible'
+        description: 'Ansible Configuration'
+      - path: '/root/.ansible_async'
+        description: 'Ansible Async Directory'
+      - path: '/tmp/gts-ansible'
+        description: 'GTS Ansible Temp Directory'
   tasks:
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     #step cleanup ansible / CACF files on host
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: '4.D.00 - Cleanup ansible files on host {{ nodename }}'
-      block:
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        #
-        #step cleanup ansible
-        #
-        # '/var/opt/ansible/GTS',
-        # '/var/opt/ansible/tmp',
-        # '/var/opt/ansible/GTS/dataLake'
-        #
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '4.D.01 - Check if the {{ cacfdir }} exists'
-          ignore_errors: yes
-          stat:
-            path: '{{ cacfdir }}'
-          register: file_stat_CACF
+    - name: '4.D.00 - Cleanup ansible directories on host {{ nodename }}'
+      include_role:
+        name: cleanup_dir
+      vars:
+        cleanup_path: "{{ item.path }}"
+        dir_mode: "0775"
+        dir_owner: "root"
+        dir_group: "root"
+        force_delete: true
+        lsof_command: "/usr/sbin/lsof"
+      loop: "{{ cleanup_directories }}"
+      loop_control:
+        label: "{{ item.description }} ({{ item.path }})"
 
-        - name: '4.D.02 - Set {{ cacfdir }} permissions'
-          ignore_errors: yes
-          become: true
-          file:
-            path: '{{ cacfdir }}'
-            mode: 0775
-            owner: root
-            group: root
-            recurse: true
-          when: file_stat_CACF.stat.exists
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    #step remove ansible users
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: '4.D.10 - Define list of users to clean up'
+      set_fact:
+        users_to_cleanup:
+          - username: '{{ ansib_user1 }}'
+            description: 'Ansible User 1 (kmduxat1)'
+          - username: '{{ ansib_user2 }}'
+            description: 'Ansible User 2 (kmduxat2)'
 
-        - name: '4.D.03 - Test if {{ cacfdir }} is a mountpoint using shell command'
-          ignore_errors: yes
-          shell: "findmnt -n {{ cacfdir }} > /dev/null 2>&1 && echo 'is_mount' || echo 'not_mount'"
-          register: file_mountpoint_CACF
-          when: file_stat_CACF.stat.exists
+    - name: '4.D.11 - Cleanup and remove users'
+      include_role:
+        name: remove_user_cleanup
+      vars:
+        username: "{{ item.username }}"
+        remove_home: true
+        force_removal: true
+        handle_locked_processes: true
+        check_remaining_files: true
+      loop: "{{ users_to_cleanup }}"
+      loop_control:
+        label: "Removing {{ item.description }}"
+      # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+      #step Find cleanup candidates
+      # -----------------------------------------------------------------------------------------------------------------------------------------------------------------    - name: '4.D.05 - Find cleanup candidates'
+    - name: '4.D.12 - find cleanup candidates'
+      include_role:
+        name: find_cleanup_candidates
+      vars:
+        search_patterns:
+          - name: "BigFix"
+            pattern: "bigfix"
+            case_sensitive: false
+          - name: "BESClient"
+            pattern: "BESClient"
+            case_sensitive: false
+          - name: "ITM"
+            pattern: "ITM"
+            case_sensitive: true
+          - name: "Ansible"
+            pattern: "ansible"
+            case_sensitive: true
+          - name: "ILMT"
+            pattern: "ILMT"
+            case_sensitive: true
+        search_path: "/"
+        exclude_dirs:
+          - "/proc"
+          - "/sys"
+          - "/dev"
+          - "/run"
+        output_format: "detailed"
+        save_to_file: true
+        results_file: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
 
-        - name: '4.D.03a - Display mountpoint status'
-          debug:
-            msg: "Path {{ cacfdir }} is a mountpoint: {{ 'is_mount' in file_mountpoint_CACF.stdout }}"
-          when: file_stat_CACF.stat.exists and file_mountpoint_CACF.stdout is defined
+    - name: '4.D.05b - Push cleanup candidates file back to Git repository'
+      include_role:
+        name: git_operations
+      vars:
+        git_repo_url: "{{ git_repository_url | default('https://github.com/your-org/KMD-AEVEN-TOOLS.git') }}"
+        git_branch: "{{ git_branch | default('main') }}"
+        git_user_name: "Ansible Tower"
+        git_user_email: "ansible@tower.local"
+        git_credentials_method: "{{ git_auth_method | default('https_token') }}"
+        git_token: "{{ git_access_token | default('') }}"
+        local_repo_path: "/tmp/kmd_aeven_tools_repo"
+        files_to_commit:
+          - source: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
+            dest: "cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
+            required: false
+        commit_message: "Added cleanup candidates from {{ inventory_hostname }} - {{ ansible_date_time.date }}"
 
-        - name: '4.D.04 - Delete {{ cacfdir }}'
-          ignore_errors: yes
-          become: true
-          file:
-            path: '{{ cacfdir }}'
-            state: absent
-            mode: 0775
-            owner: root
-            group: root
-            force: true
-          register: delete_dir_result
-          when:
-            - file_stat_CACF.stat.exists
-            - not ('is_mount' in file_mountpoint_CACF.stdout | default(''))
-
-        - name: '4.D.04a - Check what is locking {{ cacfdir }}/ directory'
-          shell: "/usr/sbin/lsof +D {{ cacfdir }}/"
-          register: locking_processes
-          ignore_errors: yes
-          when:
-            - delete_dir_result.failed
-            - file_stat_CACF.stat.exists
-            - not ('is_mount' in file_mountpoint_CACF.stdout | default(''))
-
-        - name: '4.D.04b - Display locking processes for {{ cacfdir }}/'
-          debug:
-            msg: >-
-              "No locking processes found for {{ cacfdir }}/" if locking_processes.stdout_lines | length == 0 else locking_processes.stdout_lines
-          when:
-            - delete_dir_result.failed
-            - locking_processes is defined
-
-        - name: '4.D.04c - List {{ cacfdir }}/'
-          ignore_errors: yes
-          shell: 'ls -lrta {{ cacfdir }}/'
-          register: list_agentdir_out
-          when:
-            - delete_dir_result.failed
-            - file_stat_CACF.stat.exists
-            - not ('is_mount' in file_mountpoint_CACF.stdout | default(''))
-
-        - name: '4.D.04d - Send output to ansible'
-          ignore_errors: yes
-          debug:
-            var: list_agentdir_out.stdout_lines
-          when:
-            - delete_dir_result.failed
-            - file_stat_CACF.stat.exists
-            - not ('is_mount' in file_mountpoint_CACF.stdout | default(''))
-
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        #step find system components
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '4.D.05 - Find BigFix'
-          shell: 'find / -iname "bigfix" 2>/dev/null'
-          register: find_result
-          changed_when: false
-          failed_when: false
-
-        - name: '4.D.05a - Check if BigFix was found'
-          debug:
-            msg: "BigFix found"
-          when: find_result.stdout | trim != ""
-
-        - name: '4.D.06 - Find BESClient ignore case'
-          shell: 'find / -iname "BESClient" 2>/dev/null'
-          register: find_result_BESClient
-          changed_when: false
-          failed_when: false
-
-        - name: '4.D.06a - Check if BESClient was found'
-          debug:
-            msg: "BESClient found"
-          when: find_result_BESClient.stdout | trim != ""
-
-        - name: '4.D.08 - Find ansible ignore case'
-          shell: 'find / -name "ansible" 2>/dev/null'
-          register: find_result_ansible
-          changed_when: false
-          failed_when: false
-
-        - name: '4.D.08a - Check if ansible was found'
-          debug:
-            msg: "Ansible found"
-          when: find_result_ansible.stdout | trim != ""
-
-        - name: '4.D.09 - Find ILMT ignore case'
-          shell: 'find / -name "ILMT" 2>/dev/null'
-          register: find_result_ILMT
-          changed_when: false
-          failed_when: false
-
-        - name: '4.D.09a - Check if ILMT was found'
-          debug:
-            msg: "ILMT found"
-          when: find_result_ILMT.stdout | trim != ""
-
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        #step remove ansible users ansib_user1
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '4.D.10 - Check if {{ ansib_user1 }} already exists'
-          shell: 'id {{ ansib_user1 }}'
-          register: unix_user1_info
-          changed_when: false
-          failed_when: false
-
-        - name: '4.D.11 - Cleanup for user {{ ansib_user1 }}'
-          when: unix_user1_info.rc == 0
-          block:
-            - name: '4.D.11a - Kill all processes owned by {{ ansib_user1 }}'
-              shell: "pkill -9 -u {{ ansib_user1 }} || true"
-              ignore_errors: true
-
-            - name: '4.D.11b - Remove mail spool for {{ ansib_user1 }}'
-              file:
-                path: "/var/mail/{{ ansib_user1 }}"
-                state: absent
-              ignore_errors: true
-
-            - name: '4.D.11c - Remove temp files for {{ ansib_user1 }}'
-              shell: "find /tmp -user {{ ansib_user1 }} -exec rm -rf {} \\; 2>/dev/null || true"
-              ignore_errors: true
-
-            - name: '4.D.11d - Remove cron jobs for {{ ansib_user1 }}'
-              file:
-                path: "/var/spool/cron/{{ ansib_user1 }}"
-                state: absent
-              ignore_errors: true
-
-            - name: '4.D.11e - Remove print jobs for {{ ansib_user1 }}'
-              shell: "find /var/spool/cups -user {{ ansib_user1 }} -exec rm -rf {} \\; 2>/dev/null || true"
-              ignore_errors: true
-
-            - name: '4.D.11f - Delete user {{ ansib_user1 }}'
-              user:
-                name: '{{ ansib_user1 }}'
-                remove: '{{ data.remove_user_dirs | default(true) }}'
-                state: absent
-              ignore_errors: true
-
-            - name: '4.D.11g - Delete sudoers profile for {{ ansib_user1 }}'
-              file:
-                path: '/etc/sudoers.d/{{ ansib_user1 }}_sudo'
-                state: absent
-              ignore_errors: true
-
-            - name: '4.D.11h - Delete home directory for {{ ansib_user1 }} if it still exists'
-              file:
-                path: '/home/{{ ansib_user1 }}'
-                state: absent
-                force: true
-              ignore_errors: true
-
-            - name: '4.D.11i - Remove any other sudoers files for {{ ansib_user1 }}'
-              shell: "find /etc/sudoers.d/ -name '*{{ ansib_user1 }}*' -exec rm -f {} \\; 2>/dev/null || true"
-              ignore_errors: true
-
-            - name: '4.D.11j - Check for remaining files owned by {{ ansib_user1 }}'
-              shell: "find / -user {{ ansib_user1 }} -ls 2>/dev/null || true"
-              register: remaining_files
-              ignore_errors: true
-              changed_when: false
-
-            - name: '4.D.11k - Display any remaining files'
-              debug:
-                msg: "Remaining files for {{ ansib_user1 }}: {{ remaining_files.stdout_lines }}"
-              when: remaining_files.stdout_lines | length > 0
-
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        #step remove ansible users ansib_user2
-        # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '4.D.12 - Check if {{ ansib_user2 }} already exists'
-          shell: 'id {{ ansib_user2 }}'
-          register: unix_user2_info
-          changed_when: false
-          failed_when: false
-
-        - name: '4.D.13 - Cleanup for user {{ ansib_user2 }}'
-          when: unix_user2_info.rc == 0
-          block:
-            - name: '4.D.13a - Kill all processes owned by {{ ansib_user2 }}'
-              shell: "pkill -9 -u {{ ansib_user2 }} || true"
-              ignore_errors: true
-
-            - name: '4.D.13b - Remove mail spool for {{ ansib_user2 }}'
-              file:
-                path: "/var/mail/{{ ansib_user2 }}"
-                state: absent
-              ignore_errors: true
-
-            - name: '4.D.13c - Remove temp files for {{ ansib_user2 }}'
-              shell: "find /tmp -user {{ ansib_user2 }} -exec rm -rf {} \\; 2>/dev/null || true"
-              ignore_errors: true
-
-            - name: '4.D.13d - Remove cron jobs for {{ ansib_user2 }}'
-              file:
-                path: "/var/spool/cron/{{ ansib_user2 }}"
-                state: absent
-              ignore_errors: true
-
-            - name: '4.D.13e - Remove print jobs for {{ ansib_user2 }}'
-              shell: "find /var/spool/cups -user {{ ansib_user2 }} -exec rm -rf {} \\; 2>/dev/null || true"
-              ignore_errors: true
-
-            - name: '4.D.13f - Delete user {{ ansib_user2 }}'
-              user:
-                name: '{{ ansib_user2 }}'
-                remove: '{{ data.remove_user_dirs | default(true) }}'
-                state: absent
-              ignore_errors: true
-
-            - name: '4.D.13g - Delete sudoers profile for {{ ansib_user2 }}'
-              file:
-                path: '/etc/sudoers.d/{{ ansib_user2 }}_sudo'
-                state: absent
-              ignore_errors: true
-
-            - name: '4.D.13h - Delete home directory for {{ ansib_user2 }} if it still exists'
-              file:
-                path: '/home/{{ ansib_user2 }}'
-                state: absent
-                force: true
-              ignore_errors: true
-
-            - name: '4.D.13i - Remove any other sudoers files for {{ ansib_user2 }}'
-              shell: "find /etc/sudoers.d/ -name '*{{ ansib_user2 }}*' -exec rm -f {} \\; 2>/dev/null || true"
-              ignore_errors: true
-
-            - name: '4.D.13j - Check for remaining files owned by {{ ansib_user2 }}'
-              shell: "find / -user {{ ansib_user2 }} -ls 2>/dev/null || true"
-              register: remaining_files_2
-              ignore_errors: true
-              changed_when: false
-
-            - name: '4.D.13k - Display any remaining files'
-              debug:
-                msg: "Remaining files for {{ ansib_user2 }}: {{ remaining_files_2.stdout_lines }}"
-              when: remaining_files_2.stdout_lines | length > 0
+    - name: '4.D.05c - Push cleanup candidates to Git repository'
+      include_tasks: 'roles/push_cleanup_results.yml'
+      vars:
+        git_repository_url: "https://github.kyndryl.net/eu-nordic-kmn/KMD-AEVEN-TOOLS.git"  # Change to your actual repository URL
+        git_branch: "main"                                                     # Change if your branch is different
+        git_user: "git_cred_tools"                                             # Your Git username
+        git_token: "{{ lookup('env', 'GIT_TOKEN') }}"                          # Access token from environment variable

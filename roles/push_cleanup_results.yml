@@ -1,0 +1,123 @@
+# Additional tasks for Git operations
+# Save this to your roles directory as 'push_cleanup_results.yml' and include it in your playbook
+
+- name: "Push cleanup candidates file to Git repository"
+  block:
+    - name: "Check if Git is installed"
+      command: "which git"
+      register: git_check
+      ignore_errors: true
+      changed_when: false
+      failed_when: false
+
+    - name: "Install git if needed"
+      package:
+        name: git
+        state: present
+      when: git_check.rc != 0
+      ignore_errors: true
+
+    - name: "Create temporary directory for Git operations"
+      file:
+        path: "/tmp/kmd_aeven_tools_repo"
+        state: directory
+        mode: '0755'
+      ignore_errors: true
+
+    - name: "Configure Git username"
+      command: "git config --global user.name 'Ansible Tower'"
+      ignore_errors: true
+      changed_when: false
+
+    - name: "Configure Git email"
+      command: "git config --global user.email 'ansible@tower.local'"
+      ignore_errors: true
+      changed_when: false
+
+    - name: "Clone repository"
+      git:
+        repo: "{{ git_repository_url | default('https://github.com/your-org/KMD-AEVEN-TOOLS.git') }}"
+        dest: "/tmp/kmd_aeven_tools_repo"
+        version: "{{ git_branch | default('main') }}"
+        force: yes
+        depth: 1
+      environment:
+        GIT_TERMINAL_PROMPT: "0"
+        GIT_ASKPASS: /bin/echo
+        GIT_USERNAME: "{{ git_user | default('') }}"
+        GIT_PASSWORD: "{{ git_token | default('') }}"
+      ignore_errors: true
+
+    - name: "Ensure results directory exists in repository"
+      file:
+        path: "/tmp/kmd_aeven_tools_repo/cleanup_results"
+        state: directory
+        mode: '0755'
+      ignore_errors: true
+
+    - name: "Copy cleanup candidates file to repository"
+      copy:
+        src: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
+        dest: "/tmp/kmd_aeven_tools_repo/cleanup_results/{{ inventory_hostname }}_cleanup_candidates_{{ ansible_date_time.date | regex_replace('-','') }}.txt"
+        mode: "0644"
+        remote_src: yes
+      ignore_errors: true
+
+    - name: "Git add files"
+      command: "git add ."
+      args:
+        chdir: "/tmp/kmd_aeven_tools_repo"
+      ignore_errors: true
+
+    - name: "Check if there are changes to commit"
+      command: "git status --porcelain"
+      args:
+        chdir: "/tmp/kmd_aeven_tools_repo"
+      register: git_status
+      ignore_errors: true
+      changed_when: false
+
+    - name: "Git commit changes"
+      command: "git commit -m 'Added cleanup candidates from {{ inventory_hostname }} - {{ ansible_date_time.iso8601 }}'"
+      args:
+        chdir: "/tmp/kmd_aeven_tools_repo"
+      register: commit_result
+      ignore_errors: true
+      when: git_status.stdout | trim != ""
+      changed_when: commit_result.rc == 0
+
+    - name: "Push changes to repository"
+      command: "git push origin {{ git_branch | default('main') }}"
+      args:
+        chdir: "/tmp/kmd_aeven_tools_repo"
+      environment:
+        GIT_TERMINAL_PROMPT: "0"
+        GIT_ASKPASS: /bin/echo
+        GIT_USERNAME: "{{ git_user | default('') }}"
+        GIT_PASSWORD: "{{ git_token | default('') }}"
+      when:
+        - git_status.stdout | trim != ""
+        - commit_result.rc is defined and commit_result.rc == 0
+      ignore_errors: true
+
+    - name: "Report successful push"
+      debug:
+        msg: "Successfully pushed cleanup candidates file to Git repository"
+      when:
+        - git_status.stdout | trim != ""
+        - commit_result.rc is defined and commit_result.rc == 0
+
+    - name: "Report no changes to push"
+      debug:
+        msg: "No changes to commit and push"
+      when: git_status.stdout | trim == ""
+
+    - name: "Cleanup local repository"
+      file:
+        path: "/tmp/kmd_aeven_tools_repo"
+        state: absent
+      ignore_errors: true
+  rescue:
+    - name: "Report Git operation failure"
+      debug:
+        msg: "Failed to push cleanup candidates file to Git: {{ ansible_failed_result | default('Unknown error') }}"

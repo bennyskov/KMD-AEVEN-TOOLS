@@ -1,0 +1,102 @@
+---
+# Main tasks file for find_cleanup_candidates role
+
+- name: "Create temporary directory for results"
+  file:
+    path: "/tmp/cleanup_search_results"
+    state: directory
+    mode: '0755'
+  changed_when: false
+
+- name: "Search for cleanup candidates"
+  block:
+    - name: "Initialize result variables"
+      set_fact:
+        found_files: {}
+        summary_results: []
+        detailed_results: []
+      changed_when: false
+
+    - name: "Run find commands for each search pattern"
+      shell: >
+        find {{ search_path }}
+        {% for dir in exclude_dirs %} -path "{{ dir }}" -prune -o {% endfor %}
+        -type f
+        {% if max_depth is defined and max_depth > 0 %} -maxdepth {{ max_depth }} {% endif %}
+        {% if item.case_sensitive | bool %} -name {% else %} -iname {% endif %}
+        "*{{ item.pattern }}*" -ls 2>/dev/null || true
+      register: search_results
+      changed_when: false
+      failed_when: false
+      loop: "{{ search_patterns }}"
+      loop_control:
+        label: "Searching for {{ item.name }}"
+
+    - name: "Process search results"
+      set_fact:
+        found_files: "{{ found_files | combine({item.item.name: item.stdout_lines}) }}"
+        summary_results: >-
+          {{ summary_results + [{'pattern': item.item.name,
+                                'found': item.stdout_lines | length,
+                                'details': 'Found ' + (item.stdout_lines | length | string) + ' matches for pattern ' + item.item.name}] }}
+        detailed_results: "{{ detailed_results + [{'pattern': item.item.name, 'results': item.stdout_lines}] }}"
+      loop: "{{ search_results.results }}"
+      loop_control:
+        label: "Processing {{ item.item.name }} results"
+      when: item.stdout_lines | length > 0
+
+    - name: "Create summary report"
+      set_fact:
+        summary_report: |
+          ===========================================
+          FILE CLEANUP CANDIDATES REPORT
+          ===========================================
+          Generated on: {{ ansible_date_time.date }} at {{ ansible_date_time.time }}
+          Host: {{ inventory_hostname }}
+
+          SUMMARY:
+          -----------------------------------------
+          {% for result in summary_results %}
+          {{ result.pattern }}: {{ result.found }} files found
+          {% endfor %}
+
+          TOTAL CANDIDATES: {{ summary_results | sum(attribute='found') }}
+          ===========================================
+
+          DETAILED RESULTS:
+          -----------------------------------------
+          {% for pattern in detailed_results %}
+          {{ pattern.pattern }} ({{ pattern.results | length }} files):
+          {% for line in pattern.results %}
+          - {{ line }}
+          {% endfor %}
+
+          {% endfor %}
+          ===========================================
+      when: summary_results | length > 0
+
+    - name: "Display cleanup candidates summary"
+      debug:
+        msg: |
+          {{ summary_report | default('No cleanup candidates found.') }}
+
+    - name: "Save results to file if requested"
+      copy:
+        content: "{{ summary_report | default('No cleanup candidates found.') }}"
+        dest: "{{ results_file }}"
+      when: save_to_file | bool and summary_results | length > 0
+
+    - name: "Create consolidated result dictionary"
+      set_fact:
+        cleanup_candidate_results: {
+          "summary": summary_results,
+          "detailed": found_files,
+          "total_files_found": summary_results | sum(attribute='found'),
+          "timestamp": ansible_date_time.iso8601
+        }
+      when: summary_results | length > 0
+
+  rescue:
+    - name: "Report search error"
+      debug:
+        msg: "Error occurred while searching for cleanup candidates: {{ ansible_failed_result | default('Unknown error') }}"

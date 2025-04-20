@@ -1,0 +1,75 @@
+---
+# Main tasks file for cleanup_dir role
+
+- name: 'Check if directory {{ cleanup_path }} exists'
+  ignore_errors: yes
+  stat:
+    path: '{{ cleanup_path }}'
+  register: file_stat_dir
+
+- name: 'Set {{ cleanup_path }} permissions'
+  ignore_errors: yes
+  become: true
+  file:
+    path: '{{ cleanup_path }}'
+    mode: '{{ dir_mode }}'
+    owner: '{{ dir_owner }}'
+    group: '{{ dir_group }}'
+    recurse: true
+  when: file_stat_dir.stat.exists
+
+- name: 'Test if {{ cleanup_path }} is a mountpoint using shell command'
+  ignore_errors: yes
+  shell: "findmnt -n {{ cleanup_path }} > /dev/null 2>&1 && echo 'is_mount' || echo 'not_mount'"
+  register: file_mountpoint
+  when: file_stat_dir.stat.exists
+
+- name: 'Display mountpoint status'
+  debug:
+    msg: "Path {{ cleanup_path }} is a mountpoint: {{ 'is_mount' in file_mountpoint.stdout }}"
+  when: file_stat_dir.stat.exists and file_mountpoint.stdout is defined
+
+- name: 'Delete {{ cleanup_path }}'
+  ignore_errors: yes
+  become: true
+  file:
+    path: '{{ cleanup_path }}'
+    state: absent
+    mode: '{{ dir_mode }}'
+    owner: '{{ dir_owner }}'
+    group: '{{ dir_group }}'
+    force: '{{ force_delete }}'
+  register: delete_dir_result
+  when:
+    - file_stat_dir.stat.exists
+    - not ('is_mount' in file_mountpoint.stdout | default(''))
+
+- name: 'Handle locked files and provide diagnostics'
+  when:
+    - delete_dir_result is defined
+    - delete_dir_result.failed is defined
+    - delete_dir_result.failed
+    - file_stat_dir.stat.exists
+    - not ('is_mount' in file_mountpoint.stdout | default(''))
+  block:
+    - name: 'Check what is locking {{ cleanup_path }} directory'
+      shell: "{{ lsof_command }} +D {{ cleanup_path }}/"
+      register: locking_processes
+      ignore_errors: yes
+
+    - name: 'Display locking processes for {{ cleanup_path }}'
+      debug:
+        msg: >-
+          "No locking processes found for {{ cleanup_path }}" if locking_processes.stdout_lines | length == 0 else locking_processes.stdout_lines
+      when: locking_processes is defined
+
+    - name: 'List {{ cleanup_path }}/'
+      ignore_errors: yes
+      shell: 'ls -lrta {{ cleanup_path }}/'
+      register: list_dir_out
+
+    - name: 'Send output to ansible'
+      ignore_errors: yes
+      debug:
+        var: list_dir_out.stdout_lines
+      when: list_dir_out is defined
