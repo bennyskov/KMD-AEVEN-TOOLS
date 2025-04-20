@@ -4,16 +4,15 @@
 # This role provides a reusable way to remove users and clean up their files
 
 - name: 'Check if user {{ username }} exists'
-  getent:
-    database: passwd
-    key: "{{ username }}"
+  shell: "id {{ username }} >/dev/null 2>&1"
   register: user_exists
-  ignore_errors: true
+  failed_when: false
+  changed_when: false
 
 - name: 'User does not exist - skipping user cleanup for {{ username }}'
   debug:
     msg: "User {{ username }} does not exist, skipping cleanup"
-  when: user_exists.failed is defined and user_exists.failed
+  when: user_exists.rc != 0
 
 - block:
   - name: 'Get user home directory'

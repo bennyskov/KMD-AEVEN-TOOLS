@@ -146,13 +146,13 @@
           shell: 'ls -lrta /opt/IBM/ITM/'
           register: list_agentdir_out
 
-        - name: '4.D.07 - Find ITM case'
+        - name: '3.C.09 - Find ITM case'
           shell: 'find / -name "ITM" 2>/dev/null'
           register: find_result_ITM
           changed_when: false
           failed_when: false
 
-        - name: '4.D.07a - Check if ITM was found'
+        - name: '3.C.09a - Check if ITM was found'
           debug:
             msg: "ITM found"
           when: find_result_ITM.stdout | trim != ""

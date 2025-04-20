@@ -156,7 +156,7 @@
         label: "Removing {{ item.description }}"
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
       #step Find cleanup candidates
-      # -----------------------------------------------------------------------------------------------------------------------------------------------------------------    - name: '4.D.05 - Find cleanup candidates'
+      # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     - name: '4.D.12 - find cleanup candidates'
       include_role:
         name: find_cleanup_candidates
@@ -187,7 +187,7 @@
         save_to_file: true
         results_file: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
 
-    - name: '4.D.05b - Push cleanup candidates file back to Git repository'
+    - name: '4.D.13 - Push cleanup candidates file back to Git repository'
       include_role:
         name: git_operations
       vars:
@@ -203,11 +203,10 @@
             dest: "cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
             required: false
         commit_message: "Added cleanup candidates from {{ inventory_hostname }} - {{ ansible_date_time.date }}"
-
-    - name: '4.D.05c - Push cleanup candidates to Git repository'
+    - name: '4.D.14 - Push cleanup candidates to Git repository'
       include_tasks: 'roles/push_cleanup_results.yml'
       vars:
         git_repository_url: "https://github.kyndryl.net/eu-nordic-kmn/KMD-AEVEN-TOOLS.git"  # Change to your actual repository URL
-        git_branch: "main"                                                     # Change if your branch is different
-        git_user: "git_cred_tools"                                             # Your Git username
-        git_token: "{{ lookup('env', 'GIT_TOKEN') }}"                          # Access token from environment variable
+        git_branch: "main"                                                                  # Change if your branch is different
+        git_user: "git_cred_tools"                                                          # Your Git username
+        git_token: "{{ lookup('env', 'GIT_TOKEN') }}"                                       # Access token from environment variable
