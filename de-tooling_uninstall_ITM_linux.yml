@@ -146,6 +146,17 @@
           shell: 'ls -lrta /opt/IBM/ITM/'
           register: list_agentdir_out
 
+        - name: '4.D.07 - Find ITM case'
+          shell: 'find / -name "ITM" 2>/dev/null'
+          register: find_result_ITM
+          changed_when: false
+          failed_when: false
+
+        - name: '4.D.07a - Check if ITM was found'
+          debug:
+            msg: "ITM found"
+          when: find_result_ITM.stdout | trim != ""
+
         - name: '3.C.08d - send output to ansible'
           ignore_errors: yes
           debug:
@@ -163,32 +174,76 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: '3.C.10 - Check if itmuser exists'
           ignore_errors: yes
-          shell: 'grep -i "^itmuser:" /etc/passwd'
+          shell: 'id itmuser'
           register: unix_user_info
           changed_when: false
+          failed_when: false
 
-        - name: '3.C.11 - send output to ansible'
-          ignore_errors: yes
-          debug:
-            var: unix_user_info.stdout_lines
-          when:
-            - unix_user_info.rc == 0
-            - unix_user_info.stdout is match("itmuser")
-
-        - name: '3.C.12 - Handle itmuser deletion and related processes'
+        - name: '3.C.11 - Comprehensive cleanup for itmuser'
+          when: unix_user_info.rc == 0
           block:
-            - name: '3.C.12a - Delete user itmuser'
+            - name: '3.C.11a - Kill all processes owned by itmuser'
+              shell: "pkill -9 -u itmuser || true"
               ignore_errors: true
+
+            - name: '3.C.11b - Remove mail spool for itmuser'
+              file:
+                path: "/var/mail/itmuser"
+                state: absent
+              ignore_errors: true
+
+            - name: '3.C.11c - Remove temp files for itmuser'
+              shell: "find /tmp -user itmuser -exec rm -rf {} \\; 2>/dev/null || true"
+              ignore_errors: true
+
+            - name: '3.C.11d - Remove cron jobs for itmuser'
+              file:
+                path: "/var/spool/cron/itmuser"
+                state: absent
+              ignore_errors: true
+
+            - name: '3.C.11e - Remove print jobs for itmuser'
+              shell: "find /var/spool/cups -user itmuser -exec rm -rf {} \\; 2>/dev/null || true"
+              ignore_errors: true
+
+            - name: '3.C.11f - Delete user itmuser'
               user:
                 name: 'itmuser'
                 remove: '{{ data.remove_user_dirs | default(true) }}'
                 state: absent
-              register: delete_user_result # Register the result
-              when:
-                - unix_user_info.rc == 0
-                - unix_user_info.stdout is match("itmuser")
+              ignore_errors: true
+              register: delete_user_result
 
-            - name: '3.C.12b - Parse process ID when user deletion fails'
+            - name: '3.C.11g - Delete sudoers profile for itmuser'
+              file:
+                path: '/etc/sudoers.d/itmuser_sudo'
+                state: absent
+              ignore_errors: true
+
+            - name: '3.C.11h - Delete home directory for itmuser if it still exists'
+              file:
+                path: '/home/itmuser'
+                state: absent
+                force: true
+              ignore_errors: true
+
+            - name: '3.C.11i - Remove any other sudoers files for itmuser'
+              shell: "find /etc/sudoers.d/ -name '*itmuser*' -exec rm -f {} \\; 2>/dev/null || true"
+              ignore_errors: true
+
+            - name: '3.C.11j - Check for remaining files owned by itmuser'
+              shell: "find / -user itmuser -ls 2>/dev/null || true"
+              register: remaining_files
+              ignore_errors: true
+              changed_when: false
+
+            - name: '3.C.11k - Display any remaining files'
+              debug:
+                msg: "Remaining files for itmuser: {{ remaining_files.stdout_lines }}"
+              when: remaining_files.stdout_lines | length > 0
+
+            # Process troubleshooting tasks (in case delete_user_result fails)
+            - name: '3.C.12a - Parse process ID when user deletion fails'
               set_fact:
                 process_id: "{{ (delete_user_result.msg | regex_findall('process ([0-9]+)')) | first | default('') }}"
               when:
@@ -197,28 +252,28 @@
                 - delete_user_result.msg is defined
                 - delete_user_result.msg is search("user itmuser is currently used by process")
 
-            - name: '3.C.12c - Show process information that is locking the user'
+            - name: '3.C.12b - Show process information that is locking the user'
               shell: "ps -p {{ process_id }} -o pid,ppid,user,cmd,etime"
               register: process_info
               ignore_errors: yes
               when: process_id is defined and process_id != ''
 
-            - name: '3.C.12d - Verify locking process command contains ITM path'
+            - name: '3.C.12c - Verify locking process command contains ITM path'
               set_fact:
                 locking_process_is_itm: "{{ process_info.stdout is defined and '/opt/IBM/ITM/' in process_info.stdout }}"
               when: process_id is defined and process_id != '' and process_info is defined
 
-            - name: '3.C.12e - Display verification result'
+            - name: '3.C.12d - Display verification result'
               debug:
                 msg: "Locking process {{ process_id }} command contains '/opt/IBM/ITM/': {{ locking_process_is_itm }}"
               when: process_id is defined and process_id != '' and locking_process_is_itm is defined
 
-            - name: '3.C.12f - Display process information'
+            - name: '3.C.12e - Display process information'
               debug:
                 var: process_info.stdout_lines
               when: process_id is defined and process_id != ''
 
-            - name: '3.C.12g - Get all processes running as itmuser'
+            - name: '3.C.12f - Get all processes running as itmuser'
               shell: "ps -u itmuser -o pid,ppid,user,cmd,etime"
               register: itmuser_processes
               ignore_errors: yes
@@ -262,6 +317,3 @@
                 var: retry_delete_user_result
               when:
                 - retry_delete_user_result is defined
-          when:
-            - unix_user_info.rc == 0
-            - unix_user_info.stdout is match("itmuser")

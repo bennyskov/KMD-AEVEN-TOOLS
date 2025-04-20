@@ -158,6 +158,7 @@
             msg: >-
               "No locking processes found for {{ cacfdir }}/" if locking_processes.stdout_lines | length == 0 else locking_processes.stdout_lines
           when:
+            - delete_dir_result.failed
             - locking_processes is defined
 
         - name: '4.D.04c - List {{ cacfdir }}/'
@@ -181,59 +182,188 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step find system components
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '4.D.05 - Find bigfix ignore case'
+        - name: '4.D.05 - Find BigFix'
           shell: 'find / -iname "bigfix" 2>/dev/null'
-          register: search_bigfix
+          register: find_result
+          changed_when: false
+          failed_when: false
+
+        - name: '4.D.05a - Check if BigFix was found'
+          debug:
+            msg: "BigFix found"
+          when: find_result.stdout | trim != ""
 
         - name: '4.D.06 - Find BESClient ignore case'
           shell: 'find / -iname "BESClient" 2>/dev/null'
-          register: search_bigfix
+          register: find_result_BESClient
+          changed_when: false
+          failed_when: false
 
-        - name: '4.D.07 - Find ITM case'
-          shell: 'find / -name "ITM" 2>/dev/null'
-          register: search_ITM
+        - name: '4.D.06a - Check if BESClient was found'
+          debug:
+            msg: "BESClient found"
+          when: find_result_BESClient.stdout | trim != ""
 
         - name: '4.D.08 - Find ansible ignore case'
-          shell: 'find / -name "ITM" 2>/dev/null'
-          register: search_ansible
+          shell: 'find / -name "ansible" 2>/dev/null'
+          register: find_result_ansible
+          changed_when: false
+          failed_when: false
+
+        - name: '4.D.08a - Check if ansible was found'
+          debug:
+            msg: "Ansible found"
+          when: find_result_ansible.stdout | trim != ""
 
         - name: '4.D.09 - Find ILMT ignore case'
           shell: 'find / -name "ILMT" 2>/dev/null'
-          register: search_ILMT
+          register: find_result_ILMT
+          changed_when: false
+          failed_when: false
+
+        - name: '4.D.09a - Check if ILMT was found'
+          debug:
+            msg: "ILMT found"
+          when: find_result_ILMT.stdout | trim != ""
 
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step remove ansible users ansib_user1
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: '4.D.10 - Check if {{ ansib_user1 }} already exists'
           shell: 'id {{ ansib_user1 }}'
-          register: unix_user_info
+          register: unix_user1_info
+          changed_when: false
+          failed_when: false
 
+        - name: '4.D.11 - Cleanup for user {{ ansib_user1 }}'
+          when: unix_user1_info.rc == 0
+          block:
+            - name: '4.D.11a - Kill all processes owned by {{ ansib_user1 }}'
+              shell: "pkill -9 -u {{ ansib_user1 }} || true"
+              ignore_errors: true
 
-        # - name: '4.D.11 - Delete user {{ ansib_user1 }}'
-        #   ignore_errors: true
-        #   user:
-        #     name: '{{ ansib_user1 }}'
-        #     remove: '{{ data.remove_user_dirs | default(true) }}'
-        #     state: absent
+            - name: '4.D.11b - Remove mail spool for {{ ansib_user1 }}'
+              file:
+                path: "/var/mail/{{ ansib_user1 }}"
+                state: absent
+              ignore_errors: true
 
-        # - name: '4.D.12 - Delete sudoers profile for {{ ansib_user1 }}'
-        #   file:
-        #     path: '/etc/sudoers.d/{{ ansib_user1 }}_sudo'
-        #     state: absent
+            - name: '4.D.11c - Remove temp files for {{ ansib_user1 }}'
+              shell: "find /tmp -user {{ ansib_user1 }} -exec rm -rf {} \\; 2>/dev/null || true"
+              ignore_errors: true
+
+            - name: '4.D.11d - Remove cron jobs for {{ ansib_user1 }}'
+              file:
+                path: "/var/spool/cron/{{ ansib_user1 }}"
+                state: absent
+              ignore_errors: true
+
+            - name: '4.D.11e - Remove print jobs for {{ ansib_user1 }}'
+              shell: "find /var/spool/cups -user {{ ansib_user1 }} -exec rm -rf {} \\; 2>/dev/null || true"
+              ignore_errors: true
+
+            - name: '4.D.11f - Delete user {{ ansib_user1 }}'
+              user:
+                name: '{{ ansib_user1 }}'
+                remove: '{{ data.remove_user_dirs | default(true) }}'
+                state: absent
+              ignore_errors: true
+
+            - name: '4.D.11g - Delete sudoers profile for {{ ansib_user1 }}'
+              file:
+                path: '/etc/sudoers.d/{{ ansib_user1 }}_sudo'
+                state: absent
+              ignore_errors: true
+
+            - name: '4.D.11h - Delete home directory for {{ ansib_user1 }} if it still exists'
+              file:
+                path: '/home/{{ ansib_user1 }}'
+                state: absent
+                force: true
+              ignore_errors: true
+
+            - name: '4.D.11i - Remove any other sudoers files for {{ ansib_user1 }}'
+              shell: "find /etc/sudoers.d/ -name '*{{ ansib_user1 }}*' -exec rm -f {} \\; 2>/dev/null || true"
+              ignore_errors: true
+
+            - name: '4.D.11j - Check for remaining files owned by {{ ansib_user1 }}'
+              shell: "find / -user {{ ansib_user1 }} -ls 2>/dev/null || true"
+              register: remaining_files
+              ignore_errors: true
+              changed_when: false
+
+            - name: '4.D.11k - Display any remaining files'
+              debug:
+                msg: "Remaining files for {{ ansib_user1 }}: {{ remaining_files.stdout_lines }}"
+              when: remaining_files.stdout_lines | length > 0
+
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         #step remove ansible users ansib_user2
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-        - name: '4.D.13 - Check if {{ ansib_user2 }} already exists'
+        - name: '4.D.12 - Check if {{ ansib_user2 }} already exists'
           shell: 'id {{ ansib_user2 }}'
-          register: unix_user_info_2
+          register: unix_user2_info
+          changed_when: false
+          failed_when: false
 
-        # - name: '4.D.14 - Delete user {{ ansib_user2 }}'
-        #   user:
-        #     name: '{{ ansib_user2 }}'
-        #     remove: '{{ data.remove_user_dirs | default(true) }}'
-        #     state: absent
+        - name: '4.D.13 - Cleanup for user {{ ansib_user2 }}'
+          when: unix_user2_info.rc == 0
+          block:
+            - name: '4.D.13a - Kill all processes owned by {{ ansib_user2 }}'
+              shell: "pkill -9 -u {{ ansib_user2 }} || true"
+              ignore_errors: true
 
-        # - name: '4.D.15 - Delete sudoers profile for {{ ansib_user2 }}'
-        #   file:
-        #     path: '/etc/sudoers.d/{{ ansib_user2 }}_sudo'
-        #     state: absent
+            - name: '4.D.13b - Remove mail spool for {{ ansib_user2 }}'
+              file:
+                path: "/var/mail/{{ ansib_user2 }}"
+                state: absent
+              ignore_errors: true
+
+            - name: '4.D.13c - Remove temp files for {{ ansib_user2 }}'
+              shell: "find /tmp -user {{ ansib_user2 }} -exec rm -rf {} \\; 2>/dev/null || true"
+              ignore_errors: true
+
+            - name: '4.D.13d - Remove cron jobs for {{ ansib_user2 }}'
+              file:
+                path: "/var/spool/cron/{{ ansib_user2 }}"
+                state: absent
+              ignore_errors: true
+
+            - name: '4.D.13e - Remove print jobs for {{ ansib_user2 }}'
+              shell: "find /var/spool/cups -user {{ ansib_user2 }} -exec rm -rf {} \\; 2>/dev/null || true"
+              ignore_errors: true
+
+            - name: '4.D.13f - Delete user {{ ansib_user2 }}'
+              user:
+                name: '{{ ansib_user2 }}'
+                remove: '{{ data.remove_user_dirs | default(true) }}'
+                state: absent
+              ignore_errors: true
+
+            - name: '4.D.13g - Delete sudoers profile for {{ ansib_user2 }}'
+              file:
+                path: '/etc/sudoers.d/{{ ansib_user2 }}_sudo'
+                state: absent
+              ignore_errors: true
+
+            - name: '4.D.13h - Delete home directory for {{ ansib_user2 }} if it still exists'
+              file:
+                path: '/home/{{ ansib_user2 }}'
+                state: absent
+                force: true
+              ignore_errors: true
+
+            - name: '4.D.13i - Remove any other sudoers files for {{ ansib_user2 }}'
+              shell: "find /etc/sudoers.d/ -name '*{{ ansib_user2 }}*' -exec rm -f {} \\; 2>/dev/null || true"
+              ignore_errors: true
+
+            - name: '4.D.13j - Check for remaining files owned by {{ ansib_user2 }}'
+              shell: "find / -user {{ ansib_user2 }} -ls 2>/dev/null || true"
+              register: remaining_files_2
+              ignore_errors: true
+              changed_when: false
+
+            - name: '4.D.13k - Display any remaining files'
+              debug:
+                msg: "Remaining files for {{ ansib_user2 }}: {{ remaining_files_2.stdout_lines }}"
+              when: remaining_files_2.stdout_lines | length > 0
