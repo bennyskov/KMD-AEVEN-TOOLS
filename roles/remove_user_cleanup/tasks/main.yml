@@ -19,16 +19,30 @@
     shell: "getent passwd {{ username }} | cut -d: -f6"
     register: user_home
     changed_when: false
-
   - name: 'Find processes running as user'
     shell: "id {{ username }} >/dev/null 2>&1 && ps -u {{ username }} -o pid,cmd | grep -v PID || echo ''"
     register: user_processes
     changed_when: false
-  - name: 'Kill user processes if requested'
-    shell: "pkill -9 -u {{ username }}"
-    when: handle_locked_processes | default(true) and user_processes.stdout | length > 0
+
+  - name: 'Extract PIDs for more controlled killing'
+    shell: "ps -u {{ username }} | awk 'NR>1 {print $1}' | grep -v '^$'"
+    register: user_pids
+    changed_when: false
     ignore_errors: true
-    register: pkill_result
+    when: handle_locked_processes | default(true) and user_processes.stdout | length > 0
+
+  - name: 'Kill processes more safely (avoiding SSH disruption)'
+    shell: "if [[ $(echo {{ user_pids.stdout_lines | join(' ') }} | wc -w) -gt 0 ]]; then for pid in {{ user_pids.stdout_lines | join(' ') }}; do kill -9 $pid 2>/dev/null || true; sleep 0.2; done; fi"
+    register: kill_result
+    ignore_errors: true
+    async: 30
+    poll: 0
+    when: handle_locked_processes | default(true) and user_processes.stdout | length > 0 and user_pids.stdout | length > 0
+
+  - name: 'Wait after initiating process kill'
+    pause:
+      seconds: 3
+    when: handle_locked_processes | default(true) and user_processes.stdout | length > 0 and user_pids is defined and user_pids.stdout | length > 0
 
   - name: 'Wait for reconnection after process kill'
     wait_for_connection:
