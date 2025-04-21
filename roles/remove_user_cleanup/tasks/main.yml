@@ -36,6 +36,7 @@
       timeout: 30
     when: handle_locked_processes | default(true) and user_processes.stdout | length > 0
     ignore_errors: true
+
   - name: "List files owned by {{ username }} in critical directories only"
     shell: "find /etc /var /opt /root /tmp /home -user {{ username }} -not -path \"{{ user_home.stdout }}*\" -not -path \"/proc/*\" -not -path \"/sys/*\" 2>/dev/null || true"
     register: files_owned
@@ -43,6 +44,9 @@
     when: check_remaining_files | default(true)
     async: 300
     poll: 10
+    environment:
+      ANSIBLE_REMOTE_TMP: /tmp
+      ANSIBLE_LOCAL_TMP: /tmp
 
   - name: 'Display files owned by user outside home directory'
     debug:
