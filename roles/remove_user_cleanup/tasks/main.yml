@@ -80,6 +80,7 @@
       state: absent
       remove: "{{ remove_home | default(true) }}"
       force: "{{ force_removal | default(true) }}"
+
   - name: 'Check if any files still owned by the user after removal'
     shell: "find /etc /var /opt /root /tmp /home -user {{ username }} -not -path \"/proc/*\" -not -path \"/sys/*\" 2>/dev/null || true"
     register: remaining_files
