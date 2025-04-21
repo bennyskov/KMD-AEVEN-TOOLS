@@ -78,18 +78,16 @@
         description: 'Ansible Async Directory'
       - path: '/tmp/gts-ansible'
         description: 'GTS Ansible Temp Directory'
-  tasks:
-    # Create safe temporary directory for Ansible operations
-    - name: '4.D.00a - Ensure safe temporary directory exists'
+  tasks:    # Create safe temporary directory for Ansible operations
+    - name: '4.D.00 - Ensure safe temporary directory exists'
       file:
         path: "/tmp/ansible-safe-tmp"
         state: directory
         mode: '0777'
-      ignore_errors: true
-    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+      ignore_errors: true    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     #step cleanup ansible / CACF files on host
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: '4.D.00 - Cleanup ansible directories on host {{ nodename }}'
+    - name: '4.D.01 - Cleanup ansible directories on host {{ nodename }}'
       include_role:
         name: cleanup_dir
       vars:
