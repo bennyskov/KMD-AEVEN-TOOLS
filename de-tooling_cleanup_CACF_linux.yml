@@ -102,6 +102,11 @@
     nodename: '{{ nodename }}'
     ansib_user1: 'kmduxat1'
     ansib_user2: 'kmduxat2'
+    # SSH connection timeout settings to avoid disconnection during long-running operations
+    ansible_ssh_timeout: 60
+    ansible_persistent_connect_timeout: 180
+    ansible_connection_timeout: 180
+    ansible_ssh_args: '-o ServerAliveInterval=30 -o ServerAliveCountMax=10 -o ControlMaster=auto -o ControlPersist=180s'
     cleanup_directories:
       - path: '/var/opt/ansible'
         description: 'CACF Directory'
