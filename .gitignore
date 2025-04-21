@@ -120,9 +120,10 @@ docs/.bundle/
 # Mac OS X
 .DS_Store
 
+.vscode/
+.copilot/
 temp/
 repository/
 archive/
 backup_inventory/
 logs/
-.vscode/
