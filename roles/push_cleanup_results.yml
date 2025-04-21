@@ -36,7 +36,7 @@
 
     - name: "Clone repository"
       git:
-        repo: "{{ git_repository_url | default('https://github.com/your-org/KMD-AEVEN-TOOLS.git') }}"
+        repo: "{{ git_repository_url | default('https://github.kyndryl.net/eu-nordic-kmn/KMD-AEVEN-TOOLS.git') }}"
         dest: "/tmp/kmd_aeven_tools_repo"
         version: "{{ git_branch | default('main') }}"
         force: yes
