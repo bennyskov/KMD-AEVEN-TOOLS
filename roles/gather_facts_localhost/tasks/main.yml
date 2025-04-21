@@ -34,10 +34,18 @@
   debug:
     var: script_tmp.stdout_lines
 
-- name: 'df -k'
-  shell: 'df -k'
+- name: 'df -k .'
+  shell: 'df -k .'
   register: script_df
 
 - name: 'Output of df'
   debug:
     var: script_df.stdout_lines
+
+- name: 'pwd'
+  shell: 'pwd'
+  register: script_pwd
+
+- name: 'Output of pwd'
+  debug:
+    var: script_pwd.stdout_lines
