@@ -12,6 +12,17 @@
     msg: "Directory {{ cleanup_path }} does not exist, skipping cleanup"
   when: not dir_exists.stat.exists
 
+- name: 'test if {{ cleanup_path }} is a mountpoint using shell command'
+  ignore_errors: yes
+  shell: "findmnt -n {{ cleanup_path }} > /dev/null 2>&1 && echo 'is_mount' || echo 'not_mount'"
+  register: file_mountpoint
+  when: dir_exists.stat.exists
+
+- name: 'Display mountpoint status'
+  debug:
+    msg: "Path {{ cleanup_path }} is a mountpoint: {{ 'is_mount' in file_mountpoint.stdout }}"
+  when: dir_exists.stat.exists and file_mountpoint.stdout is defined
+
 - name: 'Get size of directory before cleanup'
   shell: "du -sh {{ cleanup_path }} 2>/dev/null || echo '0'"
   register: dir_size_before

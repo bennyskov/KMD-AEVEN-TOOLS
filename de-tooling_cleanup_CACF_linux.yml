@@ -192,12 +192,18 @@
         save_to_file: true
         results_file: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
 
+    - name: "4.D.13 - Copy file cleanup_candidates from target host (src) to ansible tower local host (dest)"
+      copy:
+        src: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
+        dest: "cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
+        remote_src: yes
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #step working on localhost
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 - name: '4.E - Gather facts localhost'
   hosts: localhost
   gather_facts: true
+  ignore_errors: yes
   vars:
   tasks:
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -205,13 +211,6 @@
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     - name: '4.E.00 - list local directories for ansible localhost AFTER cleanup'
       block:
-        - name: "4.E.01 - Copy file from target host (src) to ansible tower local host (dest)"
-          ignore_errors: yes
-          copy:
-            src: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
-            dest: "cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
-            remote_src: yes
-
         - name: '4.E.02 - List homedir files'
           shell: 'ls -lrt'
           register: script_homedir
@@ -228,28 +227,64 @@
           debug:
             var: script_tmp.stdout_lines
 
+        - name: '4.E.06 - Collect server mountpoints information'
+          shell: 'df -h'
+          register: mountpoint_info
 
-    # - name: '4.D.13 - Push cleanup candidates file back to Git repository'
-    #   include_role:
-    #     name: git_operations
-    #   vars:
-    #     git_repo_url: "{{ git_repository_url | default('https://github.kyndryl.net/eu-nordic-kmn/KMD-AEVEN-TOOLS.git') }}"
-    #     git_branch: "{{ git_branch | default('main') }}"
-    #     git_user_name: "Ansible Tower"
-    #     git_user_email: "ansible@tower.local"
-    #     git_credentials_method: "{{ git_auth_method | default('https_token') }}"
-    #     git_token: "{{ git_access_token | default('') }}"
-    #     local_repo_path: "/tmp/kmd_aeven_tools_repo"
-    #     files_to_commit:
-    #       - source: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
-    #         dest: "cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
-    #         required: false
-    #     commit_message: "Added cleanup candidates from {{ inventory_hostname }} - {{ ansible_date_time.date }}"
+        - name: '4.E.07 - Output mountpoint information'
+          debug:
+            var: mountpoint_info.stdout_lines
 
-    # - name: '4.D.14 - Push cleanup candidates to Git repository'
-    #   include_tasks: 'roles/push_cleanup_results.yml'
-    #   vars:
-    #     git_repository_url: "https://github.kyndryl.net/eu-nordic-kmn/KMD-AEVEN-TOOLS.git"  # Change to your actual repository URL
-    #     git_branch: "main"                                                                  # Change if your branch is different
-    #     git_user: "git_cred_tools"                                                          # Your Git username
-    #     git_token: "{{ lookup('env', 'GIT_TOKEN') }}"                                       # Access token from environment variable
+        - name: '4.E.08 - Save mountpoint information to file'
+          copy:
+            content: "Server: {{ inventory_hostname }}\nDate: {{ ansible_date_time.date }}\n\n{{ mountpoint_info.stdout }}"
+            dest: "cleanup_results/{{ inventory_hostname }}_mountpoints.txt"
+
+        - name: "4.E.09 - Copy file mountpoint from target host (src) to ansible tower local host (dest)"
+          copy:
+            src: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
+            dest: "cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
+            remote_src: yes
+
+        # - name: '4.E.09 - Push mountpoint information to Git repository'
+        #   include_role:
+        #     name: git_operations
+        #   vars:
+        #     git_repo_url: "{{ git_repository_url | default('https://github.kyndryl.net/eu-nordic-kmn/KMD-AEVEN-TOOLS.git') }}"
+        #     git_branch: "{{ git_branch | default('main') }}"
+        #     git_user_name: "Ansible Tower"
+        #     git_user_email: "ansible@tower.local"
+        #     git_credentials_method: "{{ git_auth_method | default('https_token') }}"
+        #     git_token: "{{ git_access_token | default('') }}"
+        #     local_repo_path: "/tmp/kmd_aeven_tools_repo"
+        #     files_to_commit:
+        #       - source: "cleanup_results/{{ inventory_hostname }}_mountpoints.txt"
+        #         dest: "cleanup_results/{{ inventory_hostname }}_mountpoints.txt"
+        #         required: false
+        #     commit_message: "Added mountpoint information from {{ inventory_hostname }} - {{ ansible_date_time.date }}"
+
+
+        # - name: '4.D.13 - Push cleanup candidates file back to Git repository'
+        #   include_role:
+        #     name: git_operations
+        #   vars:
+        #     git_repo_url: "{{ git_repository_url | default('https://github.kyndryl.net/eu-nordic-kmn/KMD-AEVEN-TOOLS.git') }}"
+        #     git_branch: "{{ git_branch | default('main') }}"
+        #     git_user_name: "Ansible Tower"
+        #     git_user_email: "ansible@tower.local"
+        #     git_credentials_method: "{{ git_auth_method | default('https_token') }}"
+        #     git_token: "{{ git_access_token | default('') }}"
+        #     local_repo_path: "/tmp/kmd_aeven_tools_repo"
+        #     files_to_commit:
+        #       - source: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
+        #         dest: "cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
+        #         required: false
+        #     commit_message: "Added cleanup candidates from {{ inventory_hostname }} - {{ ansible_date_time.date }}"
+
+        # - name: '4.D.14 - Push cleanup candidates to Git repository'
+        #   include_tasks: 'roles/push_cleanup_results.yml'
+        #   vars:
+        #     git_repository_url: "https://github.kyndryl.net/eu-nordic-kmn/KMD-AEVEN-TOOLS.git"  # Change to your actual repository URL
+        #     git_branch: "main"                                                                  # Change if your branch is different
+        #     git_user: "git_cred_tools"                                                          # Your Git username
+        #     git_token: "{{ lookup('env', 'GIT_TOKEN') }}"                                       # Access token from environment variable
