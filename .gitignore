@@ -1,6 +1,7 @@
 # KMD-AEVEN-TOOLS
 roles/git_operations/defaults/
 
+.vscode/
 .copilot/
 temp/
 repository/
