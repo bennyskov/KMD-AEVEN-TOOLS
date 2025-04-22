@@ -7,17 +7,27 @@
   gather_facts: false
   become: false
   vars:
-    ssh_users_to_check:
-      - username: 'kmduxat1'
-      - username: 'kmduxat2'
-      - username: 'kmnuxat1'
-      - username: 'kmnuxat2'
-      - username: 'kmwuxat1'
-      - username: 'kmwuxat2'
-      - username: 'ug2uxat1'
-      - username: 'ug2uxat2'
-      - username: 'yl5uxat1'
-      - username: 'yl5uxat2'
+    # Get the user that was specified when the template was launched
+    template_ssh_user: "{{ ansible_user | default('') }}"
+    # Use the specified template user or fall back to checking all 10 possible users
+    # This ensures we verify if the specific user selected for the job exists first
+    ssh_users_to_check: >-
+      {% if template_ssh_user != '' %}
+        [{'username': template_ssh_user, 'is_template_user': true}]
+      {% else %}
+        [
+          {'username': 'kmduxat1', 'is_template_user': false},
+          {'username': 'kmduxat2', 'is_template_user': false},
+          {'username': 'kmnuxat1', 'is_template_user': false},
+          {'username': 'kmnuxat2', 'is_template_user': false},
+          {'username': 'kmwuxat1', 'is_template_user': false},
+          {'username': 'kmwuxat2', 'is_template_user': false},
+          {'username': 'ug2uxat1', 'is_template_user': false},
+          {'username': 'ug2uxat2', 'is_template_user': false},
+          {'username': 'yl5uxat1', 'is_template_user': false},
+          {'username': 'yl5uxat2', 'is_template_user': false}
+        ]
+      {% endif %}
   tasks:
     - name: '1.A.01 - Check if SSH users exist before trying to connect'
       include_role:
@@ -27,6 +37,17 @@
         target_host: "{{ nodename | default(inventory_hostname) }}"
       loop: "{{ ssh_users_to_check }}"
       register: user_check_results
+
+    # Special check to immediately fail if specified template user doesn't exist
+    - name: '1.A.02 - Fail if specified template user does not exist'
+      fail:
+        msg: "ERROR: Specified user '{{ template_ssh_user }}' for this job does not exist on target host '{{ nodename }}'. Unable to proceed with cleanup."
+      when:
+        - template_ssh_user != ''
+        - item.ansible_facts is defined
+        - not item.ansible_facts.ssh_user_exists
+        - item.item.is_template_user | default(false)
+      loop: "{{ user_check_results.results }}"
 
     # Fix for 'dict object has no attribute ansible_facts' error
     - name: '1.A.02 - Initialize empty list for available users'
