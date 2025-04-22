@@ -34,19 +34,19 @@
   debug:
     var: script_tmp.stdout_lines
 
-- name: 'Check if /tmp exists with proper permissions'
-  stat:
-    path: /tmp
-  register: tmp_stat
+# - name: 'Check if /tmp exists with proper permissions'
+#   stat:
+#     path: /tmp
+#   register: tmp_stat
 
-- name: 'Ensure /tmp directory has proper permissions'
-  file:
-    path: /tmp
-    state: directory
-    mode: '0777'
-    owner: root
-    group: root
-  when: tmp_stat.stat.exists
+# - name: 'Ensure /tmp directory has proper permissions'
+#   file:
+#     path: /tmp
+#     state: directory
+#     mode: '0777'
+#     owner: root
+#     group: root
+#   when: tmp_stat.stat.exists
 
 # - name: 'Create safe temporary directory for ansible operations'
 #   file:
