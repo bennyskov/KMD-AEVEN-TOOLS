@@ -1,4 +1,3 @@
-# filepath: d:\scripts\GIT\KMD-AEVEN-TOOLS\de-tooling_cleanup_CACF_linux.yml
 ---
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Pre-check: Verify SSH connectivity and user existence before starting the cleanup
@@ -21,23 +20,33 @@
       loop: "{{ ssh_users_to_check }}"
       register: user_check_results
 
-    - name: '0.0.02 - Determine active SSH user'
+    # Fix for 'dict object has no attribute ansible_facts' error
+    - name: '0.0.02 - Initialize empty list for available users'
       set_fact:
-        available_ssh_users: "{{ user_check_results.results | selectattr('ansible_facts.can_connect_with_user', 'equalto', true) | map(attribute='item') | list }}"
+        available_users: []
 
-    - name: '0.0.03 - Set active SSH user'
+    - name: '0.0.03 - Process each user check result individually'
       set_fact:
-        active_ssh_user: "{{ available_ssh_users[0].username | default(ansible_user) }}"
-      when: available_ssh_users | length > 0
+        available_users: "{{ available_users + [item.item] }}"
+      loop: "{{ user_check_results.results }}"
+      when:
+        - item.ansible_facts is defined
+        - item.ansible_facts.can_connect_with_user is defined
+        - item.ansible_facts.can_connect_with_user
 
-    - name: '0.0.04 - Show active SSH user'
+    - name: '0.0.04 - Set active SSH user'
+      set_fact:
+        active_ssh_user: "{{ available_users[0].username | default(ansible_user) }}"
+      when: available_users | length > 0
+
+    - name: '0.0.05 - Show active SSH user'
       debug:
         msg: "Will attempt to connect using user: {{ active_ssh_user | default('NO VALID USER AVAILABLE!') }}"
 
-    - name: '0.0.05 - Fail if no SSH user is available'
+    - name: '0.0.06 - Fail if no SSH user is available'
       fail:
         msg: "No valid SSH user is available. All users may have been removed in a previous run."
-      when: available_ssh_users | length == 0 and ansible_user is not defined
+      when: available_users | length == 0 and ansible_user is not defined
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #step: begin and setup tunnel and credentials
