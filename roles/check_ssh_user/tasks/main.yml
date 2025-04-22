@@ -9,7 +9,7 @@
   failed_when: false
   changed_when: false
   ignore_errors: true
-  delegate_to: localhost
+  delegate_to: "{{ target_host | default(inventory_hostname) }}"
 
 - name: "Set user existence fact"
   set_fact:
@@ -32,7 +32,7 @@
     timeout: 5
   register: ssh_availability
   ignore_errors: true
-  delegate_to: localhost
+  delegate_to: localhost  # This check is done from the control node
 
 - name: "Set SSH availability fact"
   set_fact:

@@ -2,16 +2,16 @@
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Pre-check: Verify SSH connectivity and user existence before starting the cleanup
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: '0.0 - Check SSH user existence'
-  hosts: localhost
-  gather_facts: true
+- name: '1.A - Check SSH user existence'
+  hosts: '{{ nodename }}'  # Check against the target host
+  gather_facts: false
   become: false
   vars:
     ssh_users_to_check:
       - username: 'kmduxat1'
       - username: 'kmduxat2'
   tasks:
-    - name: '0.0.01 - Check if SSH users exist before trying to connect'
+    - name: '1.A.01 - Check if SSH users exist before trying to connect'
       include_role:
         name: check_ssh_user
       vars:
@@ -21,11 +21,11 @@
       register: user_check_results
 
     # Fix for 'dict object has no attribute ansible_facts' error
-    - name: '0.0.02 - Initialize empty list for available users'
+    - name: '1.A.02 - Initialize empty list for available users'
       set_fact:
         available_users: []
 
-    - name: '0.0.03 - Process each user check result individually'
+    - name: '1.A.03 - Process each user check result individually'
       set_fact:
         available_users: "{{ available_users + [item.item] }}"
       loop: "{{ user_check_results.results }}"
@@ -34,24 +34,24 @@
         - item.ansible_facts.can_connect_with_user is defined
         - item.ansible_facts.can_connect_with_user
 
-    - name: '0.0.04 - Set active SSH user'
+    - name: '1.A.04 - Set active SSH user'
       set_fact:
         active_ssh_user: "{{ available_users[0].username | default(ansible_user) }}"
       when: available_users | length > 0
 
-    - name: '0.0.05 - Show active SSH user'
+    - name: '1.A.05 - Show active SSH user'
       debug:
         msg: "Will attempt to connect using user: {{ active_ssh_user | default('NO VALID USER AVAILABLE!') }}"
 
-    - name: '0.0.06 - Fail if no SSH user is available'
+    - name: '1.A.06 - Fail if no SSH user is available'
       fail:
         msg: "No valid SSH user is available. All users may have been removed in a previous run."
       when: available_users | length == 0 and ansible_user is not defined
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-#step: begin and setup tunnel and credentials
+# Step: Begin and setup tunnel and credentials
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: '1.A - Create OS groups'
+- name: '2.B - Create OS groups'
   hosts: localhost
   become: false
   gather_facts: false
@@ -60,22 +60,23 @@
     # Add this variable to control whether to skip user deletion
     skip_user_deletion: "{{ skip_user_deletion | default(false) }}"
   tasks:
-    - name: '1.A.00 - Create OS group'
+    - name: '2.B.01 - Create OS group'
       group_by:
         key: "machine_{{ ostype }}"
       changed_when: false
       when: ostype is defined
       delegate_to: localhost
 
-    - name: 'Display user deletion status'
+    - name: '2.B.02 - Display user deletion status'
       debug:
         msg: "User deletion is {{ 'DISABLED' if skip_user_deletion else 'ENABLED' }}"
 
-- name: '2.B - Socks tunnel setup'
+- name: '3.C - Socks tunnel setup'
   hosts: localhost
   gather_facts: false
   tasks:
-    - include_role:
+    - name: '3.C.01 - Include socks tunnel role'
+      include_role:
         name: ansible-role-event-socks-tunnel
         apply:
           check_mode: false
@@ -86,26 +87,28 @@
         transaction_id: "{{ tower_job_id }}"
         trans_num: "{{ tower_job_id }}"
 
-    - name: '2.B.00 - Set become method and user'
+    - name: '3.C.02 - Set become method and user'
       set_fact:
         ansible_become_method: runas
         ansible_become_user: system
+
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Using our new reusable gather_facts_localhost role instead of inline tasks
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: '3.C - Gather facts localhost (using role)'
+- name: '4.D - Gather facts localhost (using role)'
   hosts: localhost
   gather_facts: true
   vars:
     show_debug_facts: false
   tasks:
-    - name: '3.C.00 - Include gather_facts_localhost role'
+    - name: '4.D.01 - Include gather_facts_localhost role'
       include_role:
         name: gather_facts_localhost
+
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-#step we are now running at remote host
+# Step: We are now running at remote host
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: '4.D - Cleanup ansible / CACF files on host'
+- name: '5.E - Cleanup ansible / CACF files on host'
   hosts: '{{ nodename }}'
   gather_facts: false
   become: true
@@ -133,9 +136,9 @@
         description: 'bigfix Directory'
   tasks:
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    #step cleanup ansible / CACF files on host
+    # Step: Cleanup ansible / CACF files on host
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: '4.D.01 - Cleanup ansible directories on host {{ nodename }}'
+    - name: '5.E.01 - Cleanup ansible directories on host {{ nodename }}'
       include_role:
         name: cleanup_dir
       vars:
@@ -148,10 +151,11 @@
       loop: "{{ cleanup_directories }}"
       loop_control:
         label: "{{ item.description }} ({{ item.path }})"
-      # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-      #step Find cleanup candidates
-      # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: '4.D.12 - find cleanup candidates'
+
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Step: Find cleanup candidates
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: '5.E.02 - Find cleanup candidates'
       include_role:
         name: find_cleanup_candidates
       vars:
@@ -181,30 +185,30 @@
         save_to_file: true
         results_file: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
 
-    - name: "4.D.13 - Copy file cleanup_candidates from target host (src) to ansible tower local host (dest)"
+    - name: "5.E.03 - Copy file cleanup_candidates from target host (src) to ansible tower local host (dest)"
       copy:
         src: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt" # on remote host
         dest: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt" # on ansible host
         remote_src: yes
+
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-#step push collected to repository
+# Step: Push collected to repository
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-# UPDATED GIT OPERATIONS SECTION
-- name: '7.G - Push cleanup candidates file back to Git repository'
+- name: '6.F - Push cleanup candidates file back to Git repository'
   hosts: localhost
   gather_facts: false
   tasks:
-    - name: "Show Git push status"
+    - name: "6.F.01 - Show Git push status"
       debug:
         msg: "Preparing to push cleanup candidates to Git repository"
 
-    - name: "Ensure temp directory exists"
+    - name: "6.F.02 - Ensure temp directory exists"
       file:
         path: "{{ local_repo_path }}"
         state: directory
         mode: '0755'
 
-    - name: "Clone repository if not exists"
+    - name: "6.F.03 - Clone repository if not exists"
       ignore_errors: yes
       git:
         repo: "{{ git_repository_url | default('https://github.kyndryl.net/eu-nordic-kmn/KMD-AEVEN-TOOLS.git') }}"
@@ -219,14 +223,14 @@
         GIT_PASSWORD: "{{ git_token | default('') }}"
       register: git_clone_result
 
-    - name: "Create results directory if it doesn't exist"
+    - name: "6.F.04 - Create results directory if it doesn't exist"
       file:
         path: "{{ local_repo_path }}/cleanup_results"
         state: directory
         mode: '0755'
       when: git_clone_result is success
 
-    - name: "Copy cleanup candidates file to repository"
+    - name: "6.F.05 - Copy cleanup candidates file to repository"
       copy:
         src: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
         dest: "{{ local_repo_path }}/cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
@@ -234,20 +238,20 @@
       when: git_clone_result is success
       register: file_copy_result
 
-    - name: "Configure Git user"
+    - name: "6.F.06 - Configure Git user"
       shell: |
         cd {{ local_repo_path }}
         git config user.name "{{ git_user_name | default('Ansible Tower') }}"
         git config user.email "{{ git_user_email | default('ansible@tower.local') }}"
       when: git_clone_result is success and file_copy_result is changed
 
-    - name: "Add changes to Git"
+    - name: "6.F.07 - Add changes to Git"
       shell: |
         cd {{ local_repo_path }}
         git add cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt
       when: git_clone_result is success and file_copy_result is changed
 
-    - name: "Commit changes"
+    - name: "6.F.08 - Commit changes"
       shell: |
         cd {{ local_repo_path }}
         git commit -m "Added cleanup candidates from {{ inventory_hostname }} - {{ ansible_date_time.date }}"
@@ -255,7 +259,7 @@
       register: git_commit_result
       ignore_errors: yes
 
-    - name: "Push changes to repository"
+    - name: "6.F.09 - Push changes to repository"
       shell: |
         cd {{ local_repo_path }}
         git push
@@ -263,18 +267,19 @@
       register: git_push_result
       ignore_errors: yes
 
-    - name: "Show Git push result"
+    - name: "6.F.10 - Show Git push result"
       debug:
         msg: "Git push result: {{ 'Success' if git_push_result is success else 'Failed' }}"
       when: git_clone_result is success and git_commit_result is success
+
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-#step - final display system facts and information to confirm cleanup
+# Step: Final display system facts and information to confirm cleanup
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: '9.I - Final system information collection'
+- name: '7.G - Final system information collection'
   hosts: localhost
   gather_facts: true
   tasks:
-    - name: '9.I.00 - Collect and display final system state'
+    - name: '7.G.01 - Collect and display final system state'
       include_role:
         name: gather_facts_localhost
       vars:
@@ -284,9 +289,9 @@
         output_dir: "cleanup_results/final_state"
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-#step remove ansible users - POINT OF NO RETURN.
+# Step: Remove ansible users - POINT OF NO RETURN.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: '10.J - Define list of users to clean up'
+- name: '8.H - Define list of users to clean up'
   hosts: localhost
   gather_facts: false
   vars:
@@ -303,11 +308,11 @@
     ansib_user9: 'yl5uxat1'
     ansib_usera: 'yl5uxat2'
   tasks:
-    - name: "Show user deletion status"
+    - name: "8.H.01 - Show user deletion status"
       debug:
         msg: "User deletion is {{ 'SKIPPED' if skip_user_deletion else 'PROCEEDING' }}"
 
-    - name: 'Set users to cleanup'
+    - name: '8.H.02 - Set users to cleanup'
       set_fact:
         users_to_cleanup:
           - username: '{{ ansib_user1 }}'
@@ -332,19 +337,19 @@
             description: 'Ansible User a ({{ ansib_usera }})'
       when: not skip_user_deletion
 
-- name: '10.J.00 - Cleanup and remove users'
+- name: '8.H.03 - Cleanup and remove users'
   hosts: '{{ nodename }}'
   become: true
   gather_facts: false
   vars:
     skip_user_deletion: "{{ skip_user_deletion | default(false) }}"
   tasks:
-    - name: 'Skip user deletion notification'
+    - name: '8.H.04 - Skip user deletion notification'
       debug:
         msg: "SKIPPING user deletion as requested by skip_user_deletion parameter"
       when: skip_user_deletion
 
-    - name: 'Cleanup and remove users'
+    - name: '8.H.05 - Cleanup and remove users'
       include_role:
         name: remove_user_cleanup
       vars:
