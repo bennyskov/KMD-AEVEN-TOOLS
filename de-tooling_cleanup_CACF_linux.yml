@@ -113,11 +113,6 @@
   ignore_errors: yes
   vars:
     nodename: '{{ nodename }}'
-    ansib_user1: 'kmduxat1'
-    ansib_user2: 'kmduxat2'
-    # Use the active SSH user detected in the pre-check
-    ansible_user: "{{ hostvars['localhost']['active_ssh_user'] | default(ansible_user) }}"
-    # SSH connection timeout settings to avoid disconnection during long-running operations
     ansible_ssh_timeout: 60
     ansible_persistent_connect_timeout: 180
     ansible_connection_timeout: 180
