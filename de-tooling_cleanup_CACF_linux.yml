@@ -1,6 +1,45 @@
 # filepath: d:\scripts\GIT\KMD-AEVEN-TOOLS\de-tooling_cleanup_CACF_linux.yml
 ---
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Pre-check: Verify SSH connectivity and user existence before starting the cleanup
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+- name: '0.0 - Check SSH user existence'
+  hosts: localhost
+  gather_facts: true
+  become: false
+  vars:
+    ssh_users_to_check:
+      - username: 'kmduxat1'
+      - username: 'kmduxat2'
+  tasks:
+    - name: '0.0.01 - Check if SSH users exist before trying to connect'
+      include_role:
+        name: check_ssh_user
+      vars:
+        ssh_user: "{{ item.username }}"
+        target_host: "{{ nodename | default(inventory_hostname) }}"
+      loop: "{{ ssh_users_to_check }}"
+      register: user_check_results
+
+    - name: '0.0.02 - Determine active SSH user'
+      set_fact:
+        available_ssh_users: "{{ user_check_results.results | selectattr('ansible_facts.can_connect_with_user', 'equalto', true) | map(attribute='item') | list }}"
+
+    - name: '0.0.03 - Set active SSH user'
+      set_fact:
+        active_ssh_user: "{{ available_ssh_users[0].username | default(ansible_user) }}"
+      when: available_ssh_users | length > 0
+
+    - name: '0.0.04 - Show active SSH user'
+      debug:
+        msg: "Will attempt to connect using user: {{ active_ssh_user | default('NO VALID USER AVAILABLE!') }}"
+
+    - name: '0.0.05 - Fail if no SSH user is available'
+      fail:
+        msg: "No valid SSH user is available. All users may have been removed in a previous run."
+      when: available_ssh_users | length == 0 and ansible_user is not defined
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #step: begin and setup tunnel and credentials
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 - name: '1.A - Create OS groups'
@@ -8,6 +47,9 @@
   become: false
   gather_facts: false
   connection: local
+  vars:
+    # Add this variable to control whether to skip user deletion
+    skip_user_deletion: "{{ skip_user_deletion | default(false) }}"
   tasks:
     - name: '1.A.00 - Create OS group'
       group_by:
@@ -15,6 +57,10 @@
       changed_when: false
       when: ostype is defined
       delegate_to: localhost
+
+    - name: 'Display user deletion status'
+      debug:
+        msg: "User deletion is {{ 'DISABLED' if skip_user_deletion else 'ENABLED' }}"
 
 - name: '2.B - Socks tunnel setup'
   hosts: localhost
@@ -60,6 +106,8 @@
     nodename: '{{ nodename }}'
     ansib_user1: 'kmduxat1'
     ansib_user2: 'kmduxat2'
+    # Use the active SSH user detected in the pre-check
+    ansible_user: "{{ hostvars['localhost']['active_ssh_user'] | default(ansible_user) }}"
     # SSH connection timeout settings to avoid disconnection during long-running operations
     ansible_ssh_timeout: 60
     ansible_persistent_connect_timeout: 180
@@ -181,22 +229,46 @@
 #step remove ansible users - POINT OF NO RETURN.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 - name: '10.J - Define list of users to clean up'
-  set_fact:
-    users_to_cleanup:
-      - username: '{{ ansib_user1 }}'
-        description: 'Ansible User 1 (kmduxat1)'
-      - username: '{{ ansib_user2 }}'
-        description: 'Ansible User 2 (kmduxat2)'
-
-- name: '0.J.00 - Cleanup and remove users'
-  include_role:
-    name: remove_user_cleanup
+  hosts: localhost
+  gather_facts: false
   vars:
-    username: "{{ item.username }}"
-    remove_home: true
-    force_removal: true
-    handle_locked_processes: true
-    check_remaining_files: true
-  loop: "{{ users_to_cleanup }}"
-  loop_control:
-    label: "Removing {{ item.description }}"
+    skip_user_deletion: "{{ skip_user_deletion | default(false) }}"
+  tasks:
+    - name: "Show user deletion status"
+      debug:
+        msg: "User deletion is {{ 'SKIPPED' if skip_user_deletion else 'PROCEEDING' }}"
+
+    - name: 'Set users to cleanup'
+      set_fact:
+        users_to_cleanup:
+          - username: '{{ ansib_user1 }}'
+            description: 'Ansible User 1 (kmduxat1)'
+          - username: '{{ ansib_user2 }}'
+            description: 'Ansible User 2 (kmduxat2)'
+      when: not skip_user_deletion
+
+- name: '10.J.00 - Cleanup and remove users'
+  hosts: '{{ nodename }}'
+  become: true
+  gather_facts: false
+  vars:
+    skip_user_deletion: "{{ skip_user_deletion | default(false) }}"
+  tasks:
+    - name: 'Skip user deletion notification'
+      debug:
+        msg: "SKIPPING user deletion as requested by skip_user_deletion parameter"
+      when: skip_user_deletion
+
+    - name: 'Cleanup and remove users'
+      include_role:
+        name: remove_user_cleanup
+      vars:
+        username: "{{ item.username }}"
+        remove_home: true
+        force_removal: true
+        handle_locked_processes: true
+        check_remaining_files: true
+      loop: "{{ users_to_cleanup | default([]) }}"
+      loop_control:
+        label: "Removing {{ item.description }}"
+      when: not skip_user_deletion
