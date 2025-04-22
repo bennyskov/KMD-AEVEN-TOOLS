@@ -77,6 +77,8 @@
         description: 'Ansible Async Directory'
       - path: '/tmp/gts-ansible'
         description: 'GTS Ansible Temp Directory'
+      - path: '/etc/opt/bigfix'
+        description: 'bigfix Directory'
   tasks:
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     #step cleanup ansible / CACF files on host
@@ -94,29 +96,6 @@
       loop: "{{ cleanup_directories }}"
       loop_control:
         label: "{{ item.description }} ({{ item.path }})"
-    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    #step remove ansible users
-    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: '4.D.10 - Define list of users to clean up'
-      set_fact:
-        users_to_cleanup:
-          - username: '{{ ansib_user1 }}'
-            description: 'Ansible User 1 (kmduxat1)'
-          - username: '{{ ansib_user2 }}'
-            description: 'Ansible User 2 (kmduxat2)'
-
-    - name: '4.D.11 - Cleanup and remove users'
-      include_role:
-        name: remove_user_cleanup
-      vars:
-        username: "{{ item.username }}"
-        remove_home: true
-        force_removal: true
-        handle_locked_processes: true
-        check_remaining_files: true
-      loop: "{{ users_to_cleanup }}"
-      loop_control:
-        label: "Removing {{ item.description }}"
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
       #step Find cleanup candidates
       # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -197,3 +176,27 @@
         collect_mountpoints: true
         save_to_file: true
         output_dir: "cleanup_results/final_state"
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+#step remove ansible users - POINT OF NO RETURN.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+- name: '10.J - Define list of users to clean up'
+  set_fact:
+    users_to_cleanup:
+      - username: '{{ ansib_user1 }}'
+        description: 'Ansible User 1 (kmduxat1)'
+      - username: '{{ ansib_user2 }}'
+        description: 'Ansible User 2 (kmduxat2)'
+
+- name: '0.J.00 - Cleanup and remove users'
+  include_role:
+    name: remove_user_cleanup
+  vars:
+    username: "{{ item.username }}"
+    remove_home: true
+    force_removal: true
+    handle_locked_processes: true
+    check_remaining_files: true
+  loop: "{{ users_to_cleanup }}"
+  loop_control:
+    label: "Removing {{ item.description }}"
