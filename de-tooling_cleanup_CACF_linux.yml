@@ -66,7 +66,6 @@
     ansible_connection_timeout: 180
     ansible_ssh_args: '-o ServerAliveInterval=30 -o ServerAliveCountMax=10 -o ControlMaster=auto -o ControlPersist=180s'
     # Explicitly set Ansible temporary directory to avoid conflicts
-    ansible_remote_tmp: /tmp/ansible-safe-tmp
     cleanup_directories:
       - path: '/var/opt/ansible'
         description: 'CACF Directory'
@@ -78,15 +77,7 @@
         description: 'Ansible Async Directory'
       - path: '/tmp/gts-ansible'
         description: 'GTS Ansible Temp Directory'
-
-  tasks:    # Create safe temporary directory for Ansible operations
-    # - name: '4.D.00 - Ensure safe temporary directory exists'
-    #   file:
-    #     path: "/tmp/ansible-safe-tmp"
-    #     state: directory
-    #     mode: '0777'
-    #   ignore_errors: true
-
+  tasks:
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     #step cleanup ansible / CACF files on host
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -161,8 +152,8 @@
 
     - name: "4.D.13 - Copy file cleanup_candidates from target host (src) to ansible tower local host (dest)"
       copy:
-        src: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
-        dest: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
+        src: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt" # on remote host
+        dest: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt" # on ansible host
         remote_src: yes
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #step push collected to repository
