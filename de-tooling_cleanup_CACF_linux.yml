@@ -10,6 +10,14 @@
     ssh_users_to_check:
       - username: 'kmduxat1'
       - username: 'kmduxat2'
+      - username: 'kmnuxat1'
+      - username: 'kmnuxat2'
+      - username: 'kmwuxat1'
+      - username: 'kmwuxat2'
+      - username: 'ug2uxat1'
+      - username: 'ug2uxat2'
+      - username: 'yl5uxat1'
+      - username: 'yl5uxat2'
   tasks:
     - name: '1.A.01 - Check if SSH users exist before trying to connect'
       include_role:
