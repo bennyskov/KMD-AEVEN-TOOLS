@@ -299,6 +299,14 @@
     # Define Ansible users here so they're available in this play
     ansib_user1: 'kmduxat1'
     ansib_user2: 'kmduxat2'
+    ansib_user3: 'kmnuxat1'
+    ansib_user4: 'kmnuxat2'
+    ansib_user5: 'kmwuxat1'
+    ansib_user6: 'kmwuxat2'
+    ansib_user7: 'ug2uxat1'
+    ansib_user8: 'ug2uxat2'
+    ansib_user9: 'yl5uxat1'
+    ansib_usera: 'yl5uxat2'
   tasks:
     - name: "Show user deletion status"
       debug:
@@ -308,9 +316,25 @@
       set_fact:
         users_to_cleanup:
           - username: '{{ ansib_user1 }}'
-            description: 'Ansible User 1 (kmduxat1)'
+            description: 'Ansible User 1 ({{ ansib_user1 }})'
           - username: '{{ ansib_user2 }}'
-            description: 'Ansible User 2 (kmduxat2)'
+            description: 'Ansible User 2 ({{ ansib_user2 }})'
+          - username: '{{ ansib_user3 }}'
+            description: 'Ansible User 3 ({{ ansib_user3 }})'
+          - username: '{{ ansib_user4 }}'
+            description: 'Ansible User 4 ({{ ansib_user4 }})'
+          - username: '{{ ansib_user5 }}'
+            description: 'Ansible User 5 ({{ ansib_user5 }})'
+          - username: '{{ ansib_user6 }}'
+            description: 'Ansible User 6 ({{ ansib_user6 }})'
+          - username: '{{ ansib_user7 }}'
+            description: 'Ansible User 7 ({{ ansib_user7 }})'
+          - username: '{{ ansib_user8 }}'
+            description: 'Ansible User 8 ({{ ansib_user8 }})'
+          - username: '{{ ansib_user9 }}'
+            description: 'Ansible User 9 ({{ ansib_user9 }})'
+          - username: '{{ ansib_usera }}'
+            description: 'Ansible User a ({{ ansib_usera }})'
       when: not skip_user_deletion
 
 - name: '10.J.00 - Cleanup and remove users'
