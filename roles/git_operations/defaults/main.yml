@@ -7,7 +7,6 @@ git_branch: "main"                                                            # 
 git_user_name: "git_cred_tools"                                               # Git user name for commits
 git_user_email: "benny.skov@kyndryl.com"                                      # Git user email for commits
 git_credentials_method: "https_token"                                         # Method to authenticate: https_token, ssh_key, or none
-git_token: ""                           # Personal access token for HTTPS authentication
 
 # SSH key settings (if using ssh_key method)
 git_ssh_key_path: ""                                                          # Path to SSH private key for Git
