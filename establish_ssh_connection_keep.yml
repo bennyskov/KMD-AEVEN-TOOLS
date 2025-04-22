@@ -1,0 +1,38 @@
+---
+# establish_ssh_connection.yml
+# A playbook to establish SSH connectivity and ensure secure temporary directories
+
+- name: "Initialize SSH connectivity for remote hosts"
+  hosts: localhost
+  gather_facts: true
+  tasks:
+    - name: "Display local user and environment"
+      debug:
+        msg: "Running as {{ ansible_user_id }} on {{ ansible_hostname }}"
+
+    - name: "Set ssh connection facts"
+      set_fact:
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
+- name: "Test connection and ensure temporary directories"
+  hosts: "{{ target_host | default('all') }}"
+  gather_facts: false
+  become: true
+  vars:
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+  tasks:
+    - name: "Include ssh_connectivity role"
+      include_role:
+        name: ssh_connectivity
+
+    - name: "Create safe temporary directory"
+      file:
+        path: "/tmp/ansible-secure-{{ ansible_date_time.epoch | default(lookup('pipe', 'date +%s')) }}"
+        state: directory
+        mode: '0700'
+        owner: "{{ ansible_user | default(lookup('env', 'USER')) }}"
+      register: tmp_dir
+
+    - name: "Display temp directory information"
+      debug:
+        msg: "Created safe temporary directory: {{ tmp_dir.path }}"

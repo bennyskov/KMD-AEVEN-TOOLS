@@ -34,6 +34,32 @@
   debug:
     var: script_tmp.stdout_lines
 
+- name: 'Check if /tmp exists with proper permissions'
+  stat:
+    path: /tmp
+  register: tmp_stat
+
+- name: 'Ensure /tmp directory has proper permissions'
+  file:
+    path: /tmp
+    state: directory
+    mode: '0777'
+    owner: root
+    group: root
+  when: tmp_stat.stat.exists
+
+- name: 'Create safe temporary directory for ansible operations'
+  file:
+    path: /tmp/ansible-{{ ansible_user }}-{{ ansible_date_time.epoch }}
+    state: directory
+    mode: '0700'
+    owner: "{{ ansible_user }}"
+  register: safe_tmp_dir
+
+- name: 'Output safe temp directory path'
+  debug:
+    msg: "Created safe temporary directory: {{ safe_tmp_dir.path }}"
+
 - name: 'df -k .'
   shell: 'df -k .'
   register: script_df
