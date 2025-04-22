@@ -19,6 +19,11 @@
   debug:
     msg: "SSH user {{ ssh_user }} {{ 'exists' if ssh_user_exists else 'does not exist' }} on target system"
 
+- name: "Fail if user does not exist - playbook may have already been run"
+  fail:
+    msg: "SSH user {{ ssh_user }} does not exist on target system. The cleanup may have already been performed. Stopping playbook execution."
+  when: not ssh_user_exists
+
 - name: "Test SSH connection to target"
   wait_for:
     host: "{{ target_host | default(inventory_hostname) }}"
