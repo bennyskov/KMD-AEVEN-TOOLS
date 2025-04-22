@@ -1,5 +1,12 @@
-*goto to tview - scripts - servercheck.*
-remember to copy edited to tview - scripts - servercheck/
+# KMD-AEVEN-TOOLS
+roles/git_operations/defaults/
+.vscode/
+.copilot/
+temp/
+repository/
+archive/
+backup_inventory/
+logs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -119,11 +126,3 @@ docs/.bundle/
 
 # Mac OS X
 .DS_Store
-
-.vscode/
-.copilot/
-temp/
-repository/
-archive/
-backup_inventory/
-logs/
