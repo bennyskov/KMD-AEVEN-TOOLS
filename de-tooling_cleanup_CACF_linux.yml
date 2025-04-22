@@ -242,6 +242,9 @@
   gather_facts: false
   vars:
     skip_user_deletion: "{{ skip_user_deletion | default(false) }}"
+    # Define Ansible users here so they're available in this play
+    ansib_user1: 'kmduxat1'
+    ansib_user2: 'kmduxat2'
   tasks:
     - name: "Show user deletion status"
       debug:
