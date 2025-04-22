@@ -48,17 +48,17 @@
     group: root
   when: tmp_stat.stat.exists
 
-- name: 'Create safe temporary directory for ansible operations'
-  file:
-    path: /tmp/ansible-{{ ansible_user }}-{{ ansible_date_time.epoch }}
-    state: directory
-    mode: '0700'
-    owner: "{{ ansible_user }}"
-  register: safe_tmp_dir
+# - name: 'Create safe temporary directory for ansible operations'
+#   file:
+#     path: /tmp/ansible-{{ ansible_user }}-{{ ansible_date_time.epoch }}
+#     state: directory
+#     mode: '0700'
+#     owner: "{{ ansible_user }}"
+#   register: safe_tmp_dir
 
-- name: 'Output safe temp directory path'
-  debug:
-    msg: "Created safe temporary directory: {{ safe_tmp_dir.path }}"
+# - name: 'Output safe temp directory path'
+#   debug:
+#     msg: "Created safe temporary directory: {{ safe_tmp_dir.path }}"
 
 - name: 'df -k .'
   shell: 'df -k .'
