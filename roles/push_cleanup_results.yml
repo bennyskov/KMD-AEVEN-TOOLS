@@ -19,7 +19,7 @@
 
     - name: "Create temporary directory for Git operations"
       file:
-        path: "/tmp/kmd_aeven_tools_repo"
+        path: "{{ local_repo_path }}"
         state: directory
         mode: '0755'
       ignore_errors: true
@@ -37,7 +37,7 @@
     - name: "Clone repository"
       git:
         repo: "{{ git_repository_url | default('https://github.kyndryl.net/eu-nordic-kmn/KMD-AEVEN-TOOLS.git') }}"
-        dest: "/tmp/kmd_aeven_tools_repo"
+        dest: "{{ local_repo_path }}"
         version: "{{ git_branch | default('main') }}"
         force: yes
         depth: 1
@@ -50,7 +50,7 @@
 
     - name: "Ensure results directory exists in repository"
       file:
-        path: "/tmp/kmd_aeven_tools_repo/cleanup_results"
+        path: "{{ local_repo_path }}/cleanup_results"
         state: directory
         mode: '0755'
       ignore_errors: true
@@ -58,7 +58,7 @@
     - name: "Copy cleanup candidates file to repository"
       copy:
         src: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
-        dest: "/tmp/kmd_aeven_tools_repo/cleanup_results/{{ inventory_hostname }}_cleanup_candidates_{{ ansible_date_time.date | regex_replace('-','') }}.txt"
+        dest: "{{ local_repo_path }}/cleanup_results/{{ inventory_hostname }}_cleanup_candidates_{{ ansible_date_time.date | regex_replace('-','') }}.txt"
         mode: "0644"
         remote_src: yes
       ignore_errors: true
@@ -66,13 +66,13 @@
     - name: "Git add files"
       command: "git add ."
       args:
-        chdir: "/tmp/kmd_aeven_tools_repo"
+        chdir: "{{ local_repo_path }}"
       ignore_errors: true
 
     - name: "Check if there are changes to commit"
       command: "git status --porcelain"
       args:
-        chdir: "/tmp/kmd_aeven_tools_repo"
+        chdir: "{{ local_repo_path }}"
       register: git_status
       ignore_errors: true
       changed_when: false
@@ -80,7 +80,7 @@
     - name: "Git commit changes"
       command: "git commit -m 'Added cleanup candidates from {{ inventory_hostname }} - {{ ansible_date_time.iso8601 }}'"
       args:
-        chdir: "/tmp/kmd_aeven_tools_repo"
+        chdir: "{{ local_repo_path }}"
       register: commit_result
       ignore_errors: true
       when: git_status.stdout | trim != ""
@@ -89,7 +89,7 @@
     - name: "Push changes to repository"
       command: "git push origin {{ git_branch | default('main') }}"
       args:
-        chdir: "/tmp/kmd_aeven_tools_repo"
+        chdir: "{{ local_repo_path }}"
       environment:
         GIT_TERMINAL_PROMPT: "0"
         GIT_ASKPASS: /bin/echo
@@ -114,7 +114,7 @@
 
     - name: "Cleanup local repository"
       file:
-        path: "/tmp/kmd_aeven_tools_repo"
+        path: "{{ local_repo_path }}"
         state: absent
       ignore_errors: true
   rescue:

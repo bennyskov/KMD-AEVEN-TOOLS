@@ -4,7 +4,7 @@
 
 - name: 'Set temporary directory for Git operations'
   set_fact:
-    git_temp_dir: "{{ local_repo_path | default('/tmp/git_operations_temp') }}"
+    git_temp_dir: "{{ local_repo_path }}"
 
 - name: 'Ensure Git is installed'
   package:

@@ -205,21 +205,28 @@
 
     - name: "Ensure temp directory exists"
       file:
-        path: "/tmp/kmd_aeven_tools_repo"
+        path: "{{ local_repo_path }}"
         state: directory
         mode: '0755'
 
     - name: "Clone repository if not exists"
+      ignore_errors: yes
       git:
         repo: "{{ git_repository_url | default('https://github.kyndryl.net/eu-nordic-kmn/KMD-AEVEN-TOOLS.git') }}"
-        dest: "/tmp/kmd_aeven_tools_repo"
+        dest: "{{ local_repo_path }}"
         version: "{{ git_branch | default('main') }}"
-      ignore_errors: yes
+        force: yes
+        depth: 1
+      environment:
+        GIT_TERMINAL_PROMPT: "0"
+        GIT_ASKPASS: /bin/echo
+        GIT_USERNAME: "{{ git_user | default('') }}"
+        GIT_PASSWORD: "{{ git_token | default('') }}"
       register: git_clone_result
 
     - name: "Create results directory if it doesn't exist"
       file:
-        path: "/tmp/kmd_aeven_tools_repo/cleanup_results"
+        path: "{{ local_repo_path }}/cleanup_results"
         state: directory
         mode: '0755'
       when: git_clone_result is success
@@ -227,27 +234,27 @@
     - name: "Copy cleanup candidates file to repository"
       copy:
         src: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
-        dest: "/tmp/kmd_aeven_tools_repo/cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
+        dest: "{{ local_repo_path }}/cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
         mode: '0644'
       when: git_clone_result is success
       register: file_copy_result
 
     - name: "Configure Git user"
       shell: |
-        cd /tmp/kmd_aeven_tools_repo
+        cd {{ local_repo_path }}
         git config user.name "{{ git_user_name | default('Ansible Tower') }}"
         git config user.email "{{ git_user_email | default('ansible@tower.local') }}"
       when: git_clone_result is success and file_copy_result is changed
 
     - name: "Add changes to Git"
       shell: |
-        cd /tmp/kmd_aeven_tools_repo
+        cd {{ local_repo_path }}
         git add cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt
       when: git_clone_result is success and file_copy_result is changed
 
     - name: "Commit changes"
       shell: |
-        cd /tmp/kmd_aeven_tools_repo
+        cd {{ local_repo_path }}
         git commit -m "Added cleanup candidates from {{ inventory_hostname }} - {{ ansible_date_time.date }}"
       when: git_clone_result is success and file_copy_result is changed
       register: git_commit_result
@@ -255,7 +262,7 @@
 
     - name: "Push changes to repository"
       shell: |
-        cd /tmp/kmd_aeven_tools_repo
+        cd {{ local_repo_path }}
         git push
       when: git_clone_result is success and git_commit_result is success and git_commit_result.rc == 0
       register: git_push_result

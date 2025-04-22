@@ -2,26 +2,26 @@
 # Default variables for git_operations role
 
 # Git repository settings
-git_repo_url: ""                            # Git repository URL, e.g., 'https://github.com/username/repo.git'
-git_branch: "main"                          # Branch to work with
-git_user_name: "Ansible Tower"              # Git user name for commits
-git_user_email: "ansible@tower.local"       # Git user email for commits
-git_credentials_method: "https_token"       # Method to authenticate: https_token, ssh_key, or none
-git_token: ""                               # Personal access token for HTTPS authentication
+git_repo_url: "https://github.kyndryl.net/eu-nordic-kmn/KMD-AEVEN-TOOLS.git"  # Git repository URL, e.g., 'https://github.com/username/repo.git'
+git_branch: "main"                                                            # Branch to work with
+git_user_name: "git_cred_tools"                                               # Git user name for commits
+git_user_email: "benny.skov@kyndryl.com"                                      # Git user email for commits
+git_credentials_method: "https_token"                                         # Method to authenticate: https_token, ssh_key, or none
+git_token: "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"                         # Personal access token for HTTPS authentication
 
 # SSH key settings (if using ssh_key method)
-git_ssh_key_path: ""                        # Path to SSH private key for Git
-git_ssh_key_passphrase: ""                  # Passphrase for the SSH key, if any
+git_ssh_key_path: ""                                                          # Path to SSH private key for Git
+git_ssh_key_passphrase: ""                                                    # Passphrase for the SSH key, if any
 
 # Local repository settings
-local_repo_path: "/tmp/git_repo"            # Where to clone the repository
-cleanup_local_repo: true                    # Whether to remove the local repository after operations
+local_repo_path: "/tmp/kmd_aeven_tools_repo"                                  # Where to clone the repository
+cleanup_local_repo: true                                                      # Whether to remove the local repository after operations
 
 # Files to commit
-files_to_commit:                            # List of files to commit
-  - source: "/tmp/cleanup_candidates.txt"   # Source file on the Ansible Tower host
-    dest: "cleanup_results/cleanup_candidates.txt" # Destination path in the repository
-    required: false                         # Whether the file is required to exist
+files_to_commit:                                                              # List of files to commit
+  - source: "/tmp/cleanup_candidates.txt"                                     # Source file on the Ansible Tower host
+    dest: "cleanup_results/cleanup_candidates.txt"                            # Destination path in the repository
+    required: false                                                           # Whether the file is required to exist
 
 # Commit settings
 commit_message: "Added cleanup candidate files from Ansible Tower run"
