@@ -1,0 +1,61 @@
+ITM Remove All - ITMRmvAll V3.1.1
+
+Background: ITMRmvAll was created because on some machines removal of ITM aborts for some reason. This can leave the machine in a state which will not allow a reinstall or uninstall. Also on some machines ITM will not install at all due to conflicting Registry entries. ITMRmvAll addresses these problems and others by cleaning the registry of all related ITM components. ITMRmvAll runs in two modes. Total removal of ITM and selective component uninstall. ITMRmvAll is not a replacement for uninstall which is run from Add and Remove Programs or Programs and Features. Removal of ITM or ITM components should be done through these functions first. However, if they fail ITMRmvAll should be able to cleanup the ITM environment so new components can be added (selective remove) or reinstalled (total remove). In Selective mode it will remove components that can be removed without effecting the ITM environment as prereqs are checked and components cannot be removed if they support other components that were not selected for removal. In total removal mode ITMRmvAll will totally remove ALL ITM products. It will also remove global GSKit if ITM is the only product registered with GSKit. If other products are using global GSKit, ITM will be removed from the installed program registry so when these products are removed GSKit will be removed.
+
+Purpose: The purpose of ITMRmvAll is to provide an alternate method to remove ITM or ITM Components if the standard Uninstall fails. It is not a replacement for uninstall and should only be used if uninstall fails. ITMRmvAll should be used to clear problems where uninstall fails or leaves extra information that is not wanted.. If Uninstall can be used from Add and Remove Programs or Programs and Features, it should be used to uninstall ITM or ITM Components.
+
+Package Content: The zip distribution package contains the following files:
+1.  ITMRmvAll.exe  - the program
+2.  ITMRmvAll.txt  - this document
+NOTE: If ITM 6.3.0 has not been installed, please download and install
+The Microsoft Visual C++ 2008 SP1 Redistributable Packages for both 32-bit and 64-bit machines. The 32-bit package should be installed on both types and the 64-bit package will only install on 64-bit machines. This package will install the runtime components needed by ITMRmvAll to execute.
+The 32-bit Redistributable Package can be downloaded from URL:
+http://www.microsoft.com/en-us/download/details.aspx?id=5582
+The 64-bit Redistributable Package can be downloaded from URL:
+http://www.microsoft.com/en-us/download/details.aspx?id=2092
+
+Total Removal Releases supported: ITM 6.1, ITM 6.2, ITM 6.2.1, ITM 6.2.2,
+      ITM 6.2.3 and ITM 6.3.0
+Partial Removal Releases supported: ITM 6.2.1, ITM 6.2.2, ITM 6.2.3 and
+      ITM 6.3.0
+
+Procedure: Before launching ITMRmvAll be sure to stop ALL ITM processes. Failure to do this, may leave busy files in CANDLE_HOME and cause problems for an ITM reinstall. Launch ITMRmvALL.exe from anywhere except your ITM HOME directory. ITMRmvAll creates an ITMRmvAll.log file in the directory from which it is launched. Select the type of removal, selective or total. In either mode the default mode for ITMRmvAll is log actions only, remove nothing. So to cause removal the check box labeled "Log actions ONLY - do not remove anything" must be unchecked. The log only mode can be used to send information to IBM L2/L3 Install to help determine why the uninstall did not remove the ITM components or what might be blocking an ITM install. If requested, after running ITMRmvAll the log should be collected and sent to IBM L2/L3 for analysis.
+
+PARTIAL REMOVAL INFORMATION
+
+Partial removal is only supported for ITM 6.2.1 and above. If working with an earlier release of ITM only Total Removal is supported. Read the instructions in the upper left hand portion of the ITMRmvAll Dialog box. If the component box below the Populate Components button is not completed, press the Populate Components button. Normally this will not be necessary. Select the components to be removed and press the Remove Selected Components button. If any errors are found they will be shown in an Information message box. Review the information presented, correct the errors and press the Remove Selected Components again. Once all checks are validated, a final approval for removal message box will be displayed. On this final box, press OK to remove the components, Cancel to exit
+without removing anything.
+
+TOTAL REMOVAL INFORMATION
+
+Launch ITMRmvAll. Read the instructions in the upper left hand box. There are
+two options that allow removal of ITM products.
+
+OPTION 1: Using the HOME directory Option. If the Install Directory edit box is blank, enter the LAST location where the ITM Monitoring was installed. Press the Remove ITM button to remove ITM. If ITM 6.2.3 or 6.3.0 is installed IHS and IIM must be removed before ITM can be removed. ITMRmvAll will remind you if you try to process the removes out of sequence. A list of products to remove will be presented. The remove process can be cancelled at this point. If the OK button is pressed, the listed ITM Products are removed from the machine and the Install Directory is also removed.
+
+OPTION 2: Use the install MEDIA of a product to remove ITM or OMEGAMON products. Enter the install image path from which ITM or OMEGAMON was installed. For the target directory the default paths are C:\IBM\ITM for ITM and C:\Candle for Candle OMEGAMON products. Press the "Find Setup.ini on CD" button.  This will open a dialog that will allow you to locate the Setup.ini file on the install media. You may use a physical CD or the install media on a local or remote filesystem. Once you have located the Setup.ini file and clicked "Open", a dialog will open indicating that you have located the installation media and will you will be asked whether you would like to begin the uninstall process. Click Remove to remove the product or Cancel to abort the process.
+
+Remove ITM from Global GSKIT: This button is used to remove ITM from global GSKit if ITM is the only product registered. If other products are using global GSKit, the product registration information will be listed and GSKit will not be removed. ITM will be removed if present in the GSKit registered product list.
+
+BATCH MODE: Batch mode is only supported for Total Removal of ITM. The command line switches are a follows:
+  -batchrmvall Remove all ITM Products from this machine
+  -removegskit Remove ITM from the registered products GSKit supports GSKit
+               will be uninstalled from this machine if ITM is the only
+               product using GSKit. Otherwise just unregister ITM from GSKit.
+               ITM61 is the GSKit registration for both ITM 6.1 and ITM 6.2.
+               ITM 6.2.1 and higher uses a local GSkit that is removed as
+               part of the batchrmvall process.
+  -id=         used to provide the directory where ITM is installed. This
+               switch can be used anytime. If ITMRmvAll cannot find the
+               install directory by looking in the registry, it will use
+               this value. If this value is used and is invalid as entered
+               the results are unpredictable.
+NOTE: ITMRmvAll is a Windows program. As such when launched it returns to
+  the operating system immediately when in batch mode processing is not
+  complete. To make sure the batch processing is complete before proceeding
+  use the command:
+    start /wait PATH_TO_ITMRMVALL\ITMRmvAll -batchrmvall -removegskit
+  When the start command ends, the batch processing for ITMRmvAll is
+  complete.
+
+NOTE: This download has not been prepared or reviewed by IBM and is offered "AS IS" to existing customers. At this time support is not provided for this download.
