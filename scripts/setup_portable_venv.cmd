@@ -23,7 +23,7 @@ echo } > "%CURDIR%..\.vscode\settings.json"
 
 echo Installing required packages directly to PortablePython...
 "%PortablePythonPath%\python.exe" -m pip install --upgrade pip
-"%PortablePythonPath%\python.exe" -m pip install humanize psutil requests PyYAML
+"%PortablePythonPath%\python.exe" -m pip install humanize psutil requests PyYAML colorama
 
 echo PortablePython setup complete!
 echo.

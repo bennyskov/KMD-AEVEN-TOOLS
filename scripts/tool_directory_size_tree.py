@@ -25,6 +25,13 @@ warnings.filterwarnings('ignore', 'This pattern is interpreted as a regular expr
 global debug
 debug = bool
 debug = True
+# Add this to your import section
+try:
+    import colorama
+    colorama.init()  # Initialize colorama
+    COLORAMA_AVAILABLE = True
+except ImportError:
+    COLORAMA_AVAILABLE = False
 # ---------------------------------------------------------------------------------------------------------------------------------------
 #
 #   Directory Size Tree Tool - Scan drives and create directory size tree visualization
@@ -216,9 +223,8 @@ def scan_directory(path, max_depth=3, current_depth=0, file_sizes=None, dir_size
         try:
             dir_content = list(os.scandir(path))
         except (PermissionError, OSError) as e:
-            f_log(f"Permission denied: {path}", str(e), debug, 'DEBUG')
-            # Store empty size for this directory and return
-            dir_sizes[path] = 0
+            # Silently skip this directory without adding it to dir_sizes
+            # This will prevent it from showing up in the tree
             return 0
 
         # Process all files first
@@ -246,20 +252,21 @@ def scan_directory(path, max_depth=3, current_depth=0, file_sizes=None, dir_size
                             file_sizes,
                             dir_sizes
                         )
-                        total_size += subdir_size
-                        dir_sizes[subdir_path] = subdir_size
+                        # Only add directories that we could access
+                        if subdir_size > 0 or subdir_path in dir_sizes:
+                            total_size += subdir_size
+                            dir_sizes[subdir_path] = subdir_size
                     except (PermissionError, OSError):
-                        # Silently ignore permission errors when recursing
-                        dir_sizes[entry.path] = 0
+                        # Skip permission errors when recursing
+                        pass
 
     except Exception as e:
         f_log(f"Error scanning directory {path}", str(e), debug, 'DEBUG')
-        # Still store this path with zero size
-        dir_sizes[path] = 0
         return 0
 
-    # Store the total size for this directory
-    dir_sizes[path] = total_size
+    # Only store this directory if we could access it
+    if total_size > 0:
+        dir_sizes[path] = total_size
 
     return total_size
 #endregion
@@ -281,6 +288,10 @@ def print_directory_tree(path, dir_sizes, max_depth=3, current_depth=0):
     if current_depth > max_depth:
         return
 
+    # Skip if this directory isn't in dir_sizes (means we couldn't access it)
+    if path not in dir_sizes:
+        return
+
     # Calculate indentation
     indent = "│   " * current_depth
 
@@ -291,22 +302,16 @@ def print_directory_tree(path, dir_sizes, max_depth=3, current_depth=0):
     # Print current directory with size
     if current_depth == 0:
         f_log(f"Directory Tree", "", debug, 'INFO')
-        # Use a bold effect for the root directory if possible
-        print(f"\033[1m{path}\033[0m [{human_size}]")
+        print(f"{path} [{human_size}]")
     else:
         connector = "├── " if current_depth > 0 else ""
-        if size > 1073741824:  # Highlight directories larger than 1GB
-            print(f"{indent}{connector}\033[1;32m{os.path.basename(path)}\033[0m [{human_size}]")
-        elif size > 104857600:  # Highlight directories larger than 100MB
-            print(f"{indent}{connector}\033[0;32m{os.path.basename(path)}\033[0m [{human_size}]")
-        else:
-            print(f"{indent}{connector}{os.path.basename(path)} [{human_size}]")
+        print(f"{indent}{connector}{os.path.basename(path)} [{human_size}]")
 
     try:
         # Get subdirectories
         try:
             entries = list(os.scandir(path))
-            # Get subdirectories
+            # Get subdirectories that we have size data for (means we could access them)
             subdirs = []
             for entry in entries:
                 if entry.is_dir(follow_symlinks=False) and entry.path in dir_sizes:
@@ -321,21 +326,17 @@ def print_directory_tree(path, dir_sizes, max_depth=3, current_depth=0):
                 if current_depth + 1 > max_depth:
                     if i == 0 and subdirs:
                         next_indent = "│   " * current_depth
-                        print(f"{next_indent}├── \033[0;36m...\033[0m")
+                        print(f"{next_indent}├── ...")
                     break
-
-                last_item = (i == len(subdirs) - 1)
 
                 # Recursively print subdirectory tree
                 print_directory_tree(subdir_path, dir_sizes, max_depth, current_depth + 1)
-
-        except (PermissionError, OSError):
-            next_indent = "│   " * current_depth
-            print(f"{next_indent}├── \033[0;31m[ACCESS DENIED]\033[0m")
-
-    except Exception as e:
-        next_indent = "│   " * current_depth
-        print(f"{next_indent}├── \033[0;31m[ERROR: {type(e).__name__}]\033[0m")
+        except Exception:
+            # Silently skip directory access errors
+            pass
+    except Exception:
+        # Silently skip any other errors
+        pass
 #endregion
 
 #region print_top_items
@@ -344,7 +345,7 @@ def print_directory_tree(path, dir_sizes, max_depth=3, current_depth=0):
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def print_top_items(dir_sizes, file_sizes, top_count=5):
     """
-    Print top directories and files by size
+    Print top directories and files by size in a clean table format
 
     Args:
         dir_sizes: Dictionary of directory sizes
@@ -353,25 +354,44 @@ def print_top_items(dir_sizes, file_sizes, top_count=5):
     """
     f_log(f"Top {top_count} Largest Directories", "", debug, 'INFO')
 
+    # Get terminal width (default to 80 if can't determine)
+    try:
+        terminal_width = os.get_terminal_size().columns
+    except (AttributeError, OSError):
+        terminal_width = 80
+
+    separator = "=" * terminal_width
+
+    # Print top directories in a clean table format
+    print("\n" + separator)
+    print(f"TOP {top_count} LARGEST DIRECTORIES:")
+    print(separator)
+
+    # Format as a table with clear columns
+    print(f"{'Rank':<6}{'Size':<15}Path")
+    print("-" * terminal_width)
+
     # Get top directories
     top_dirs = heapq.nlargest(top_count, dir_sizes.items(), key=lambda x: x[1])
 
-    print("\n" + "=" * 80)
-    print(f"TOP {top_count} LARGEST DIRECTORIES:")
-    print("=" * 80)
     for i, (dir_path, size) in enumerate(top_dirs, 1):
-        print(f"{i}. {dir_path}")
-        print(f"   Size: {humanize.naturalsize(size, binary=True)}")
+        size_str = humanize.naturalsize(size, binary=True)
+        print(f"{i:<6}{size_str:<15}{dir_path}")
+
+    # Print top files
+    print("\n" + separator)
+    print(f"TOP {top_count} LARGEST FILES:")
+    print(separator)
+
+    print(f"{'Rank':<6}{'Size':<15}Path")
+    print("-" * terminal_width)
 
     # Get top files
     top_files = heapq.nlargest(top_count, file_sizes.items(), key=lambda x: x[1])
 
-    print("\n" + "=" * 80)
-    print(f"TOP {top_count} LARGEST FILES:")
-    print("=" * 80)
     for i, (file_path, size) in enumerate(top_files, 1):
-        print(f"{i}. {file_path}")
-        print(f"   Size: {humanize.naturalsize(size, binary=True)}")
+        size_str = humanize.naturalsize(size, binary=True)
+        print(f"{i:<6}{size_str:<15}{file_path}")
 #endregion
 
 #region generate_report
