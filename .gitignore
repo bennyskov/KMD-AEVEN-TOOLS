@@ -8,7 +8,7 @@ repository/
 archive/
 backup_inventory/
 logs/
-
+scripts/PortablePython/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

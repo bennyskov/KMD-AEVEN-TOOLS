@@ -1,0 +1,48 @@
+{
+     "scan_time": "2025-04-25 23:32:06",
+     "max_depth": 3,
+     "top_directories": [
+          {
+               "path": "C:\\",
+               "size": 61044574042
+          },
+          {
+               "path": "C:\\Windows",
+               "size": 23433141595
+          },
+          {
+               "path": "C:\\Windows\\WinSxS",
+               "size": 10737307741
+          },
+          {
+               "path": "D:\\",
+               "size": 7952197091
+          },
+          {
+               "path": "D:\\scripts",
+               "size": 7950186644
+          }
+     ],
+     "top_files": [
+          {
+               "path": "C:\\pagefile.sys",
+               "size": 34359738368
+          },
+          {
+               "path": "D:\\scripts\\GIT\\tview.zip",
+               "size": 6768435926
+          },
+          {
+               "path": "C:\\Windows\\SoftwareDistribution\\DataStore\\DataStore.edb",
+               "size": 1629487104
+          },
+          {
+               "path": "C:\\Windows\\MEMORY.DMP",
+               "size": 1170899173
+          },
+          {
+               "path": "D:\\scripts\\tview\\db.sqlite3",
+               "size": 571248640
+          }
+     ]
+}
