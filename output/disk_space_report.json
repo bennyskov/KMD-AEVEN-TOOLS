@@ -1,14 +1,14 @@
 {
-     "scan_time": "2025-04-26 00:38:29",
+     "scan_time": "2025-04-26 00:52:28",
      "max_depth": 3,
      "top_directories": [
           {
                "path": "C:\\",
-               "size": 61044626054
+               "size": 61043643014
           },
           {
                "path": "C:\\Windows",
-               "size": 23433179483
+               "size": 23432196443
           },
           {
                "path": "C:\\Windows\\WinSxS",
