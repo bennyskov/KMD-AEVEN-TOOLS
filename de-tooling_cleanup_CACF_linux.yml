@@ -226,79 +226,82 @@
 - name: '6.F - Push cleanup candidates file back to Git repository'
   hosts: localhost
   gather_facts: false
+  vars:
+    # Use the actual running directory where the playbook is executing
+    local_repo_path: "/runner/project"
   tasks:
     - name: "6.F.01 - Show Git push status"
       debug:
-        msg: "Preparing to push cleanup candidates to Git repository"
+        msg: "Preparing to push cleanup candidates to Git repository using path: {{ local_repo_path }}"
 
-    - name: "6.F.02 - Ensure temp directory exists"
-      file:
+    - name: "6.F.01a - Validate repository path"
+      stat:
         path: "{{ local_repo_path }}"
-        state: directory
-        mode: '0755'
+      register: repo_path_check
 
-    - name: "6.F.03 - Clone repository if not exists"
-      ignore_errors: yes
-      git:
-        repo: "{{ git_repository_url | default('https://github.kyndryl.net/eu-nordic-kmn/KMD-AEVEN-TOOLS.git') }}"
-        dest: "{{ local_repo_path }}"
-        version: "{{ git_branch | default('main') }}"
-        force: yes
-        depth: 1
-      environment:
-        GIT_TERMINAL_PROMPT: "0"
-        GIT_ASKPASS: /bin/echo
-        GIT_USERNAME: "{{ git_user | default('') }}"
-        GIT_PASSWORD: "{{ git_token | default('') }}"
-      register: git_clone_result
+    - name: "6.F.01b - Show repository path information"
+      debug:
+        msg: |
+          Repository path: {{ local_repo_path }}
+          Path exists: {{ repo_path_check.stat.exists }}
+          Is directory: {{ repo_path_check.stat.isdir | default(false) }}
+          Is writable: {{ repo_path_check.stat.writeable | default(false) }}
 
-    - name: "6.F.04 - Create results directory if it doesn't exist"
+    - name: "6.F.01c - Fail if path doesn't exist or isn't writable"
+      fail:
+        msg: "Cannot proceed - Repository path {{ local_repo_path }} is not a writable directory"
+      when: >
+        not repo_path_check.stat.exists or
+        not repo_path_check.stat.isdir or
+        not repo_path_check.stat.writeable
+
+    - name: "6.F.02 - Configure Git identity"
+      command:
+        chdir: "{{ local_repo_path }}"
+        cmd: "{{ item }}"
+      loop:
+        - "git config user.email '{{ git_user_email | default('ansible-automation@kyndryl.com') }}'"
+        - "git config user.name '{{ git_user_name | default('Ansible Automation Platform') }}'"
+
+    - name: "6.F.03 - Ensure cleanup_results directory exists"
       file:
         path: "{{ local_repo_path }}/cleanup_results"
         state: directory
         mode: '0755'
-      when: git_clone_result is success
 
-    - name: "6.F.05 - Copy cleanup candidates file to repository"
+    - name: "6.F.04 - Copy result files to local repository"
       copy:
         src: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
         dest: "{{ local_repo_path }}/cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
         mode: '0644'
-      when: git_clone_result is success
+        remote_src: yes
       register: file_copy_result
 
-    - name: "6.F.06 - Configure Git user"
-      shell: |
-        cd {{ local_repo_path }}
-        git config user.name "{{ git_user_name | default('Ansible Tower') }}"
-        git config user.email "{{ git_user_email | default('ansible@tower.local') }}"
-      when: git_clone_result is success and file_copy_result is changed
+    - name: "6.F.05 - Add files to Git staging"
+      command:
+        chdir: "{{ local_repo_path }}"
+        cmd: "git add cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
+      when: file_copy_result is changed
 
-    - name: "6.F.07 - Add changes to Git"
-      shell: |
-        cd {{ local_repo_path }}
-        git add cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt
-      when: git_clone_result is success and file_copy_result is changed
+    - name: "6.F.06 - Commit changes"
+      command:
+        chdir: "{{ local_repo_path }}"
+        cmd: "git commit -m 'Add cleanup candidates for {{ inventory_hostname }} - {{ ansible_date_time.date }}'"
+      register: git_commit
+      failed_when: git_commit.rc != 0 and 'nothing to commit' not in git_commit.stderr
+      changed_when: git_commit.rc == 0
+      when: file_copy_result is changed
 
-    - name: "6.F.08 - Commit changes"
-      shell: |
-        cd {{ local_repo_path }}
-        git commit -m "Added cleanup candidates from {{ inventory_hostname }} - {{ ansible_date_time.date }}"
-      when: git_clone_result is success and file_copy_result is changed
-      register: git_commit_result
-      ignore_errors: yes
+    - name: "6.F.07 - Push changes to remote repository"
+      command:
+        chdir: "{{ local_repo_path }}"
+        cmd: "git push origin HEAD:{{ git_branch | default('main') }}"
+      register: git_push
+      when: git_commit is changed
 
-    - name: "6.F.09 - Push changes to repository"
-      shell: |
-        cd {{ local_repo_path }}
-        git push
-      when: git_clone_result is success and git_commit_result is success and git_commit_result.rc == 0
-      register: git_push_result
-      ignore_errors: yes
-
-    - name: "6.F.10 - Show Git push result"
+    - name: "6.F.08 - Show Git push result"
       debug:
-        msg: "Git push result: {{ 'Success' if git_push_result is success else 'Failed' }}"
+        msg: "Git push completed: {{ git_push.stdout | default('No changes to push') }}"
       when: git_clone_result is success and git_commit_result is success
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
