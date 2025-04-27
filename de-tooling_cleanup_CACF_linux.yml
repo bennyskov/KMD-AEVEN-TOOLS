@@ -229,75 +229,117 @@
   vars:
     # Use the actual running directory where the playbook is executing
     local_repo_path: "/runner/project"
+    # Set alternative temporary path for Git operations
+    git_temp_path: "/tmp/git_repo_{{ lookup('pipe', 'date +%s') }}"
+    # Git repository URL
+    git_repository_url: "{{ git_repository_url | default('https://github.kyndryl.net/eu-nordic-kmn/KMD-AEVEN-TOOLS.git') }}"
+    # Git branch to push to
+    git_branch: "{{ git_branch | default('main') }}"
   tasks:
-    - name: "6.F.00 - Show Git push status"
+    - name: "6.F.00 - Show Git operations status"
       debug:
-        msg: "Preparing to push cleanup candidates to Git repository using path: {{ local_repo_path }}"
+        msg: "Preparing to save cleanup candidates to Git repository"
 
-    - name: "6.F.01 - Validate repository path"
-      stat:
-        path: "{{ local_repo_path }}"
-      register: repo_path_check
-
-    - name: "6.F.02 - Show repository path information"
-      debug:
-        msg: |
-          Repository path: {{ local_repo_path }}
-          Path exists: {{ repo_path_check.stat.exists }}
-          Is directory: {{ repo_path_check.stat.isdir | default(false) }}
-          Is writable: {{ repo_path_check.stat.writeable | default(false) }}
-
-    - name: "6.F.03 - Fail if path doesn't exist or isn't writable"
-      fail:
-        msg: "Cannot proceed - Repository path {{ local_repo_path }} is not a writable directory"
-      when: >
-        not repo_path_check.stat.exists or
-        not repo_path_check.stat.isdir or
-        not repo_path_check.stat.writeable
-
-    - name: "6.F.04 - Configure Git identity"
+    - name: "6.F.01 - Check if /runner/project is already a Git repository"
       command:
+        cmd: git status
         chdir: "{{ local_repo_path }}"
-        cmd: "{{ item }}"
-      loop:
-        - "git config user.email '{{ git_user_email | default('benny.skov@kyndryl.com') }}'"
-        - "git config user.name '{{ git_user_name | default('Benny Skov') }}'"
+      register: git_status_check
+      failed_when: false
+      changed_when: false
 
-    - name: "6.F.05 - Ensure cleanup_results directory exists"
+    - name: "6.F.02 - Create temporary directory for Git operations"
       file:
-        path: "{{ local_repo_path }}/cleanup_results"
+        path: "{{ git_temp_path }}"
         state: directory
         mode: '0755'
+      when: git_status_check.rc != 0
+      register: temp_dir_created
 
-    - name: "6.F.06 - Copy result files to local repository"
+    - name: "6.F.03 - Clone repository to temporary directory"
+      git:
+        repo: "{{ git_repository_url }}"
+        dest: "{{ git_temp_path }}"
+        version: "{{ git_branch }}"
+        depth: 1
+      when: temp_dir_created is changed
+      environment:
+        GIT_TERMINAL_PROMPT: "0"
+        GIT_ASKPASS: /bin/echo
+      register: git_clone_result
+      ignore_errors: yes
+
+    - name: "6.F.04 - Show repository path information"
+      debug:
+        msg: |
+          Working with Git repository at: {{ (git_status_check.rc == 0) | ternary(local_repo_path, git_temp_path) }}
+          Using temporary clone: {{ git_status_check.rc != 0 }}
+
+    - name: "6.F.05 - Configure Git identity in appropriate repository"
+      command:
+        chdir: "{{ (git_status_check.rc == 0) | ternary(local_repo_path, git_temp_path) }}"
+        cmd: "{{ item }}"
+      loop:
+        - "git config user.email '{{ git_user_email | default('ansible-automation@kyndryl.com') }}'"
+        - "git config user.name '{{ git_user_name | default('Ansible Automation Platform') }}'"
+      when: git_status_check.rc == 0 or git_clone_result is success
+
+    - name: "6.F.06 - Set actual working Git directory"
+      set_fact:
+        active_git_path: "{{ (git_status_check.rc == 0) | ternary(local_repo_path, git_temp_path) }}"
+      when: git_status_check.rc == 0 or git_clone_result is success
+
+    - name: "6.F.07 - Ensure cleanup_results directory exists"
+      file:
+        path: "{{ active_git_path }}/cleanup_results"
+        state: directory
+        mode: '0755'
+      when: active_git_path is defined
+
+    - name: "6.F.08 - Copy result files to Git repository"
       copy:
         src: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
-        dest: "{{ local_repo_path }}/cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
+        dest: "{{ active_git_path }}/cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
         mode: '0644'
         remote_src: yes
       register: file_copy_result
+      when: active_git_path is defined
 
-    - name: "6.F.07 - Add files to Git staging"
+    - name: "6.F.09 - Add files to Git staging"
       command:
-        chdir: "{{ local_repo_path }}"
+        chdir: "{{ active_git_path }}"
         cmd: "git add cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
-      when: file_copy_result is changed
+      when: active_git_path is defined and file_copy_result is changed
 
-    - name: "6.F.08 - Commit changes"
+    - name: "6.F.10 - Commit changes"
       command:
-        chdir: "{{ local_repo_path }}"
+        chdir: "{{ active_git_path }}"
         cmd: "git commit -m 'Add cleanup candidates for {{ inventory_hostname }} - {{ ansible_date_time.date }}'"
       register: git_commit
       failed_when: git_commit.rc != 0 and 'nothing to commit' not in git_commit.stderr
       changed_when: git_commit.rc == 0
-      when: file_copy_result is changed
+      when: active_git_path is defined and file_copy_result is changed
 
-    - name: "6.F.09 - Push changes to remote repository"
+    - name: "6.F.11 - Push changes to remote repository"
       command:
-        chdir: "{{ local_repo_path }}"
-        cmd: "git push origin HEAD:{{ git_branch | default('main') }}"
+        chdir: "{{ active_git_path }}"
+        cmd: "git push origin HEAD:{{ git_branch }}"
       register: git_push
-      when: git_commit is changed
+      when: active_git_path is defined and git_commit is changed
+      ignore_errors: yes
+
+    - name: "6.F.12 - Show Git operations result"
+      debug:
+        msg: |
+          Git operations completed with status: {{ (git_push.rc == 0) | ternary('SUCCESS', 'FAILED') }}
+          Working path: {{ active_git_path | default('No valid Git repository found') }}
+          {% if git_push.stdout is defined %}
+          Output: {{ git_push.stdout }}
+          {% endif %}
+          {% if git_push.stderr is defined and git_push.stderr != '' %}
+          Errors: {{ git_push.stderr }}
+          {% endif %}
+      when: active_git_path is defined
 
     - name: "6.F.10 - Show Git push result"
       debug:
