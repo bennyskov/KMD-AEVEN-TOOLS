@@ -26,11 +26,11 @@
 - name: 'Set up Git configuration'
   block:
     - name: 'Set global Git user name'
-      shell: "git config --global user.name '{{ git_user_name | default('Ansible Automation') }}'"
+      shell: "git config --global user.name '{{ git_user_name | default('benny Skov') }}'"
       changed_when: false
 
     - name: 'Set global Git user email'
-      shell: "git config --global user.email '{{ git_user_email | default('ansible@automation.local') }}'"
+      shell: "git config --global user.email '{{ git_user_email | default('benny.skov@kyndryl.com') }}'"
       changed_when: false
 
 - name: 'Clone Git repository based on authentication method'

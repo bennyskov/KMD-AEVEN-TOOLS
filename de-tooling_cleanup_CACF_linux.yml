@@ -260,8 +260,8 @@
         chdir: "{{ local_repo_path }}"
         cmd: "{{ item }}"
       loop:
-        - "git config user.email '{{ git_user_email | default('ansible-automation@kyndryl.com') }}'"
-        - "git config user.name '{{ git_user_name | default('Ansible Automation Platform') }}'"
+        - "git config user.email '{{ git_user_email | default('benny.skov@kyndryl.com') }}'"
+        - "git config user.name '{{ git_user_name | default('Benny Skov') }}'"
 
     - name: "6.F.05 - Ensure cleanup_results directory exists"
       file:
