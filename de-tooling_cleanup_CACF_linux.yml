@@ -50,11 +50,11 @@
       loop: "{{ user_check_results.results }}"
 
     # Fix for 'dict object has no attribute ansible_facts' error
-    - name: '1.A.02 - Initialize empty list for available users'
+    - name: '1.A.03 - Initialize empty list for available users'
       set_fact:
         available_users: []
 
-    - name: '1.A.03 - Process each user check result individually'
+    - name: '1.A.04 - Process each user check result individually'
       set_fact:
         available_users: "{{ available_users + [item.item] }}"
       loop: "{{ user_check_results.results }}"
@@ -63,16 +63,16 @@
         - item.ansible_facts.can_connect_with_user is defined
         - item.ansible_facts.can_connect_with_user
 
-    - name: '1.A.04 - Set active SSH user'
+    - name: '1.A.05 - Set active SSH user'
       set_fact:
         active_ssh_user: "{{ available_users[0].username | default(ansible_user) }}"
       when: available_users | length > 0
 
-    - name: '1.A.05 - Show active SSH user'
+    - name: '1.A.06 - Show active SSH user'
       debug:
         msg: "Will attempt to connect using user: {{ active_ssh_user | default('NO VALID USER AVAILABLE!') }}"
 
-    - name: '1.A.06 - Fail if no SSH user is available'
+    - name: '1.A.07 - Fail if no SSH user is available'
       fail:
         msg: "No valid SSH user is available. All users may have been removed in a previous run."
       when: available_users | length == 0 and ansible_user is not defined
@@ -230,16 +230,16 @@
     # Use the actual running directory where the playbook is executing
     local_repo_path: "/runner/project"
   tasks:
-    - name: "6.F.01 - Show Git push status"
+    - name: "6.F.00 - Show Git push status"
       debug:
         msg: "Preparing to push cleanup candidates to Git repository using path: {{ local_repo_path }}"
 
-    - name: "6.F.01a - Validate repository path"
+    - name: "6.F.01 - Validate repository path"
       stat:
         path: "{{ local_repo_path }}"
       register: repo_path_check
 
-    - name: "6.F.01b - Show repository path information"
+    - name: "6.F.02 - Show repository path information"
       debug:
         msg: |
           Repository path: {{ local_repo_path }}
@@ -247,7 +247,7 @@
           Is directory: {{ repo_path_check.stat.isdir | default(false) }}
           Is writable: {{ repo_path_check.stat.writeable | default(false) }}
 
-    - name: "6.F.01c - Fail if path doesn't exist or isn't writable"
+    - name: "6.F.03 - Fail if path doesn't exist or isn't writable"
       fail:
         msg: "Cannot proceed - Repository path {{ local_repo_path }} is not a writable directory"
       when: >
@@ -255,7 +255,7 @@
         not repo_path_check.stat.isdir or
         not repo_path_check.stat.writeable
 
-    - name: "6.F.02 - Configure Git identity"
+    - name: "6.F.04 - Configure Git identity"
       command:
         chdir: "{{ local_repo_path }}"
         cmd: "{{ item }}"
@@ -263,13 +263,13 @@
         - "git config user.email '{{ git_user_email | default('ansible-automation@kyndryl.com') }}'"
         - "git config user.name '{{ git_user_name | default('Ansible Automation Platform') }}'"
 
-    - name: "6.F.03 - Ensure cleanup_results directory exists"
+    - name: "6.F.05 - Ensure cleanup_results directory exists"
       file:
         path: "{{ local_repo_path }}/cleanup_results"
         state: directory
         mode: '0755'
 
-    - name: "6.F.04 - Copy result files to local repository"
+    - name: "6.F.06 - Copy result files to local repository"
       copy:
         src: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
         dest: "{{ local_repo_path }}/cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
@@ -277,13 +277,13 @@
         remote_src: yes
       register: file_copy_result
 
-    - name: "6.F.05 - Add files to Git staging"
+    - name: "6.F.07 - Add files to Git staging"
       command:
         chdir: "{{ local_repo_path }}"
         cmd: "git add cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
       when: file_copy_result is changed
 
-    - name: "6.F.06 - Commit changes"
+    - name: "6.F.08 - Commit changes"
       command:
         chdir: "{{ local_repo_path }}"
         cmd: "git commit -m 'Add cleanup candidates for {{ inventory_hostname }} - {{ ansible_date_time.date }}'"
@@ -292,17 +292,17 @@
       changed_when: git_commit.rc == 0
       when: file_copy_result is changed
 
-    - name: "6.F.07 - Push changes to remote repository"
+    - name: "6.F.09 - Push changes to remote repository"
       command:
         chdir: "{{ local_repo_path }}"
         cmd: "git push origin HEAD:{{ git_branch | default('main') }}"
       register: git_push
       when: git_commit is changed
 
-    - name: "6.F.08 - Show Git push result"
+    - name: "6.F.10 - Show Git push result"
       debug:
         msg: "Git push completed: {{ git_push.stdout | default('No changes to push') }}"
-      when: git_clone_result is success and git_commit_result is success
+      when: git_push is defined
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Step: Final display system facts and information to confirm cleanup
@@ -311,7 +311,7 @@
   hosts: localhost
   gather_facts: true
   tasks:
-    - name: '7.G.01 - Collect and display final system state'
+    - name: '7.G.00 - Collect and display final system state'
       include_role:
         name: gather_facts_localhost
       vars:
@@ -369,19 +369,19 @@
             description: 'Ansible User a ({{ ansib_usera }})'
       when: not skip_user_deletion
 
-- name: '8.H.03 - Cleanup and remove users'
+- name: '9.I - Cleanup and remove users'
   hosts: '{{ nodename }}'
   become: true
   gather_facts: false
   vars:
     skip_user_deletion: "{{ skip_user_deletion | default(false) }}"
   tasks:
-    - name: '8.H.04 - Skip user deletion notification'
+    - name: '9.I.00 - Skip user deletion notification'
       debug:
         msg: "SKIPPING user deletion as requested by skip_user_deletion parameter"
       when: skip_user_deletion
 
-    - name: '8.H.05 - Cleanup and remove users'
+    - name: '9.I.01 - Cleanup and remove users'
       include_role:
         name: remove_user_cleanup
       vars:
