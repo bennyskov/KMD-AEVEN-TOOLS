@@ -30,9 +30,19 @@ def get_cache_paths(username=None):
 
         cached_data_path = Path(f"C:\\Users\\{username}\\AppData\\Roaming\\Code - Insiders\\CachedData")
         cache_data_path = Path(f"C:\\Users\\{username}\\AppData\\Roaming\\Code - Insiders\\Cache\\Cache_Data")
+        workspaceStorage = Path(f"C:\\Users\\{username}\\AppData\\Roaming\\Code - Insiders\\User\\workspaceStorage")
 
         paths.append(cached_data_path)
         paths.append(cache_data_path)
+        paths.append(workspaceStorage)
+
+        cached_data_path = Path(f"C:\\Users\\{username}\\AppData\\Roaming\\Code\\CachedData")
+        cache_data_path = Path(f"C:\\Users\\{username}\\AppData\\Roaming\\Code\\Cache")
+        workspaceStorage = Path(f"C:\\Users\\{username}\\AppData\\Roaming\\Code\\User\\workspaceStorage")
+
+        paths.append(cached_data_path)
+        paths.append(cache_data_path)
+        paths.append(workspaceStorage)
 
     elif system == "Darwin":  # macOS
         if not username:
@@ -40,9 +50,11 @@ def get_cache_paths(username=None):
 
         cached_data_path = Path(f"/Users/{username}/Library/Application Support/Code - Insiders/CachedData")
         cache_data_path = Path(f"/Users/{username}/Library/Application Support/Code - Insiders/Cache/Cache_Data")
+        workspaceStorage = Path(f"/Users/{username}/Library/Application Support/Code - Insiders/Users/workspaceStorage")
 
         paths.append(cached_data_path)
         paths.append(cache_data_path)
+        paths.append(workspaceStorage)
 
     elif system == "Linux":
         if not username:
@@ -50,9 +62,11 @@ def get_cache_paths(username=None):
 
         cached_data_path = Path(f"/home/{username}/.config/Code - Insiders/CachedData")
         cache_data_path = Path(f"/home/{username}/.config/Code - Insiders/Cache/Cache_Data")
+        workspaceStorage = Path(f"/home/{username}/.config/Code - Insiders/Users/workspaceStorage")
 
         paths.append(cached_data_path)
         paths.append(cache_data_path)
+        paths.append(workspaceStorage)
 
     return paths
 
@@ -162,4 +176,4 @@ if __name__ == "__main__":
     sys.exit(main())
 
 
-# python.exe cache_cleaner.py -u dk000375 --force
+# cmd python D:\scripts\GIT\KMD-AEVEN-TOOLS\scripts\cache_cleaner.py -u dk000375 --force
