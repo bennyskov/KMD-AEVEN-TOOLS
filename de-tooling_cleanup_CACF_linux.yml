@@ -319,8 +319,11 @@
 
     - name: "6.F.09 - Set actual working Git directory"
       set_fact:
-        active_git_path: "{{ (git_status_check.rc == 0) | ternary(local_repo_path, git_temp_path) }}"
-      when: (git_status_check.rc == 0 or git_clone_result is success) and not skip_git_operations
+        active_git_path: "{{ (git_status_check is defined and git_status_check.rc is defined and git_status_check.rc == 0) | ternary(local_repo_path, git_temp_path) }}"
+      when: >
+        ((git_status_check is defined and git_status_check.rc is defined and git_status_check.rc == 0) or
+        (git_clone_result is defined and git_clone_result is success)) and
+        not skip_git_operations
 
     # Always create a local backup directory regardless of Git operations
     - name: "6.F.10 - Create local backup directory"
