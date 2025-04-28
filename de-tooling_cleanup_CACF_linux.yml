@@ -307,12 +307,15 @@
 
     - name: "6.F.08 - Configure Git identity in appropriate repository"
       command:
-        chdir: "{{ (git_status_check.rc == 0) | ternary(local_repo_path, git_temp_path) }}"
         cmd: "{{ item }}"
-      loop:
-        - "git config user.email '{{ git_user_email | default('ansible-automation@kyndryl.com') }}'"
-        - "git config user.name '{{ git_user_name | default('Ansible Automation Platform') }}'"
-      when: (git_status_check.rc == 0 or git_clone_result is success) and not skip_git_operations
+        chdir: "{{ git_repo_path }}"
+      with_items:
+        - "git config user.email 'ansible@kmd.dk'"
+        - "git config user.name 'Ansible Tower'"
+      when: >
+        ((git_status_check is defined and git_status_check.rc is defined and git_status_check.rc == 0) or
+        (git_clone_result is defined and git_clone_result is success)) and
+        not skip_git_operations
 
     - name: "6.F.09 - Set actual working Git directory"
       set_fact:
