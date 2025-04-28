@@ -212,12 +212,12 @@
           - "/run"
         output_format: "detailed"
         save_to_file: true
-        results_file: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
+        results_file: "/tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt"
 
     - name: "5.E.03 - Copy file cleanup_candidates from target host (src) to ansible tower local host (dest)"
       copy:
-        src: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt" # on remote host
-        dest: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt" # on ansible host
+        src: "/tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt" # on remote host
+        dest: "/tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt" # on ansible host
         remote_src: yes
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -342,7 +342,7 @@
     # Always make a local backup copy
     - name: "6.F.12 - Make local backup of cleanup candidates"
       copy:
-        src: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
+        src: "/tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt"
         dest: "/tmp/cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
         mode: '0644'
         remote_src: yes
@@ -350,7 +350,7 @@
 
     - name: "6.F.13 - Copy result files to Git repository"
       copy:
-        src: "/tmp/cleanup_candidates_{{ ansible_date_time.date }}.txt"
+        src: "/tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt"
         dest: "{{ active_git_path }}/cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
         mode: '0644'
         remote_src: yes
