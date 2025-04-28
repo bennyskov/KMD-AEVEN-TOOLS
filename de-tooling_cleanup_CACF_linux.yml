@@ -310,8 +310,8 @@
         cmd: "{{ item }}"
         chdir: "{{ git_repo_path }}"
       with_items:
-        - "git config user.email 'ansible@kmd.dk'"
-        - "git config user.name 'Ansible Tower'"
+        - "git config user.email 'benny.skov@kyndryl.com'"
+        - "git config user.name 'Benny Skov'"
       when: >
         ((git_status_check is defined and git_status_check.rc is defined and git_status_check.rc == 0) or
         (git_clone_result is defined and git_clone_result is success)) and
