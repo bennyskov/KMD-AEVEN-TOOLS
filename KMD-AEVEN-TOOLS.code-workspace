@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../tview/build/logs/activities/ansible_raw"
+		}
+	],
+	"settings": {}
+}

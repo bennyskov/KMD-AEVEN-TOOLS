@@ -214,207 +214,21 @@
         save_to_file: true
         results_file: "/tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt"
 
-    - name: "5.E.03 - Copy file cleanup_candidates from target host (src) to ansible tower local host (dest)"
+    - name: '5.E.03 - Copy file cleanup_candidates from target host (src) to ansible tower local host (dest)'
       copy:
         src: "/tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt" # on remote host
         dest: "/tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt" # on ansible host
         remote_src: yes
 
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Step: Push collected to repository
-# VERIFIED CORRECT VERSION - This file has been validated for correct YAML syntax and Git operations - April 27, 2025
-# UPDATED - Added fallback to credential-based authentication for Git operations - April 27, 2025
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: '6.F - Push cleanup candidates file back to Git repository'
-  hosts: localhost
-  gather_facts: false
-  vars:
-    # Use the actual running directory where the playbook is executing
-    local_repo_path: "/runner/project"
-    # Set alternative temporary path for Git operations
-    git_temp_path: "/tmp/git_repo_{{ lookup('pipe', 'date +%s') }}"
-    # Git credentials for authentication (to be passed as extra variables)
-    git_username: "{{ git_username | default('') }}"
-    git_token: "{{ git_token | default('') }}"
-    # Git repository URL with credential placeholders that will be populated if credentials are provided
-    git_repo_url: "{% if git_username != '' and git_token != '' %}https://{{ git_username }}:{{ git_token }}@github.kyndryl.net/eu-nordic-kmn/KMD-AEVEN-TOOLS.git{% else %}git@github.kyndryl.net:eu-nordic-kmn/KMD-AEVEN-TOOLS.git{% endif %}"
-    # Git branch to push to
-    git_branch: "main"
-    # Skip Git operations flag - will be set to true if authentication is not possible
-    skip_git_operations: "{{ skip_git_operations | default(false) }}"
-  tasks:
-    - name: "6.F.00 - Show Git operations status"
-      debug:
-        msg: "Preparing to save cleanup candidates to Git repository"
-
-    - name: "6.F.01 - Check for SSH key"
-      stat:
-        path: "~/.ssh/id_rsa"
-      register: ssh_key_check
-
-    - name: "6.F.02 - Set skip_git_operations if no SSH key"
-      set_fact:
-        skip_git_operations: true
-      when: not ssh_key_check.stat.exists
-
-
-
-    - name: "6.F.03 - Show warning if no SSH key"
-      debug:
-        msg: "WARNING: No SSH key found. Git operations will be skipped. Results will only be stored locally."
-      when: not ssh_key_check.stat.exists
-
-    - name: "6.F.04 - Check if /runner/project is already a Git repository"
-      command:
-        cmd: git status
-        chdir: "{{ local_repo_path }}"
-      register: git_status_check
-      failed_when: false
-      changed_when: false
-      when: not skip_git_operations
-
-    - name: "6.F.05 - Create temporary directory for Git operations"
-      file:
-        path: "{{ git_temp_path }}"
-        state: directory
-        mode: '0755'
-      when: (git_status_check is defined and git_status_check.rc is defined and git_status_check.rc != 0) and not skip_git_operations
-      register: temp_dir_created
-
-    - name: "6.F.06 - Clone repository to temporary directory"
-      git:
-        repo: "{{ git_repo_url }}"
-        dest: "{{ git_temp_path }}"
-        version: "{{ git_branch }}"
-        depth: 1
-        accept_hostkey: yes
-      when: temp_dir_created is changed and not skip_git_operations
-      environment:
-        GIT_TERMINAL_PROMPT: "0"
-        GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no"
-      register: git_clone_result
-      ignore_errors: yes
-
-    - name: "6.F.07 - Show repository path information"
-      debug:
-        msg: >
-          {% if skip_git_operations %}
-          Git operations are skipped. Results will only be saved locally in /tmp.
-          {% else %}
-          Working with Git repository at: {{ (git_status_check.rc == 0) | ternary(local_repo_path, git_temp_path) }}
-          Using temporary clone: {{ git_status_check.rc != 0 }}
-          {% endif %}
-
-    - name: "6.F.08 - Configure Git identity in appropriate repository"
-      command:
-        cmd: "{{ item }}"
-        chdir: "{{ git_repo_path }}"
-      with_items:
-        - "git config user.email 'benny.skov@kyndryl.com'"
-        - "git config user.name 'Benny Skov'"
-      when: >
-        ((git_status_check is defined and git_status_check.rc is defined and git_status_check.rc == 0) or
-        (git_clone_result is defined and git_clone_result is success)) and
-        not skip_git_operations
-
-    - name: "6.F.09 - Set actual working Git directory"
-      set_fact:
-        active_git_path: "{{ (git_status_check is defined and git_status_check.rc is defined and git_status_check.rc == 0) | ternary(local_repo_path, git_temp_path) }}"
-      when: >
-        ((git_status_check is defined and git_status_check.rc is defined and git_status_check.rc == 0) or
-        (git_clone_result is defined and git_clone_result is success)) and
-        not skip_git_operations
-
-    # Always create a local backup directory regardless of Git operations
-    - name: "6.F.10 - Create local backup directory"
-      file:
-        path: "/tmp/cleanup_results"
-        state: directory
-        mode: '0755'
-
-    - name: "6.F.11 - Ensure cleanup_results directory exists in Git repo"
-      file:
-        path: "{{ active_git_path }}/cleanup_results"
-        state: directory
-        mode: '0755'
-      when: active_git_path is defined and not skip_git_operations
-
-    # First check if the cleanup candidates file exists
-    - name: "6.F.11a - Check if cleanup candidates file exists"
+    - name: '5.E.04 - Check if the cleanup_candidates exists'
       stat:
         path: "/tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt"
-      register: cleanup_file_stat
+      register: stat_cleanup_candidates
 
-    # Create a dummy file if the original doesn't exist (common if the 5.E play was skipped)
-    - name: "6.F.11b - Create dummy cleanup candidates file if original doesn't exist"
-      copy:
-        content: "# No cleanup candidates found - file created by fallback task.\n# Original file was not created because play 5.E was skipped.\n# Generated on {{ ansible_date_time.date }} at {{ ansible_date_time.time }}\n"
-        dest: "/tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt"
-        mode: '0644'
-      when: not cleanup_file_stat.stat.exists
-
-    # Always make a local backup copy
-    - name: "6.F.12 - Make local backup of cleanup candidates"
-      copy:
-        src: "/tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt"
-        dest: "/tmp/cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
-        mode: '0644'
-        remote_src: yes
-      register: local_copy_result
-
-    - name: "6.F.13 - Copy result files to Git repository"
-      copy:
-        src: "/tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt"
-        dest: "{{ active_git_path }}/cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
-        mode: '0644'
-        remote_src: yes
-      register: file_copy_result
-      when: active_git_path is defined and not skip_git_operations
-
-    - name: "6.F.14 - Add files to Git staging"
-      command:
-        chdir: "{{ active_git_path }}"
-        cmd: "git add cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt"
-      when: active_git_path is defined and file_copy_result is changed and not skip_git_operations
-
-    - name: "6.F.15 - Commit changes"
-      command:
-        chdir: "{{ active_git_path }}"
-        cmd: "git commit -m 'Add cleanup candidates for {{ inventory_hostname }} - {{ ansible_date_time.date }}'"
-      register: git_commit
-      failed_when: git_commit.rc != 0 and 'nothing to commit' not in git_commit.stderr
-      changed_when: git_commit.rc == 0
-      when: active_git_path is defined and file_copy_result is changed and not skip_git_operations
-
-    - name: "6.F.16 - Push changes to remote repository"
-      command:
-        chdir: "{{ active_git_path }}"
-        cmd: "git push origin HEAD:{{ git_branch }}"
-      environment:
-        GIT_TERMINAL_PROMPT: "0"
-        GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no"
-      register: git_push
-      when: active_git_path is defined and git_commit is defined and git_commit is changed and not skip_git_operations
-      ignore_errors: yes
-
-    - name: "6.F.17 - Show Git operations status"
-      debug:
-        msg: >
-          {% if skip_git_operations %}
-          Git operations skipped. Results saved locally to /tmp/cleanup_results/{{ inventory_hostname }}_cleanup_candidates.txt
-          {% else %}
-          Git operations completed. Path: {{ active_git_path | default('No valid Git repository found') }}
-          {% endif %}
-
-    - name: "6.F.18 - Show Git success status"
-      debug:
-        msg: "Git push status: SUCCESS"
-      when: not skip_git_operations and git_push is defined and git_push.rc == 0
-
-    - name: "6.F.19 - Show Git failure status"
-      debug:
-        msg: "Git push status: FAILED - You may need to add a valid SSH key to access the repository"
-      when: not skip_git_operations and git_push is defined and git_push.rc != 0
+    - name: '5.E.05 - Read content from cleanup_candidates'
+      shell: "cat /tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt"
+      register: cleanup_candidates
+      when: stat_cleanup_candidates.stat.exists
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Step: Final display system facts and information to confirm cleanup
@@ -431,6 +245,7 @@
         collect_mountpoints: true
         save_to_file: true
         output_dir: "cleanup_results/final_state"
+
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Step: Remove ansible users - POINT OF NO RETURN.
