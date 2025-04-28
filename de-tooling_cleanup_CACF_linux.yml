@@ -339,6 +339,20 @@
         mode: '0755'
       when: active_git_path is defined and not skip_git_operations
 
+    # First check if the cleanup candidates file exists
+    - name: "6.F.11a - Check if cleanup candidates file exists"
+      stat:
+        path: "/tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt"
+      register: cleanup_file_stat
+
+    # Create a dummy file if the original doesn't exist (common if the 5.E play was skipped)
+    - name: "6.F.11b - Create dummy cleanup candidates file if original doesn't exist"
+      copy:
+        content: "# No cleanup candidates found - file created by fallback task.\n# Original file was not created because play 5.E was skipped.\n# Generated on {{ ansible_date_time.date }} at {{ ansible_date_time.time }}\n"
+        dest: "/tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt"
+        mode: '0644'
+      when: not cleanup_file_stat.stat.exists
+
     # Always make a local backup copy
     - name: "6.F.12 - Make local backup of cleanup candidates"
       copy:
