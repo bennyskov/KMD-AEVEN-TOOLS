@@ -257,6 +257,8 @@
         skip_git_operations: true
       when: not ssh_key_check.stat.exists
 
+
+
     - name: "6.F.03 - Show warning if no SSH key"
       debug:
         msg: "WARNING: No SSH key found. Git operations will be skipped. Results will only be stored locally."
@@ -276,7 +278,7 @@
         path: "{{ git_temp_path }}"
         state: directory
         mode: '0755'
-      when: git_status_check.rc != 0 and not skip_git_operations
+      when: (git_status_check is defined and git_status_check.rc is defined and git_status_check.rc != 0) and not skip_git_operations
       register: temp_dir_created
 
     - name: "6.F.06 - Clone repository to temporary directory"
