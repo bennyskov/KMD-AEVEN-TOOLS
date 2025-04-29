@@ -285,7 +285,8 @@ tower_url           = f'{tower_host}/api/v2/'
 awx_hostname        = socket.gethostname().lower()
 sys_argv            = sys.argv
 global  DISABLE_HOSTNAME
-DISABLE_HOSTNAME     = False
+DISABLE_HOSTNAME    = False
+LAUNCH_TEMPLATE     = False
 isRunningLocally    = True
 useRestAPI          = True
 if useRestAPI:
@@ -324,7 +325,7 @@ if isRunningLocally:
 #             checkArg = str(arg.strip())
 #             if re.search(r'-n$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; nodename = sys_argv[argnum].lower()
 #             if re.search(r'-s$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; change = sys_argv[argnum]
-#             if re.search(r'-t$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; launch_template_name = sys_argv[argnum]
+#             if re.search(r'-t$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; launch_template_name = sys_argv[argnum]; LAUNCH_TEMPLATE = True
 #             if re.search(r'-u$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; twusr = sys_argv[argnum]
 #             if re.search(r'-p$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; twpwd = sys_argv[argnum]
             # if re.search(r'--disable$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; DISABLE_HOSTNAME = True
@@ -537,7 +538,7 @@ if CONTINUE and DISABLE_HOSTNAME:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_ansible_facts
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if CONTINUE:
+if CONTINUE and LAUNCH_TEMPLATE:
     try:
         inv_name = None
         stepName = f'{exectype}_ansible_facts'
@@ -563,7 +564,7 @@ if CONTINUE:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_allGroupsWithHost
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if CONTINUE:
+if CONTINUE and LAUNCH_TEMPLATE:
     try:
         stepName = f'{exectype}_allGroupsWithHost'
         f_log(f'{stepName}','',debug)
@@ -608,7 +609,7 @@ if CONTINUE:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_credentials_ids
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if CONTINUE:
+if CONTINUE and LAUNCH_TEMPLATE:
     try:
         stepName = f'{exectype}_credentials_ids'
         f_log(f'{stepName}','',debug)
@@ -657,34 +658,35 @@ if CONTINUE:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_jobTemplateByName
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-try:
-    stepName = f'{exectype}_jobTemplateByName'
-    f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
-    if useRestAPI:
-        request = f'job_templates/?name={launch_template_name}'
-        result,RC = f_requests(request,twusr,twpwd,payload,debug)
-    else:
-        cmdexec = ['awx', 'job_templates', 'list', '--name', f'{launch_template_name}']
-        result,RC = f_cmdexec(cmdexec,debug)
+if CONTINUE and LAUNCH_TEMPLATE:
+    try:
+        stepName = f'{exectype}_jobTemplateByName'
+        f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
+        if useRestAPI:
+            request = f'job_templates/?name={launch_template_name}'
+            result,RC = f_requests(request,twusr,twpwd,payload,debug)
+        else:
+            cmdexec = ['awx', 'job_templates', 'list', '--name', f'{launch_template_name}']
+            result,RC = f_cmdexec(cmdexec,debug)
 
-    if RC > 0: raise Exception(f'step {stepName} failed')
-    if isRunningLocally: f_dump_and_write(result,stepName,debug)
-    template_count = result['count']
-    if template_count != 1:
-        raise Exception(f'step get jobTemplateByName by launch_template_name: Requested job_template {launch_template_name} is not found')
-    else:
-        template_id = result['results'][0]['id']
-        f_log(f'template_id',f'{template_id}',debug)
-except Exception as e:
-    if debug: logging.error(e)
-    RC = 12
-    exit(RC)
+        if RC > 0: raise Exception(f'step {stepName} failed')
+        if isRunningLocally: f_dump_and_write(result,stepName,debug)
+        template_count = result['count']
+        if template_count != 1:
+            raise Exception(f'step get jobTemplateByName by launch_template_name: Requested job_template {launch_template_name} is not found')
+        else:
+            template_id = result['results'][0]['id']
+            f_log(f'template_id',f'{template_id}',debug)
+    except Exception as e:
+        if debug: logging.error(e)
+        RC = 12
+        exit(RC)
 #endregion
 #region launch_job_template
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # launch_job_template
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if CONTINUE:
+if CONTINUE and LAUNCH_TEMPLATE:
     try:
         stepName = f'{exectype}_launch_job_template'
         f_log(f'{stepName}','',debug)
