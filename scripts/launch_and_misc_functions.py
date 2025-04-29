@@ -212,16 +212,13 @@ def f_requests(request,twusr,twpwd,payload,debug):
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_requestsUpdate
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_requestsUpdate(request,twusr,twpwd,payload,debug):
+def f_requestsUpdate(update_request,twusr,twpwd,payload,debug):
     try:
         tower_url               = f'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local/api/v2/'
-        url                     = f'{tower_url}{request}'
+        url                     = f'{tower_url}{update_request}'
         RC                      = 0
         f_log(f'url',f'{url}',debug)
-        if isinstance(payload, dict) and payload:
-            response = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False, timeout=1440)
-        else:
-            response = requests.get(url, auth=(twusr, twpwd), verify=False, timeout=1440)
+        response = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False, timeout=1440)
         response.raise_for_status()
         if response.status_code == 200 or response.status_code == 201:
             result_decoded      = response.content.decode('utf-8')
@@ -270,10 +267,10 @@ def f_cmdexec(cmdexec='',debug=False):
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_help_error
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# def f_help_error():
-    # if debug: logging.info('use: python get_cred_for_host.py -t {{ launch_template_name }} -n {{ nodename }} -s {{ change }} -u {{ twusr }} -p {{ twpwd }}')
-    # if debug: logging.info('use: python get_cred_for_host.py -n {{ nodename }} --disable ')
-    # exit(12)
+def f_help_error():
+    if debug: logging.info('use: python get_cred_for_host.py -t {{ launch_template_name }} -n {{ nodename }} -s {{ change }} -u {{ twusr }} -p {{ twpwd }}')
+    if debug: logging.info('use: python get_cred_for_host.py -n {{ nodename }} --disable ')
+    exit(12)
 #endregion
 #region read_input_sys_argv
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -284,8 +281,9 @@ tower_host          = 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.admin
 tower_url           = f'{tower_host}/api/v2/'
 awx_hostname        = socket.gethostname().lower()
 sys_argv            = sys.argv
-global  DISABLE_HOSTNAME
-DISABLE_HOSTNAME    = False
+global  DECOMMISION_HOSTNAME
+DECOMMISION_HOSTNAME    = False
+global  LAUNCH_TEMPLATE
 LAUNCH_TEMPLATE     = False
 isRunningLocally    = True
 useRestAPI          = True
@@ -317,20 +315,20 @@ if isRunningLocally:
     sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/launch_and_misc_awx_functions.py','-n', f'{nodename}', '--disable']
     argnum              = 4
 
-# if len(sys_argv) > 1:
-#     if bool(re.search(r'^(-h|-?|--?|--help)$', sys_argv[1], re.IGNORECASE)): f_help_error()
-#     if len(sys_argv) < 2: f_help_error()
-#     else:
-#         for i, arg in enumerate(sys_argv):
-#             checkArg = str(arg.strip())
-#             if re.search(r'-n$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; nodename = sys_argv[argnum].lower()
-#             if re.search(r'-s$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; change = sys_argv[argnum]
-#             if re.search(r'-t$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; launch_template_name = sys_argv[argnum]; LAUNCH_TEMPLATE = True
-#             if re.search(r'-u$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; twusr = sys_argv[argnum]
-#             if re.search(r'-p$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; twpwd = sys_argv[argnum]
-            # if re.search(r'--disable$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; DISABLE_HOSTNAME = True
-# else:
-#     f_help_error()
+if len(sys_argv) > 2:
+    if bool(re.search(r'^(-h|-?|--?|--help)$', sys_argv[1], re.IGNORECASE)): f_help_error()
+    if len(sys_argv) < 2: f_help_error()
+    else:
+        for i, arg in enumerate(sys_argv):
+            checkArg = str(arg.strip())
+            if re.search(r'-n$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; nodename = sys_argv[argnum].lower()
+            if re.search(r'-s$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; change = sys_argv[argnum]
+            if re.search(r'-t$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; launch_template_name = sys_argv[argnum]; LAUNCH_TEMPLATE = True
+            if re.search(r'-u$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; twusr = sys_argv[argnum]
+            if re.search(r'-p$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; twpwd = sys_argv[argnum]
+            if re.search(r'--disable$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; DECOMMISION_HOSTNAME = True; LAUNCH_TEMPLATE = False
+else:
+    f_help_error()
 #endregion
 #region init
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -369,6 +367,8 @@ f_set_logging(logfile,debug)
 stepName = 'begin'
 f_log(f'{stepName}','',debug)
 f_log(f'sys_argv',f'{sys_argv}',debug)
+f_log(f'DECOMMISION_HOSTNAME',f'{DECOMMISION_HOSTNAME}',debug)
+f_log(f'LAUNCH_TEMPLATE',f'{LAUNCH_TEMPLATE}',debug)
 f_log(f'isRunningLocally',f'{isRunningLocally}',debug)
 f_log(f'useRestAPI',f'{useRestAPI}',debug)
 f_log(f'{exectype}_hostname',f'{awx_hostname}',debug)
@@ -475,17 +475,21 @@ if CONTINUE:
 
             hostsfound = True
             if isRunningLocally: f_dump_and_write(result,stepName,debug)
-            host_ids = []
+            host_disIDs = []
+            host_disNames = []
             datalist = []
             datalist = result['results']
             for row in datalist:
-                checkName = row['summary_fields']['inventory']['name']
+                checkName           = row['summary_fields']['inventory']['name']
+                host_disIDs.append(row['id'])
+                host_disNames.append(row['name'] )
+
                 if checkName in acceptedInv:
                     inv_name        = row['summary_fields']['inventory']['name']
                     inventory_id    = row['summary_fields']['inventory']['id']
                     host_id         = row['id']
                     nodename        = row['name']
-                    host_ids.append(host_id)
+
                 else:
                     continue
         if hostsfound:
@@ -501,32 +505,69 @@ if CONTINUE:
         RC = 12
         f_end(RC)
 #endregion
-#region DISABLE_HOSTNAME
+#region DECOMMISION_HOSTNAME
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# DISABLE_HOSTNAME
+# DECOMMISION_HOSTNAME
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if CONTINUE and DISABLE_HOSTNAME:
+if CONTINUE and DECOMMISION_HOSTNAME:
     try:
         inv_name = None
-        stepName = f'disable_hostname'
+        stepName = f'DECOMMISION_HOSTNAME'
         f_log(f'{stepName}','',debug)
 
         payload = {
             'enabled': False
         }
-        for host_id in host_ids:
+
+        for index, host_disID in enumerate(host_disIDs):
+        # for nodename in nodenames:
+            f_log(f'host_disID',f'{host_disID}',debug)
+            f_log(f'host_disNames',f'{host_disNames[index]}',debug)
             if useRestAPI:
-                update_request = f'hosts/{host_id}/'
+                update_request = f'hosts/{host_disID}'
                 result,RC = f_requestsUpdate(update_request,twusr,twpwd,payload,debug)
             else:
-                cmdexec = ['awx', 'host', 'disable', '--host', f'{host_id}']
+                cmdexec = ['awx', 'host', 'disable', '--host', f'{host_disID}']
                 result,RC = f_cmdexec(cmdexec,debug)
 
             if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
             if isRunningLocally: f_dump_and_write(result,stepName,debug)
-            f_log(f'Success', f'Disabled host {nodename} (ID: {host_id})', debug)
+            f_log(f'Success', f'Disabled host {nodename} (ID: {host_disID})', debug)
 
-        CONTINUE = False
+    except Exception as e:
+        if debug: logging.error(e)
+        RC = 12
+        f_end(RC)
+
+#endregion
+#region EXPORT_nodename
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+# EXPORT_nodename
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+if CONTINUE and DECOMMISION_HOSTNAME:
+    try:
+        inv_name = None
+        stepName = f'EXPORT_nodename'
+        f_log(f'{stepName}','',debug)
+
+        payload = {
+            'enabled': False
+        }
+
+        for index, host_disID in enumerate(host_disIDs):
+        # for nodename in nodenames:
+            f_log(f'host_disID',f'{host_disID}',debug)
+            f_log(f'host_disNames',f'{host_disNames[index]}',debug)
+            if useRestAPI:
+                update_request = f'hosts/{host_disID}'
+                result,RC = f_requestsUpdate(update_request,twusr,twpwd,payload,debug)
+            else:
+                cmdexec = ['awx', 'host', 'disable', '--host', f'{host_disID}']
+                result,RC = f_cmdexec(cmdexec,debug)
+
+            if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
+            if isRunningLocally: f_dump_and_write(result,stepName,debug)
+            f_log(f'Success', f'Disabled host {nodename} (ID: {host_disID})', debug)
 
     except Exception as e:
         if debug: logging.error(e)
