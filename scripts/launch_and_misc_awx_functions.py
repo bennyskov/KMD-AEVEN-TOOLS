@@ -340,7 +340,7 @@ global logfile, scriptname, payload
 global now, Logdate_long, jsondir, logdir
 global cred_names, credentials_ids, credential_names, template_id, CONTINUE, RC
 # nodenames           = ['udv19bfs01, udv19db2aws01, udv19avs01, udv19elk02, udv19cis01, udv19tdm03, udv19bfs02, udv19tdm02, udv19tdg01, udv19elk01, udv19tools, udv19gws01, udv19app01, udv19elk03, kmddbs2136']
-# nodenames           = ['udv19bfs01']
+nodenames           = ['kmdlnxrls001']
 cred_names          = []
 credentials_ids     = []
 credential_names    = []
