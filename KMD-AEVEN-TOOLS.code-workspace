@@ -7,5 +7,7 @@
 			"path": "../../tview/build/logs/activities/ansible_raw"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"powershell.cwd": "KMD-AEVEN-TOOLS"
+	}
 }
