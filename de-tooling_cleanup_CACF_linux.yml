@@ -23,7 +23,7 @@
       register: user_check_results
 
     # Special check to immediately fail if specified template user doesn't exist
-    - name: '1.A.02 - Fail if specified template user does not exist'
+    - name: '1.A.00 - Fail if specified template user does not exist'
       fail:
         msg: "ERROR: Specified user '{{ template_ssh_user }}' for this job does not exist on target host '{{ nodename }}'. Unable to proceed with cleanup."
       when:
@@ -34,11 +34,11 @@
       loop: "{{ user_check_results.results }}"
 
     # Fix for 'dict object has no attribute ansible_facts' error
-    - name: '1.A.03 - Initialize empty list for available users'
+    - name: '1.A.01 - Initialize empty list for available users'
       set_fact:
         available_users: []
 
-    - name: '1.A.04 - Process each user check result individually'
+    - name: '1.A.02 - Process each user check result individually'
       set_fact:
         available_users: "{{ available_users + [item.item] }}"
       loop: "{{ user_check_results.results }}"
@@ -47,16 +47,16 @@
         - item.ansible_facts.can_connect_with_user is defined
         - item.ansible_facts.can_connect_with_user
 
-    - name: '1.A.05 - Set active SSH user'
+    - name: '1.A.03 - Set active SSH user'
       set_fact:
         active_ssh_user: "{{ available_users[0].username | default(ansible_user) }}"
       when: available_users | length > 0
 
-    - name: '1.A.06 - Show active SSH user'
+    - name: '1.A.04 - Show active SSH user'
       debug:
         msg: "Will attempt to connect using user: {{ active_ssh_user | default('NO VALID USER AVAILABLE!') }}"
 
-    - name: '1.A.07 - Fail if no SSH user is available'
+    - name: '1.A.05 - Fail if no SSH user is available'
       fail:
         msg: "No valid SSH user is available. All users may have been removed in a previous run."
       when: available_users | length == 0 and ansible_user is not defined
@@ -72,14 +72,14 @@
     # Add this variable to control whether to skip user deletion
     skip_user_deletion: "{{ skip_user_deletion | default(false) }}"
   tasks:
-    - name: '2.B.01 - Create OS group'
+    - name: '2.B.00 - Create OS group'
       group_by:
         key: "machine_{{ ostype }}"
       changed_when: false
       when: ostype is defined
       delegate_to: localhost
 
-    - name: '2.B.02 - Display user deletion status'
+    - name: '2.B.01 - Display user deletion status'
       debug:
         msg: "User deletion is {{ 'DISABLED' if skip_user_deletion else 'ENABLED' }}"
 
@@ -99,7 +99,7 @@
         transaction_id: "{{ tower_job_id }}"
         trans_num: "{{ tower_job_id }}"
 
-    - name: '3.C.02 - Set become method and user'
+    - name: '3.C.00 - Set become method and user'
       set_fact:
         ansible_become_method: runas
         ansible_become_user: system
@@ -169,19 +169,19 @@
         name: find_cleanup_candidates
       vars:
         search_patterns:
-          - name: "BigFix"
+          - name: "5.E.00 - BigFix"
             pattern: "bigfix"
             case_sensitive: false
-          - name: "BESClient"
+          - name: "5.E.01 - BESClient"
             pattern: "BESClient"
             case_sensitive: false
-          - name: "ITM"
+          - name: "5.E.02 - ITM"
             pattern: "ITM"
             case_sensitive: true
-          - name: "Ansible"
+          - name: "5.E.03 - Ansible"
             pattern: "ansible"
             case_sensitive: true
-          - name: "ILMT"
+          - name: "5.E.04 - ILMT"
             pattern: "ILMT"
             case_sensitive: true
         search_path: "/"
@@ -194,18 +194,18 @@
         save_to_file: true
         results_file: "/tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt"
 
-    - name: '5.E.03 - Copy file cleanup_candidates from target host (src) to ansible tower local host (dest)'
+    - name: '5.E.05 - Copy file cleanup_candidates from target host (src) to ansible tower local host (dest)'
       copy:
         src: "/tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt" # on remote host
         dest: "/tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt" # on ansible host
         remote_src: yes
 
-    - name: '5.E.04 - Check if the cleanup_candidates exists'
+    - name: '5.E.06 - Check if the cleanup_candidates exists'
       stat:
         path: "/tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt"
       register: stat_cleanup_candidates
 
-    - name: '5.E.05 - Read content from cleanup_candidates'
+    - name: '5.E.07 - Read content from cleanup_candidates'
       shell: "cat /tmp/cleanup_candidates_{{ ansible_hostname }}_{{ ansible_date_time.iso8601_basic_short }}.txt"
       register: cleanup_candidates
       when: stat_cleanup_candidates.stat.exists
@@ -213,11 +213,11 @@
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Step: Final display system facts and information to confirm cleanup
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: '7.G - Final system information collection'
+- name: '6.F - Final system information collection'
   hosts: localhost
   gather_facts: true
   tasks:
-    - name: '7.G.00 - Collect and display final system state'
+    - name: '6.F.00 - Collect and display final system state'
       include_role:
         name: gather_facts_localhost
       vars:
@@ -228,7 +228,7 @@
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Step: Remove ansible users - POINT OF NO RETURN.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: '8.H - Define list of users to clean up'
+- name: '7.G - Define list of users to clean up'
   hosts: localhost
   gather_facts: false
   vars:
@@ -245,11 +245,11 @@
     ansib_user9: 'yl5uxat1'
     ansib_usera: 'yl5uxat2'
   tasks:
-    - name: "8.H.01 - Show user deletion status"
+    - name: "7.G.00 - Show user deletion status"
       debug:
         msg: "User deletion is {{ 'SKIPPED' if skip_user_deletion else 'PROCEEDING' }}"
 
-    - name: '8.H.02 - Set users to cleanup'
+    - name: '7.G.01 - Set users to cleanup'
       set_fact:
         users_to_cleanup:
           - username: '{{ ansib_user1 }}'
@@ -274,19 +274,19 @@
             description: 'Ansible User a ({{ ansib_usera }})'
       when: not skip_user_deletion
 
-- name: '9.I - Cleanup and remove users'
+- name: '8.H - Cleanup and remove users'
   hosts: '{{ nodename }}'
   become: true
   gather_facts: false
   vars:
     skip_user_deletion: "{{ skip_user_deletion | default(false) }}"
   tasks:
-    - name: '9.I.00 - Skip user deletion notification'
+    - name: '8.H.00 - Skip user deletion notification'
       debug:
         msg: "SKIPPING user deletion as requested by skip_user_deletion parameter"
       when: skip_user_deletion
 
-    - name: '9.I.01 - Cleanup and remove users'
+    - name: '8.H.01 - Cleanup and remove users'
       include_role:
         name: remove_user_cleanup
       vars:
