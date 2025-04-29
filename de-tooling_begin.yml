@@ -52,7 +52,7 @@
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     - name: 'A.1.1 launch {{ launch_template_name_00 }} '
       shell: >
-        python get_credentials_and_launch_template.py
+        python launch_and_misc_awx_functions.py
         -t '{{ launch_template_name_00 }}'
         -n '{{ nodename }}'
         -s '{{ change }}'
@@ -70,7 +70,7 @@
   # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     - name: 'A.1.1 launch {{ launch_template_name_01 }} '
       shell: >
-        python get_credentials_and_launch_template.py
+        python launch_and_misc_awx_functions.py
         -t '{{ launch_template_name_01 }}'
         -n '{{ nodename }}'
         -s '{{ change }}'
@@ -88,7 +88,7 @@
   # # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
   #   - name: 'A.1.2 launch {{ launch_template_name_02 }} '
   #     shell: >
-  #       python get_credentials_and_launch_template.py
+  #       python launch_and_misc_awx_functions.py
   #       -t '{{ launch_template_name_02 }}'
   #       -n '{{ nodename }}'
   #       -s '{{ change }}'
@@ -106,7 +106,7 @@
   # # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
   #   - name: 'A.1.2 launch {{ launch_template_name_03 }} '
   #     shell: >
-  #       python get_credentials_and_launch_template.py
+  #       python launch_and_misc_awx_functions.py
   #       -t '{{ launch_template_name_03 }}'
   #       -n '{{ nodename }}'
   #       -s '{{ change }}'
@@ -124,7 +124,7 @@
   # # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
   #   - name: 'A.1.2 launch {{ launch_template_name_04 }} '
   #     shell: >
-  #       python get_credentials_and_launch_template.py
+  #       python launch_and_misc_awx_functions.py
   #       -t '{{ launch_template_name_04 }}'
   #       -n '{{ nodename }}'
   #       -s '{{ change }}'

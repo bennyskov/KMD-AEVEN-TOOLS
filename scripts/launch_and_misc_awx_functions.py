@@ -11,8 +11,8 @@ from datetime import timedelta
 from subprocess import Popen, PIPE, CalledProcessError
 from datetime import datetime
 from sys import exit
-from awxkit import *
-from awxkit.api.pages import Api
+# from awxkit import *
+# from awxkit.api.pages import Api
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import warnings
@@ -208,6 +208,37 @@ def f_requests(request,twusr,twpwd,payload,debug):
     finally:
         return result, RC
 #endregion
+#region f_requestsUpdate
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+# f_requestsUpdate
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+def f_requestsUpdate(request,twusr,twpwd,payload,debug):
+    try:
+        tower_url               = f'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local/api/v2/'
+        url                     = f'{tower_url}{request}'
+        RC                      = 0
+        f_log(f'url',f'{url}',debug)
+        if isinstance(payload, dict) and payload:
+            response = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False, timeout=1440)
+        else:
+            response = requests.get(url, auth=(twusr, twpwd), verify=False, timeout=1440)
+        response.raise_for_status()
+        if response.status_code == 200 or response.status_code == 201:
+            result_decoded      = response.content.decode('utf-8')
+            result_loaded       = f_load_data(result_decoded)
+            result_dumps        = json.dumps(result_loaded, indent=5)
+            result              = json.loads(result_dumps)
+    except Exception as e:
+        if debug:
+            f_log(f'request',f'{request}',debug)
+            f_log(f'error',f'{e}',debug)
+            f_log(f'RC',f'{RC}',debug)
+            f_log(f'result exectype',f'{exectype(result)}',debug)
+            f_log(f'result',f'{result}',debug)
+            RC = 12
+    finally:
+        return result, RC
+#endregion
 #region f_cmdexec
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_cmdexec
@@ -239,9 +270,10 @@ def f_cmdexec(cmdexec='',debug=False):
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_help_error
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_help_error():
-    if debug: logging.info('use: python get_cred_for_host.py -t {{ launch_template_name }} -n {{ nodename }} -s {{ change }} -u {{ twusr }} -p {{ twpwd }}')
-    exit(12)
+# def f_help_error():
+    # if debug: logging.info('use: python get_cred_for_host.py -t {{ launch_template_name }} -n {{ nodename }} -s {{ change }} -u {{ twusr }} -p {{ twpwd }}')
+    # if debug: logging.info('use: python get_cred_for_host.py -n {{ nodename }} --disable ')
+    # exit(12)
 #endregion
 #region read_input_sys_argv
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -252,6 +284,8 @@ tower_host          = 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.admin
 tower_url           = f'{tower_host}/api/v2/'
 awx_hostname        = socket.gethostname().lower()
 sys_argv            = sys.argv
+global  DISABLE_HOSTNAME
+DISABLE_HOSTNAME     = False
 isRunningLocally    = True
 useRestAPI          = True
 if useRestAPI:
@@ -261,7 +295,7 @@ else:
 if re.search(r".*kmdwinitm001.*", awx_hostname, re.IGNORECASE): isRunningLocally = True
 if re.search(r"^automation-job.*", awx_hostname, re.IGNORECASE): isRunningLocally = False
 if isRunningLocally:
-    nodename            = 'kmdlnxitm004'
+    nodename            = 'kmdlnxrls001'
     change              = "CHG000000"
     twusr               = 'functional_id_001'
     twpwd               = 'm9AHKuXYa*MeZZWLsHqB'
@@ -277,10 +311,14 @@ if isRunningLocally:
     #
     #
 #     sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/get_credentials_and_launch_template.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
-#     argnum              = 11
+    # argnum              = 11
+
+    sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/get_credentials_and_launch_template.py','-n', f'{nodename}', '--disable']
+    argnum              = 4
+
 # if len(sys_argv) > 1:
 #     if bool(re.search(r'^(-h|-?|--?|--help)$', sys_argv[1], re.IGNORECASE)): f_help_error()
-#     if len(sys_argv) < 4: f_help_error()
+#     if len(sys_argv) < 2: f_help_error()
 #     else:
 #         for i, arg in enumerate(sys_argv):
 #             checkArg = str(arg.strip())
@@ -289,6 +327,7 @@ if isRunningLocally:
 #             if re.search(r'-t$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; launch_template_name = sys_argv[argnum]
 #             if re.search(r'-u$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; twusr = sys_argv[argnum]
 #             if re.search(r'-p$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; twpwd = sys_argv[argnum]
+            # if re.search(r'--disable$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; DISABLE_HOSTNAME = True
 # else:
 #     f_help_error()
 #endregion
@@ -412,7 +451,7 @@ if CONTINUE:
 #endregion
 #region get_hostname
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# get_hostname
+# get_hostname. To be used for all functions
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 if CONTINUE:
     try:
@@ -435,6 +474,7 @@ if CONTINUE:
 
             hostsfound = True
             if isRunningLocally: f_dump_and_write(result,stepName,debug)
+            host_ids = []
             datalist = []
             datalist = result['results']
             for row in datalist:
@@ -444,6 +484,7 @@ if CONTINUE:
                     inventory_id    = row['summary_fields']['inventory']['id']
                     host_id         = row['id']
                     nodename        = row['name']
+                    host_ids.append(host_id)
                 else:
                     continue
         if hostsfound:
@@ -458,6 +499,39 @@ if CONTINUE:
         if debug: logging.error(e)
         RC = 12
         f_end(RC)
+#endregion
+#region DISABLE_HOSTNAME
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+# DISABLE_HOSTNAME
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+if CONTINUE and DISABLE_HOSTNAME:
+    try:
+        inv_name = None
+        stepName = f'disable_hostname'
+        f_log(f'{stepName}','',debug)
+
+        payload = {
+            'enabled': False
+        }
+        for host_id in host_ids:
+            if useRestAPI:
+                update_request = f'hosts/{host_id}/'
+                result,RC = f_requestsUpdate(update_request,twusr,twpwd,payload,debug)
+            else:
+                cmdexec = ['awx', 'host', 'disable', '--host', f'{host_id}']
+                result,RC = f_cmdexec(cmdexec,debug)
+
+            if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
+            if isRunningLocally: f_dump_and_write(result,stepName,debug)
+            f_log(f'Success', f'Disabled host {nodename} (ID: {host_id})', debug)
+
+        CONTINUE = False
+
+    except Exception as e:
+        if debug: logging.error(e)
+        RC = 12
+        f_end(RC)
+
 #endregion
 #region get_ansible_facts
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
