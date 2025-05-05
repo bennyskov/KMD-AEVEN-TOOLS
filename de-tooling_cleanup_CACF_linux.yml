@@ -104,7 +104,7 @@
         ansible_become_method: runas
         ansible_become_user: system
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Using our new reusable gather_facts_localhost role instead of inline tasks....
+# Using our new reusable gather_facts_localhost role instead of inline tasks
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 - name: '4.D - Gather facts localhost (using role)'
   hosts: localhost
@@ -116,7 +116,7 @@
       include_role:
         name: gather_facts_localhost
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Step: We are now running at remote host
+# Step: We are now running at remote host  xxxxxxxx
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 - name: '5.E - Cleanup ansible / CACF files on host'
   hosts: '{{ nodename }}'
