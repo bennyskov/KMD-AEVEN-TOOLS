@@ -3,34 +3,63 @@
 # Pre-check: Verify SSH connectivity and user existence before starting the cleanup
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 - name: '1.A - Check SSH user existence'
-  hosts: '{{ nodename }}'
+  hosts: '{{ nodename }}'  # Check against the target host
   gather_facts: false
   become: false
   vars:
+    # Get the user that was specified when the template was launched
     template_ssh_user: "{{ ansible_user | default('') }}"
+    # Use the specified template user or fall back to checking all 10 possible users
+    # This ensures we verify if the specific user selected for the job exists first
+    ssh_users_to_check: "{% if template_ssh_user != '' %}[{'username': template_ssh_user, 'is_template_user': true}]{% else %}[{'username': 'kmduxat1', 'is_template_user': false}, {'username': 'kmduxat2', 'is_template_user': false}, {'username': 'kmnuxat1', 'is_template_user': false}, {'username': 'kmnuxat2', 'is_template_user': false}, {'username': 'kmwuxat1', 'is_template_user': false}, {'username': 'kmwuxat2', 'is_template_user': false}, {'username': 'ug2uxat1', 'is_template_user': false}, {'username': 'ug2uxat2', 'is_template_user': false}, {'username': 'yl5uxat1', 'is_template_user': false}, {'username': 'yl5uxat2', 'is_template_user': false}]{% endif %}"
   tasks:
-    - name: '1.A.01 - Check if template SSH user exists'
+    - name: '1.A.01 - Check if SSH users exist before trying to connect'
       include_role:
         name: check_ssh_user
       vars:
-        ssh_user: "{{ template_ssh_user }}"
+        ssh_user: "{{ item.username }}"
         target_host: "{{ nodename | default(inventory_hostname) }}"
-      register: user_check_result
-      when: template_ssh_user != ''
+      loop: "{{ ssh_users_to_check }}"
+      register: user_check_results
 
-    - name: '1.A.02 - Set active SSH user'
-      set_fact:
-        active_ssh_user: "{{ template_ssh_user }}"
-      when: template_ssh_user != ''
-
-    - name: '1.A.03 - Show active SSH user'
-      debug:
-        msg: "Will attempt to connect using user: {{ active_ssh_user }}"
-
-    - name: '1.A.04 - Fail if template user is not specified'
+    # Special check to immediately fail if specified template user doesn't exist
+    - name: '1.A.00 - Fail if specified template user does not exist'
       fail:
-        msg: "No SSH user specified in the job template. Please specify a user when running the job."
-      when: template_ssh_user == ''
+        msg: "ERROR: Specified user '{{ template_ssh_user }}' for this job does not exist on target host '{{ nodename }}'. Unable to proceed with cleanup."
+      when:
+        - template_ssh_user != ''
+        - item.ansible_facts is defined
+        - not item.ansible_facts.ssh_user_exists
+        - item.item.is_template_user | default(false)
+      loop: "{{ user_check_results.results }}"
+
+    # Fix for 'dict object has no attribute ansible_facts' error
+    - name: '1.A.01 - Initialize empty list for available users'
+      set_fact:
+        available_users: []
+
+    - name: '1.A.02 - Process each user check result individually'
+      set_fact:
+        available_users: "{{ available_users + [item.item] }}"
+      loop: "{{ user_check_results.results }}"
+      when:
+        - item.ansible_facts is defined
+        - item.ansible_facts.can_connect_with_user is defined
+        - item.ansible_facts.can_connect_with_user
+
+    - name: '1.A.03 - Set active SSH user'
+      set_fact:
+        active_ssh_user: "{{ available_users[0].username | default(ansible_user) }}"
+      when: available_users | length > 0
+
+    - name: '1.A.04 - Show active SSH user'
+      debug:
+        msg: "Will attempt to connect using user: {{ active_ssh_user | default('NO VALID USER AVAILABLE!') }}"
+
+    - name: '1.A.05 - Fail if no SSH user is available'
+      fail:
+        msg: "No valid SSH user is available. All users may have been removed in a previous run."
+      when: available_users | length == 0 and ansible_user is not defined
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Step: Begin and setup tunnel and credentials
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
