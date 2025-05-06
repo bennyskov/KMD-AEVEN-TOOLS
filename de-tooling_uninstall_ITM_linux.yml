@@ -101,7 +101,7 @@
         # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
         - name: '3.C.07 - test if /opt/IBM is a mountpoint using shell command'
           ignore_errors: yes
-          shell: "findmnt -n /opt/IBM > /dev/null 2>&1 && echo 'is_mount' || echo 'not_mount'"
+          shell: "findmnt /opt/IBM/ITM > /dev/null 2>&1 && echo 'is_mount' || echo 'not_mount'"
           register: file_mountpoint_ITM
           when: file_stat_ITM.stat.exists
 
@@ -193,7 +193,7 @@
               ignore_errors: true
 
             - name: '3.C.11c - Remove temp files for itmuser'
-              shell: "find /tmp -user itmuser -exec rm -rf {} \\; 2>/dev/null || true"
+              shell: "find /tmp /var/spool/cron /etc/sudoers.d /home /var/spool/cron /var/mail /var/spool/cups -user itmuser -delete 2>/dev/null || true"
               ignore_errors: true
 
             - name: '3.C.11d - Remove cron jobs for itmuser'
@@ -232,7 +232,7 @@
               ignore_errors: true
 
             - name: '3.C.11j - Check for remaining files owned by itmuser'
-              shell: "find / -user itmuser -ls 2>/dev/null || true"
+              shell: "find /tmp /var/spool/cron /etc/sudoers.d /home /var/spool/cron /var/mail /var/spool/cups -user itmuser 2>/dev/null || true"
               register: remaining_files
               ignore_errors: true
               changed_when: false

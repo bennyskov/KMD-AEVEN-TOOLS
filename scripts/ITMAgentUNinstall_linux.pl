@@ -199,6 +199,73 @@ sub check_itmuser_run_securemain() {
                 plog("OK: secureMain runned for ${userid}: $baz");
         }
 }
+sub start_agents {
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # run start lz agents
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        ++$step;
+        undef( @out );
+        @out = ();$baz = '';
+        $text = "start lz agents";
+        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
+
+        if ( $itmuser_found ) {
+                $cmdexec = "sudo -u ${userid} /opt/IBM/ITM/bin/itmcmd agent start lz 2>&1";
+        } else {
+                $cmdexec = "/opt/IBM/ITM/bin/itmcmd agent start lz 2>&1";
+        }
+
+        if ( $debug ) { plog("\n$cmdexec\n"); }
+        @out = `$cmdexec`;
+        if ( $debug ) { plog("\nout=>\n@out\n"); }
+        trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
+
+        plog("OK: lz agent started: $baz");
+
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # run start 08 agents
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        ++$step;
+        undef( @out );
+        @out = ();$baz = '';
+        $text = "start 08 agents";
+        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
+
+        if ( $itmuser_found ) {
+                $cmdexec = "sudo -u ${userid} /opt/IBM/ITM/bin/itmcmd agent start 08 2>&1";
+        } else {
+                $cmdexec = "/opt/IBM/ITM/bin/itmcmd agent start 08 2>&1";
+        }
+
+        if ( $debug ) { plog("\n$cmdexec\n"); }
+        @out = `$cmdexec`;
+        if ( $debug ) { plog("\nout=>\n@out\n"); }
+        trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
+
+        plog("OK: gsma agent started: $baz");
+
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # run start all agents if any is missed
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        ++$step;
+        undef( @out );
+        @out = ();$baz = '';
+        $text = "start all agents";
+        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
+
+        if ( $itmuser_found ) {
+                $cmdexec = "sudo -u ${userid} /opt/IBM/ITM/bin/itmcmd agent start all 2>&1";
+        } else {
+                $cmdexec = "/opt/IBM/ITM/bin/itmcmd agent start all 2>&1";
+        }
+
+        if ( $debug ) { plog("\n$cmdexec\n"); }
+        @out = `$cmdexec`;
+        if ( $debug ) { plog("\nout=>\n@out\n"); }
+        trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
+
+        plog("OK: gsma agent started: $baz");
+}
 sub stop_all_agents {
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # run Stop all
@@ -276,13 +343,13 @@ sub uninstall_agents {
         plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
 
         if ( $itmuser_found ) {
-                $cmdexec = "sudo -u ${userid} /opt/IBM/ITM/bin/itmcmd agent start lz 2>&1";
+                $cmdexec = "sudo -u ${userid} /opt/IBM/ITM/bin/itmcmd agent start all 2>&1";
         } else {
-                $cmdexec = " /opt/IBM/ITM/bin/uninstall.sh";
+                $cmdexec = " ksh /opt/IBM/ITM/bin/uninstall.sh REMOVE EVERYTHING";
         }
 
         if ( $debug ) { plog("\n$cmdexec\n"); }
-        @out = `$cmdexec`;
+        @out = `sh $cmdexec`;
         if ( $debug ) { plog("\nout=>\n@out\n"); }
         trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
 
@@ -331,5 +398,7 @@ $agent = '08';
 cinfo();
 
 stop_all_agents();
+list_processes();
+uninstall_agents();
 list_processes();
 listLogs();
