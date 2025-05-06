@@ -294,7 +294,7 @@ else:
 if re.search(r".*kmdwinitm001.*", awx_hostname, re.IGNORECASE): isRunningLocally = True
 if re.search(r"^automation-job.*", awx_hostname, re.IGNORECASE): isRunningLocally = False
 if isRunningLocally:
-    nodename            = 'kmdlnxrls001'
+    nodename            = 'kmdlnxprx001'
     change              = "CHG000000"
     twusr               = 'functional_id_001'
     twpwd               = 'm9AHKuXYa*MeZZWLsHqB'
@@ -309,11 +309,11 @@ if isRunningLocally:
     # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_linux'
     #
     #
-#     sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/launch_and_misc_awx_functions.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
-    # argnum              = 11
+    sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/launch_and_misc_awx_functions.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
+    argnum              = 11
 
-    sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/launch_and_misc_awx_functions.py','-n', f'{nodename}', '--disable']
-    argnum              = 4
+    # sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/launch_and_misc_awx_functions.py','-n', f'{nodename}', '--disable']
+    # argnum              = 4
 
 if len(sys_argv) > 2:
     if bool(re.search(r'^(-h|-?|--?|--help)$', sys_argv[1], re.IGNORECASE)): f_help_error()
@@ -340,6 +340,7 @@ global now, Logdate_long, jsondir, logdir
 global cred_names, credentials_ids, credential_names, template_id, CONTINUE, RC
 # nodenames           = ['udv19bfs01, udv19db2aws01, udv19avs01, udv19elk02, udv19cis01, udv19tdm03, udv19bfs02, udv19tdm02, udv19tdg01, udv19elk01, udv19tools, udv19gws01, udv19app01, udv19elk03, kmddbs2136']
 # nodenames           = ['kmdlnxrls001']
+# nodenames           = ['kmdlnxprx001']
 cred_names          = []
 credentials_ids     = []
 credential_names    = []
@@ -727,44 +728,44 @@ if CONTINUE and LAUNCH_TEMPLATE:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # launch_job_template
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if CONTINUE and LAUNCH_TEMPLATE:
-    try:
-        stepName = f'{exectype}_launch_job_template'
-        f_log(f'{stepName}','',debug)
-        f_log(f'credentials_ids',f'{credentials_ids}',debug)
-        if useRestAPI:
-            payload = {
-                "inventory": inventory_id,
-                "credentials": credentials_ids,
-                "extra_vars": {
-                    "nodename": f"{nodename}",
-                    "change" : "CHG000000"
-                }
-            }
-            request = f'job_templates/{template_id}/launch/'
-            result,RC = f_requests(request,twusr,twpwd,payload,debug)
-            # f_log(f'result',f'{result}',debug)
-            # jobid = result['id']
-            # f_log(f'jobid',f'{jobid}',debug)
-        else:
-            job_template    = f'--name {launch_template_name} '
-            credential      = f'--credentials {credentials_ids} '
-            inventory       = f'--inventory {inventory_id} '
-            extra_vars = {
-                'nodename': f'{nodename}',
-                'change': f'{change}',
-            }
-            extra_vars  = f'--extra_vars \"{extra_vars}\"'
-            cmdexec = f"awx job_templates launch {launch_template_name} {credential} {inventory} {extra_vars}"
-            f_log(f'cmdexec',f'{cmdexec}',debug)
-            # result,RC = f_cmdexec(cmdexec,debug)
-            # jobid = result['id']
-            # f_log(f'jobid',f'{jobid}',debug)
-        if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
-        if isRunningLocally:
-            f_dump_and_write(result,stepName,debug)
-    except Exception as e:
-        if debug: logging.error(e)
-        RC = 12
+# if CONTINUE and LAUNCH_TEMPLATE:
+#     try:
+#         stepName = f'{exectype}_launch_job_template'
+#         f_log(f'{stepName}','',debug)
+#         f_log(f'credentials_ids',f'{credentials_ids}',debug)
+#         if useRestAPI:
+#             payload = {
+#                 "inventory": inventory_id,
+#                 "credentials": credentials_ids,
+#                 "extra_vars": {
+#                     "nodename": f"{nodename}",
+#                     "change" : "CHG000000"
+#                 }
+#             }
+#             request = f'job_templates/{template_id}/launch/'
+#             result,RC = f_requests(request,twusr,twpwd,payload,debug)
+#             # f_log(f'result',f'{result}',debug)
+#             # jobid = result['id']
+#             # f_log(f'jobid',f'{jobid}',debug)
+#         else:
+#             job_template    = f'--name {launch_template_name} '
+#             credential      = f'--credentials {credentials_ids} '
+#             inventory       = f'--inventory {inventory_id} '
+#             extra_vars = {
+#                 'nodename': f'{nodename}',
+#                 'change': f'{change}',
+#             }
+#             extra_vars  = f'--extra_vars \"{extra_vars}\"'
+#             cmdexec = f"awx job_templates launch {launch_template_name} {credential} {inventory} {extra_vars}"
+#             f_log(f'cmdexec',f'{cmdexec}',debug)
+#             # result,RC = f_cmdexec(cmdexec,debug)
+#             # jobid = result['id']
+#             # f_log(f'jobid',f'{jobid}',debug)
+#         if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
+#         if isRunningLocally:
+#             f_dump_and_write(result,stepName,debug)
+#     except Exception as e:
+#         if debug: logging.error(e)
+#         RC = 12
 f_end(RC)
 #endregion
