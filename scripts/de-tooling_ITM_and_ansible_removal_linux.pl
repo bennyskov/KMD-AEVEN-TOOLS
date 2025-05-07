@@ -159,7 +159,7 @@ sub check_ansible_cleanup {
                                 -path "/etc/opt/Bigfix" -o \
                                 -path "/etc/BESClient" -o \
                                 -path "/root/.ansible" \) \
-                                2>/dev/null | wc -l';
+                                2>/dev/null';
 
         if ( $debug ) { plog("\n$cmdexec\n"); }
 
@@ -169,10 +169,10 @@ sub check_ansible_cleanup {
         $count = scalar @out;
         if ( $count < 6000 ) {
                 $exec_ansible_cleanup = 1;
-                plog("OK: ${baz} file(s) can be deleted");
+                plog("OK: ${count} file(s) can be deleted");
         } else {
                 $exec_ansible_cleanup = 0 ;
-                plog("warn: ${baz} file(s) is over max 6000. usually under. Skipping exec_ansible_cleanup");
+                plog("warn: ${count} file(s) is over max 6000. usually under. Skipping exec_ansible_cleanup");
         }
 }
 sub exec_ansible_cleanup {
@@ -198,13 +198,13 @@ sub exec_ansible_cleanup {
                                         -path "/etc/opt/Bigfix" -o \
                                         -path "/etc/BESClient" -o \
                                         -path "/root/.ansible" \) \
-                                        -delete 2>/dev/null | wc -l';
+                                        -delete 2>/dev/null';
 
                 # $cmdexec = "find /var/opt/ansible /var/opt/ansible_workdir /etc/ansible /root/.ansible_async /tmp/gts-ansible /etc/opt/bigfix /var/tmp/ilmt -delete 2>/dev/null";
                 if ( $debug ) { plog("\n$cmdexec\n"); }
                 @out = `$cmdexec`;
                 if ( $debug ) { plog("\nout=>\n@out\n"); }
-                trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
+                trimout();
 
                 if ( $exec_ansible_cleanup ) {
                         plog("OK: ${baz} file(s) can be deleted");
