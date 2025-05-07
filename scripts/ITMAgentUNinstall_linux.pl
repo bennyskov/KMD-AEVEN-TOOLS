@@ -52,6 +52,7 @@ my($env_file,$env_file_git,$env_data);
 my($ini_file,$ini_file_git,$ini_data);
 my($con_file,$con_file_git,$agent_con_data);
 my($special_cfg,$special_cfg_git,$group,$userid);
+my($go_cleanup,$continue,$itm_isMounted);
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # INIT
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -63,6 +64,7 @@ $scriptname         =~ s/\\/\//g; # turn slash
 $scriptn            = $words[$#words];
 $scriptn            =~ s/\.pl//g;
 $debug              = 0;
+$continue           = 1; # ~true
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # read input
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -345,11 +347,11 @@ sub uninstall_agents {
         if ( $itmuser_found ) {
                 $cmdexec = "sudo -u ${userid} /opt/IBM/ITM/bin/itmcmd agent start all 2>&1";
         } else {
-                $cmdexec = " ksh /opt/IBM/ITM/bin/uninstall.sh REMOVE EVERYTHING";
+                $cmdexec = "/opt/IBM/ITM/bin/uninstall.sh REMOVE EVERYTHING";
         }
 
         if ( $debug ) { plog("\n$cmdexec\n"); }
-        @out = `sh $cmdexec`;
+        @out = `ksh $cmdexec`;
         if ( $debug ) { plog("\nout=>\n@out\n"); }
         trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
 
@@ -387,18 +389,152 @@ sub listLogs {
         @out = `$cmdexec`;
         if ( $debug ) { plog("\nout=>\n@out\n"); }
 }
+sub check_cleanup {
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # check_cleanup
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        ++$step;
+        undef( @out );
+        @out = ();$baz = '';
+        $text = "check_cleanup";
+        $go_cleanup = 0 ;
+        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
+
+        $cmdexec = "find /var/opt/ansible /var/opt/ansible_workdir /etc/ansible /root/.ansible_async /tmp/gts-ansible /etc/opt/bigfix 2>/dev/null | wc -l";
+        if ( $debug ) { plog("\n$cmdexec\n"); }
+        @out = `$cmdexec`;
+        if ( $debug ) { plog("\nout=>\n@out\n"); }
+        trimout();
+        $count = scalar @out;
+        if ( $count < 6000 ) {
+                $go_cleanup = 1;
+                plog("OK: ${baz} file(s) can be deleted");
+        } else {
+                $go_cleanup = 0 ;
+                plog("warn: ${baz} file(s) is over max 6000. usually under. Skipping go_cleanup");
+        }
+}
+sub go_cleanup {
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # go_cleanup
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        ++$step;
+        undef( @out );
+        @out = ();$baz = '';
+        $text = "go_cleanup";
+        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
+
+        if ( $go_cleanup ) {
+                $cmdexec = "find /var/opt/ansible /var/opt/ansible_workdir /etc/ansible /root/.ansible_async /tmp/gts-ansible /etc/opt/bigfix -delete 2>/dev/null";
+                if ( $debug ) { plog("\n$cmdexec\n"); }
+                @out = `$cmdexec`;
+                if ( $debug ) { plog("\nout=>\n@out\n"); }
+                trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
+
+                if ( $go_cleanup ) {
+                        plog("OK: ${baz} file(s) can be deleted");
+                } else {
+                        $go_cleanup = 0 ;
+                        plog("OK: ${go_cleanup} has been skipped.");
+                }
+        }
+}
+sub findmnt {
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # findmnt /opt/IBM/ITM
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        ++$step;
+        undef( @out );
+        @out = ();$baz = '';
+        $text = "check if /opt/IBM/ITM is mounted";
+        $itm_isMounted = 0 ;
+        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
+
+        $cmdexec = "findmnt -n /opt/IBM/ITM > /dev/null 2>&1 && echo 'is_mount' || echo 'not_mount'";
+        if ( $debug ) { plog("\n$cmdexec\n"); }
+        @out = `$cmdexec`;
+        if ( $debug ) { plog("\nout=>\n@out\n"); }
+        trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
+
+        if ( $baz =~ /^is_mount/i ) {
+                $itm_isMounted = 1;
+                plog("OK: /opt/IBM/ITM is_mount. dir is a mounted filesystem, it cannot be deleted");
+        } else {
+                $itm_isMounted = 0 ;
+                plog("OK: /opt/IBM/ITM is not mounted. Deleted");
+        }
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # findmnt /var/opt/ansible
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        ++$step;
+        undef( @out );
+        @out = ();$baz = '';
+        $text = "check if /var/opt/ansible is mounted";
+        $itm_isMounted = 0 ;
+        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
+
+        $cmdexec = "findmnt -n /var/opt/ansible > /dev/null 2>&1 && echo 'is_mount' || echo 'not_mount'";
+        if ( $debug ) { plog("\n$cmdexec\n"); }
+        @out = `$cmdexec`;
+        if ( $debug ) { plog("\nout=>\n@out\n"); }
+        trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
+
+        if ( $baz =~ /^is_mount/i ) {
+                $itm_isMounted = 1;
+                plog("OK: /var/opt/ansible is_mount. dir is a mounted filesystem, it cannot be deleted");
+        } else {
+                $itm_isMounted = 0 ;
+                plog("OK: /var/opt/ansible is not mounted. Deleted");
+        }
+}
+sub check_leftovers {
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # check_cleanup
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        ++$step;
+        undef( @out );
+        @out = ();$baz = '';
+        $text = "check_leftovers";
+        $go_cleanup = 0 ;
+        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
+
+        $cmdexec = 'find / \( -iname "*ILMT*" -o -iname "*ansible*" -o -iname "*bigfix*" -o -iname "*BESClient*" -o -name "*ITM*" \) \
+                -not -path "/proc/*" \
+                -not -path "/sys/*" \
+                -not -path "/dev/*" \
+                -not -path "/run/*" \
+                -not -path "*/cache/*" \
+                -not -path "/var/lib/*" \
+                -not -path "/usr/lib/*" \
+                -not -path "/usr/share/*" \
+                2>/dev/null';
+        if ( $debug ) { plog("\n$cmdexec\n"); }
+        @out = `$cmdexec`;
+        if ( $debug ) { plog("\nout=>\n@out\n"); }
+        trimout();
+        $count = scalar @out;
+        if ( $count > 1 ) {
+                plog("OK: ${count} file(s) is leftover at server, which was not matched and deleted.");
+        } else {
+                plog("OK: ${count} file(s) is leftover. All is cleaned up.");
+        }
+}
+
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # begin - main
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-check_itmuser_run_securemain();
-
+if ( $continue ) { check_itmuser_run_securemain(); }
 $agent = 'lz';
-cinfo();
+if ( $continue ) { cinfo(); }
 $agent = '08';
-cinfo();
-
-stop_all_agents();
-list_processes();
-uninstall_agents();
-list_processes();
-listLogs();
+if ( $continue ) { cinfo(); }
+if ( $continue ) { stop_all_agents(); }
+if ( $continue ) { list_processes(); }
+if ( $continue ) { uninstall_agents(); }
+if ( $continue ) { list_processes(); }
+if ( $continue ) { listLogs(); }
+if ( $continue ) { check_cleanup(); }
+if ( $continue ) { go_cleanup(); }
+if ( $continue ) { findmnt(); }
+if ( $continue ) { check_leftovers(); }
+plog("\nTheEnd\n"); }
