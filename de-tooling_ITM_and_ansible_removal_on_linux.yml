@@ -37,75 +37,72 @@
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 - name: 'A.1.0 de-tooling of servers as part of handover to Aeven'
   hosts: '{{ nodename }}'
+  become: true
   gather_facts: false
   vars:
     nodename: '{{ nodename }}'
     removeAnsibleUsers: '{{ removeAnsibleUsers }}'
     debugScript: '{{ debugScript }}'
-    workdir: '/tmp/KMD-AEVEN-TOOLS/scripts/'
+    workdir: /tmp/KMD-AEVEN-TOOLS/scripts/
   tasks:
     - name: 'A.1.01 - start block'
       block:
-      - name: 'A.1.01a - Check if ITM folder exists'
-        stat:
-          path: '{{ workdir }}'
-        register: file_stat_ITM
+        - name: 'A.1.02 - Create /tmp/KMD-AEVEN-TOOLS/scripts/'
+          ignore_errors: yes
+          file:
+            path: /tmp/KMD-AEVEN-TOOLS/scripts/
+            state: directory
+            mode: 0775
+            owner: root
+            group: root
+            recurse: yes
+            force: yes
+          register: file_stat_tmp
 
-      - name: 'A.1.02 - Create scripttemp_dir directory'
-        ignore_errors: yes
-        file:
-          path: '{{ workdir }}'
-          state: directory
-          mode: 0775
-        when: file_stat_ITM.stat.exists
+        - name: 'A.1.03 - copy files'
+          ignore_errors: yes
+          copy:
+            src: scripts/
+            dest: /tmp/KMD-AEVEN-TOOLS/scripts/
+            mode: 0775
+          when: file_stat_tmp.stat.exists
 
-      - name: 'A.1.03 - copy multiple items'
-        ignore_errors: yes
-        copy:
-          src: '{{ item.src }}'
-          dest: '{{ item.dest }}'
-          mode: 0775
-        loop:
-          - src: scripts/de-tooling_ITM_and_ansible_removal_on_linux.pl
-            dest: '{{ workdir }}de-tooling_ITM_and_ansible_removal_on_linux.pl'
-        when: file_stat_ITM.stat.exists
+        - name: 'A.1.04 Run de-tooling script'
+          ignore_errors: true
+          shell: >
+            perl -w de-tooling_ITM_and_ansible_removal_on_linux.pl
+            -nodename {{ nodename }}
+            {{ removeAnsibleUsers }}
+            {{ debugScript }}
+          args:
+            chdir: /tmp/KMD-AEVEN-TOOLS/scripts/
+          register: script_stdout
+          when: file_stat_tmp.stat.exists
 
-      - name: 'A.1.04 Run de-tooling script'
-        ignore_errors: true
-        shell: >
-          perl -w de-tooling_ITM_and_ansible_removal_on_linux.pl
-          -nodename {{ nodename }}
-          {{ removeAnsibleUsers }}
-          {{ debugScript }}
-        args:
-          chdir: '{{ workdir }}'
-        register: script_stdout
-        when: file_stat_ITM.stat.exists
+        - name: 'A.1.05 pass stdout'
+          ignore_errors: true
+          debug:
+            msg: 'de-tool_stddout ==>|{{ script_stdout.stdout }}'
+          when: script_stdout is defined and script_stdout.stdout is defined
 
-      - name: 'A.1.05 pass stdout'
-        ignore_errors: true
-        debug:
-          msg: 'de-tool_stddout ==>|{{ script_stdout.stdout }}'
-        when: script_stdout is defined and script_stdout.stdout is defined
+        - name: 'A.1.06 - stat uninstall_log'
+          ignore_errors: true
+          stat:
+            path: de_tooling_removal_linux.log'
+          args:
+            chdir: /tmp/KMD-AEVEN-TOOLS/scripts/
+          register: stat_uninstall_log
 
-      - name: 'A.1.06 - stat uninstall_log'
-        ignore_errors: true
-        stat:
-          path: '{{ workdir }}de-tooling_removal_linux.log'
-        args:
-          chdir: '{{ workdir }}'
-        register: stat_uninstall_log
+        - name: 'A.1.07 - Read content'
+          ignore_errors: true
+          shell: cat de_tooling_removal_linux.log
+          args:
+            chdir: /tmp/KMD-AEVEN-TOOLS/scripts/
+          register: cat_uninstall_log
+          when: stat_uninstall_log.stat.exists
 
-      - name: 'A.1.07 - Read content'
-        ignore_errors: true
-        shell: 'cat {{ workdir }}de-tooling_removal_linux.log'
-        args:
-          chdir: '{{ workdir }}'
-        register: cat_uninstall_log
-        when: stat_uninstall_log.stat.exists
-
-      - name: 'A.1.08 pass uninstall_log'
-        ignore_errors: true
-        debug:
-          msg: 'de-tool_uninstall_log ==>|{{ cat_uninstall_log.stdout }}'
-        when: cat_uninstall_log.stat.exists
+        - name: 'A.1.08 pass uninstall_log'
+          ignore_errors: true
+          debug:
+            msg: 'de-tool_uninstall_log ==>|{{ cat_uninstall_log.stdout }}'
+          when: cat_uninstall_log.stat.exists
