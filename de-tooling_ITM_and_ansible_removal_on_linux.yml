@@ -52,6 +52,11 @@
         recurse: yes
         force: yes
 
+    - name: 'Check if agentdir exists before'
+      stat:
+        path: /tmp/scripttemp_dir
+      register: check_agentdir
+
     - name: 'A.1.03 - copy files'
       ignore_errors: yes
       copy:
@@ -61,13 +66,14 @@
       loop:
         - src: scripts/
         - dest: /tmp/scripttemp_dir
+      when: check_agentdir.stat.exists
 
     - name: 'A.1.04 Run de-tooling script'
       ignore_errors: true
       shell: perl -w de-tooling_ITM_and_ansible_removal_on_linux.pl -nodename {{ nodename }} {{ removeAnsibleUsers }} {{ debugScript }}
       args:
         chdir: /tmp/scripttemp_dir
-      register: script_stdout
+      when: check_agentdir.stat.exists
 
     - name: 'A.1.05 pass stdout'
       ignore_errors: true
