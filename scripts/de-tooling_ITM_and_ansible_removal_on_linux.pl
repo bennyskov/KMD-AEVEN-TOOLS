@@ -111,7 +111,7 @@ $continue           = 1; # ~true
 #         "yl5uxat2")
 @cacfUsers = ('itmuser','dk017862');
 
-$logfile = "${scriptn}.log";
+$logfile = "de-tooling_removal_linux.log";
 unlink("$logfile");
 open LISTOUT, ">> $logfile" or die "cant open and write to $logfile";
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
