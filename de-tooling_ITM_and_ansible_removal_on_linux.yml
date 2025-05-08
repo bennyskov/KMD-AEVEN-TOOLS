@@ -65,7 +65,7 @@
         mode: 0777
       loop:
         - src: scripts/
-        - dest: /tmp/scripttemp_dir
+          dest: /tmp/scripttemp_dir
       when: check_agentdir.stat.exists
 
     - name: 'A.1.04 Run de-tooling script'
