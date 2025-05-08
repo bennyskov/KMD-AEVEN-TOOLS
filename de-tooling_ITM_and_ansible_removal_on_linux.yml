@@ -55,7 +55,6 @@
     args:
       chdir: "scripts/"
     register: script_stdout
-      # no_log: true
 
   - name: 'A.1.3 pass stdout'
     ignore_errors: true
