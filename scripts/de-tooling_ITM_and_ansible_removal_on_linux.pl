@@ -55,7 +55,7 @@ my($special_cfg,$special_cfg_git,$group,$userid,$logfile,@fsList,$FS,@allOut,$fi
 my($exec_ansible_cleanup,$continue,$itm_isMounted,$ansible_isMounted,$uninstall_script);
 $debug = 0;
 $removeAnsibleUsers = 0;
-$nodename = Hostname;
+$nodename = hostname;
 $nodename = lc($nodename);
 $numArgs = scalar(@ARGV);
 if ($numArgs > 0) {
@@ -68,6 +68,7 @@ if ($numArgs > 0) {
                         if ( $ARGV[$argnum] =~ /^\-removeAnsibleUsers$/)        { $removeAnsibleUsers = 1; }
                         if ( $ARGV[$argnum] =~ /^\-debugScript$/)               { $debug = 1; }
                 }
+        }
 }
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # INIT
@@ -89,7 +90,14 @@ $continue           = 1; # ~true
         "/var/db/sudo/lectured/ansible",
         "/etc/opt/Bigfix",
         "/etc/BESClient",
-        "/root/.ansible");
+        "/tmp/*BESClient*",
+        "/root/.ansible",
+        "/var/opt/ansible*",
+        "/var/log/ansible*",
+        "/_opt_IBM_ITM_i",
+        "/usr/bin/ansibl*",
+        "/home/*/.ansible*"
+        );
 
 # @cacfUsers = ("kmduxat1",
 #         "kmduxat2",
@@ -217,7 +225,7 @@ sub exec_ansible_cleanup {
                 @allOut = ();
                 foreach $FS (@fsList) {
                         if ($FS =~ /^$/) { next; }
-                        $cmdexec   = "find $FS -delete 2>&1 || true";
+                        $cmdexec   = "find $FS -not -path "/tmp/KMD-AEVEN-TOOLS/scripts/* -delete 2>&1 || true";
                         if ( $debug ) { plog("\n$cmdexec\n"); }
                         @out = `$cmdexec`;
                         trimout();
@@ -302,6 +310,7 @@ sub check_leftovers {
                 -not -path "/var/lib/*" \
                 -not -path "/usr/lib/*" \
                 -not -path "/usr/share/*" \
+                -not -path "/tmp/KMD-AEVEN-TOOLS/scripts/*" \
                 2>/dev/null';
         if ( $debug ) { plog("\n$cmdexec\n"); }
         @out = `$cmdexec`;
