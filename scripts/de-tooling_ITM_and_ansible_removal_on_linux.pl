@@ -54,7 +54,7 @@ my($con_file,$con_file_git,$agent_con_data);
 my($special_cfg,$special_cfg_git,$group,$userid,$logfile,@fsList,$FS,@allOut);
 my($exec_ansible_cleanup,$continue,$itm_isMounted,$ansible_isMounted,$uninstall_script,@usernames);
 $debug = 0;
-if  (scalar(@ARGV) > 0 ) {
+if  (scalar(@ARGV) >= 0 ) {
 	$numArgs = $#ARGV + 1;
 	# plog("thanks, you gave me $numArgs cmdexec-line arguments.\n");
 	if 	( ($ARGV[0] =~ /^(-h|-\?|--help)/) ) { help_error(); }
@@ -460,13 +460,7 @@ sub start_agents {
         undef( @out );
         @out = ();$baz = '';
         $text = "start lz agents";
-        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
-
-        if ( $itmuser_found ) {
-                $cmdexec = "sudo -u ${userid} /opt/IBM/ITM/bin/itmcmd agent start lz 2>&1";
-        } else {
-                $cmdexec = "/opt/IBM/ITM/bin/itmcmd agent start lz 2>&1";
-        }
+        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);        $cmdexec = "/opt/IBM/ITM/bin/itmcmd agent start lz 2>&1";
 
         if ( $debug ) { plog("\n$cmdexec\n"); }
         @out = `$cmdexec`;
@@ -481,13 +475,7 @@ sub start_agents {
         undef( @out );
         @out = ();$baz = '';
         $text = "start 08 agents";
-        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
-
-        if ( $itmuser_found ) {
-                $cmdexec = "sudo -u ${userid} /opt/IBM/ITM/bin/itmcmd agent start 08 2>&1";
-        } else {
-                $cmdexec = "/opt/IBM/ITM/bin/itmcmd agent start 08 2>&1";
-        }
+        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);        $cmdexec = "/opt/IBM/ITM/bin/itmcmd agent start 08 2>&1";
 
         if ( $debug ) { plog("\n$cmdexec\n"); }
         @out = `$cmdexec`;
@@ -502,13 +490,7 @@ sub start_agents {
         undef( @out );
         @out = ();$baz = '';
         $text = "start all agents";
-        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
-
-        if ( $itmuser_found ) {
-                $cmdexec = "sudo -u ${userid} /opt/IBM/ITM/bin/itmcmd agent start all 2>&1";
-        } else {
-                $cmdexec = "/opt/IBM/ITM/bin/itmcmd agent start all 2>&1";
-        }
+        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);        $cmdexec = "/opt/IBM/ITM/bin/itmcmd agent start all 2>&1";
 
         if ( $debug ) { plog("\n$cmdexec\n"); }
         @out = `$cmdexec`;
@@ -565,6 +547,23 @@ sub stop_all_agents {
 
         plog("OK: k08agent stopped");
 
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # run kill k08agent
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        ++$step;
+        undef( @out );
+        @out = ();$baz = '';
+        $text = "kill anything ITM";
+        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
+
+        # Example: db2por    60615      1  0 Feb13 ?        00:32:00 /opt/IBM/ITM/lx8266/ud/bin/kuddb2 kmdlnxblc001_db2por
+        # $cmdexec = "ps -ef | grep -i /opt/IBM/ITM | grep -v grep | awk '{print $8}' | xargs -n1 basename | pkill -9 xargs 2>&1";
+        $cmdexec = "pkill -9 -f /opt/IBM/ITM 2>&1";
+        if ( $debug ) { plog("\n$cmdexec\n"); }
+        @out = `$cmdexec`;
+        if ( $debug ) { plog("\nout=>\n@out\n"); }
+
+        plog("OK: all /opt/IBM/ITM is stopped");
 }
 sub uninstall_agents {
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -589,13 +588,7 @@ sub uninstall_agents {
         undef( @out );
         @out = ();$baz = '';
         $text = "uninstall all agents";
-        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
-
-        if ( $itmuser_found ) {
-                $cmdexec = "sudo -u ${userid} /opt/IBM/ITM/bin/itmcmd agent start all 2>&1";
-        } else {
-                $cmdexec = "/opt/IBM/ITM/bin/uninstall.sh REMOVE EVERYTHING";
-        }
+        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);        $cmdexec = "/opt/IBM/ITM/bin/uninstall.sh REMOVE EVERYTHING";
 
         if ( $debug ) { plog("\n$cmdexec\n"); }
         @out = `ksh $cmdexec`;
@@ -650,78 +643,181 @@ sub remove_users() {
         # remove itmuser and misc CACF users
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-        # $cmdexec = "id ${userid} > /dev/null 2>&1 && echo 'user_found' || echo 'no user_found'"; # check if user is found
-        # $cmdexec = "id -g ${userid} | xargs getent group | cut -d: -f1 2>&1"; # show tenent for user
-        # $cmdexec = "getent passwd ${userid} | cut -d':' -f5 2>&1"; # show tenent for user
-        # $cmdexec = "kill -9 -u ${userid} || true 2>&1"; # kill any process running with user
-        # $cmdexec = "find /tmp /var/spool/cron /etc/sudoers.d /home /var/spool/cron /var/mail /var/spool/cups -user ${userid} || true"; #check count of files to be removed. max 3000 lines
-        # $cmdexec = "find /tmp /var/spool/cron /etc/sudoers.d /home /var/spool/cron /var/mail /var/spool/cups -user ${userid} -delete 2>/dev/null || true"; # remove all for user        $cmdexec = "find /tmp /var/spool/cron /etc/sudoers.d /home /var/spool/cron /var/mail /var/spool/cups -user ${userid} || true"; # is all gone?
-
         @usernames = ('itmuser','dk017862');
 
         foreach ${userid} (@usernames) {
-
                 ++$step;
+                my $cleanup_success = 1;  # Track if all cleanup operations succeeded
                 undef( @out );
                 @out = ();$baz = '';
-                $text = "check if ${userid} exists";
+                $text = "checking if user ${userid} exists";
                 $is_user_found = 0;
                 plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
 
-                $cmdexec = "id ${userid} > /dev/null 2>&1 && echo 'user_found' || echo 'no user_found'"; # check if user is found
+                # Check if user exists more reliably using getent
+                $cmdexec = "getent passwd ${userid} > /dev/null 2>&1 && echo 'user_found' || echo 'no_user_found'";
                 if ( $debug ) { plog("\n$cmdexec\n"); }
                 @out = `$cmdexec`;
-                if ( $debug ) { plog("\nout=>\n@out\n"); }
                 trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
 
                 if ( $baz =~ /user_found/i ) {
-                        $is_user_found = 1 ;
-                        plog("OK: ${userid} found $baz");
-                } else {
-                        $is_user_found = 0;
-                        $group = $baz;
-                        plog("note: ${userid} is not found on server.");
-                }
+                        $is_user_found = 1;
+                        plog("OK: user ${userid} found");
 
-                if ( $is_user_found ) {
-
+                        # Check and terminate user processes if any exist
                         ++$step;
                         undef( @out );
                         @out = ();$baz = '';
-                        $text = "kill users processes";
-                        $is_user_found = 0 ;
+                        $text = "checking and terminating ${userid}'s processes";
                         plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
 
-                        $cmdexec = "kill -9 -u ${userid} || true 2>&1"; # kill any process running with user
+                        # First check if user has any processes
+                        $cmdexec = "ps -u ${userid} -o pid= > /dev/null 2>&1 && echo 'has_processes' || echo 'no_processes'";
                         if ( $debug ) { plog("\n$cmdexec\n"); }
                         @out = `$cmdexec`;
-                        if ( $debug ) { plog("\nout=>\n@out\n"); }
                         trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
-                        plog("OK: ${userid}'s processes killed.");
 
+                        if ( $baz =~ /has_processes/i ) {
+                            # Try graceful termination first
+                            $cmdexec = "pkill -TERM -u ${userid} 2>/dev/null || true";
+                            if ( $debug ) { plog("\n$cmdexec\n"); }
+                            `$cmdexec`;
+
+                            # Wait briefly for processes to terminate
+                            sleep(2);
+
+                            # Force kill any remaining processes
+                            $cmdexec = "pkill -9 -u ${userid} 2>/dev/null || true";
+                            if ( $debug ) { plog("\n$cmdexec\n"); }
+                            `$cmdexec`;
+
+                            # Verify all processes are gone
+                            $cmdexec = "ps -u ${userid} -o pid= > /dev/null 2>&1 && echo 'still_running' || echo 'all_terminated'";
+                            @out = `$cmdexec`;
+                            trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
+
+                            if ( $baz =~ /still_running/i ) {
+                                plog("WARN: Some processes for ${userid} could not be terminated");
+                                $cleanup_success = 0;
+                            } else {
+                                plog("OK: All processes for ${userid} terminated successfully");
+                            }
+                        } else {
+                            plog("Note: No processes found for ${userid}");
+                        }
+
+                        # Check and cleanup user files
                         ++$step;
                         undef( @out );
                         @out = ();$baz = '';
-                        $text = "check if ${userid} exists";
-                        $exec_ansible_cleanup = 0 ;
+                        $text = "checking ${userid}'s files";
+                        $exec_ansible_cleanup = 0;
                         plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
 
-                        $cmdexec = "find /tmp /var/spool/cron /etc/sudoers.d /home /var/spool/cron /var/mail /var/spool/cups -user ${userid} || true"; #check count of files to be removed. max 3000 lines
+                        # Find user's files with error suppression for permission denied
+                        $cmdexec = "find /tmp /var/spool/cron /etc/sudoers.d /home /var/spool/cron /var/mail /var/spool/cups -user ${userid} 2>/dev/null || true";
                         if ( $debug ) { plog("\n$cmdexec\n"); }
                         @out = `$cmdexec`;
-                        if ( $debug ) { plog("\nout=>\n@out\n"); }
                         trimout();
                         $count = scalar @out;
 
-                        if ( $count < 1000 ) {
+                        if ( $count > 0 && $count < 1000 ) {
                                 $exec_ansible_cleanup = 1;
-                                plog("OK: ${count} file(s) can be deleted");
-                        } else {
+                                plog("OK: Found ${count} file(s) to be deleted");
+                                # Print found files in debug mode
+                                if ( $debug ) {
+                                    foreach my $file (@out) {
+                                        plog("Found file: $file");
+                                    }
+                                }
+                        } elsif ( $count >= 1000 ) {
                                 $exec_ansible_cleanup = 0;
-                                plog("warn: ${count} file(s) is over max 1000. Usually under. Skipping exec_ansible_cleanup");
+                                plog("WARN: ${count} file(s) is over max 1000. Usually under. Skipping cleanup");
+                                $cleanup_success = 0;
+                        } else {
+                                plog("Note: No files found for ${userid}");
                         }
+
+                        # Remove the user account if cleaning up files was successful
+                        if ( $cleanup_success ) {
+                            ++$step;
+                            $text = "removing user account ${userid}";
+                            plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
+
+                            $cmdexec = "userdel -r ${userid} 2>&1 || true";
+                            if ( $debug ) { plog("\n$cmdexec\n"); }
+                            @out = `$cmdexec`;
+                            trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
+
+                            # Verify user was removed
+                            $cmdexec = "getent passwd ${userid} > /dev/null 2>&1 && echo 'still_exists' || echo 'removed'";
+                            @out = `$cmdexec`;
+                            trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
+
+                            if ( $baz =~ /still_exists/i ) {
+                                plog("ERROR: Failed to remove user ${userid}");
+                            } else {
+                                plog("OK: User ${userid} removed successfully");
+                            }
+                        } else {
+                            plog("WARN: Skipping removal of user ${userid} due to cleanup issues");
+                        }
+                } else {
+                        plog("Note: User ${userid} not found on server - skipping cleanup operations");
                 }
         }
+}
+sub check_prerequisites {
+    my $prerequisites_ok = 1;
+
+    # Check for required commands
+    my @required_commands = ('pkill', 'find', 'id', 'getent', 'ps', 'ls', 'ksh');
+    foreach my $cmd (@required_commands) {
+        my $check = `which $cmd 2>/dev/null`;
+        if ($? != 0) {
+            plog("ERROR: Required command '$cmd' not found");
+            $prerequisites_ok = 0;
+        }
+    }
+
+    # Check for ITM installation path
+    if (!-d "/opt/IBM/ITM") {
+        plog("WARN: ITM installation directory /opt/IBM/ITM not found");
+    }
+
+    # Check ITM binary paths that we'll need
+    my @itm_paths = (
+        '/opt/IBM/ITM/bin/itmcmd',
+        '/opt/IBM/ITM/bin/cinfo'
+    );
+
+    foreach my $path (@itm_paths) {
+        if (!-x $path) {
+            plog("WARN: ITM binary '$path' not found or not executable");
+        }
+    }
+
+    # Check if any ITM processes are running
+    my $itm_processes = `ps -ef | grep -i "/opt/IBM/ITM" | grep -v grep | wc -l`;
+    chomp($itm_processes);
+    if ($itm_processes > 0) {
+        plog("NOTE: Found $itm_processes ITM processes running");
+    }
+
+    # Check disk space in critical locations
+    my @paths_to_check = ('/', '/opt', '/var');
+    foreach my $path (@paths_to_check) {
+        my $df_output = `df -h $path 2>/dev/null`;
+        if ($df_output =~ /(\d+)%/) {
+            my $usage = $1;
+            if ($usage > 90) {
+                plog("WARN: Low disk space on $path ($usage% used)");
+                $prerequisites_ok = 0;
+            }
+        }
+    }
+
+    return $prerequisites_ok;
 }
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
