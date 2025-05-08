@@ -57,19 +57,19 @@ $debug = 0;
 $removeUXusers = 0;
 $numArgs = scalar(@ARGV);
 if ($numArgs > 0) {
-    if (defined($ARGV[0]) && $ARGV[0] =~ /^(-h|-\?|--help)/) {
-        help_error();
-    }
-    foreach $argnum (0 .. $#ARGV) {
-        if (defined($ARGV[$argnum])) {
-            if ($ARGV[$argnum] eq '-u') {
-                $removeUXusers = 1;
-            }
-            if ($ARGV[$argnum] eq '-d') {
-                $debug = 1;
-            }
+        if (defined($ARGV[0]) && $ARGV[0] =~ /^(-h|-\?|--help)/) {
+                help_error();
         }
-    }
+        foreach $argnum (0 .. $#ARGV) {
+                if (defined($ARGV[$argnum])) {
+                        if ($ARGV[$argnum] eq '-u') {
+                                $removeUXusers = 1;
+                        }
+                        if ($ARGV[$argnum] eq '-d') {
+                                $debug = 1;
+                        }
+                }
+        }
 }
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # INIT

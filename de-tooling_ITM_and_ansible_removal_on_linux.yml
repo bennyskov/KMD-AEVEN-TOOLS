@@ -34,18 +34,27 @@
 #
 # shell: perl -w de-tooling_ITM_and_ansible_removal_on_linux.pl -d -u
 #
+# "nodename" : "kmdwinitm001"
+# "removeAnsibleUsers": "-u"
+# "debugScript": "-d"
+#
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 - name: 'A.1.0 de-tooling of servers as part of handover to Aeven'
   hosts: localhost
   gather_facts: false
   vars:
     nodename: '{{ nodename }}'
+    removeAnsibleUsers: '{{ removeAnsibleUsers }}'
+    debugScript: '{{ debugScript }}'
   # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
   # set_maintenance_mode
   # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
   tasks:
   - name: 'A.1.2 Run de-tooling script'
-    shell: perl -w de-tooling_ITM_and_ansible_removal_on_linux.pl
+    shell: >
+      perl -w de-tooling_ITM_and_ansible_removal_on_linux.pl
+      {{ removeAnsibleUsers }}
+      {{ debugScript }}
     args:
       chdir: "scripts/"
     register: script_stdout
