@@ -53,6 +53,7 @@
   - name: 'A.1.2 Run de-tooling script'
     shell: >
       perl -w de-tooling_ITM_and_ansible_removal_on_linux.pl
+      -n {{ nodename }}
       {{ removeAnsibleUsers }}
       {{ debugScript }}
     args:
