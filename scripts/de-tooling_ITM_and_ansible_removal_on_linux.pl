@@ -51,7 +51,7 @@ my($silent_config_data,$silent_config_linux_git,$silent_config_linux,$pingonly);
 my($env_file,$env_file_git,$env_data);
 my($ini_file,$ini_file_git,$ini_data);
 my($con_file,$con_file_git,$agent_con_data);
-my($special_cfg,$special_cfg_git,$group,$userid,$logfile,@fsList,$FS,@allOut);
+my($special_cfg,$special_cfg_git,$group,$userid,$logfile,@fsList,$FS,@allOut,$file,@cacfUsers);
 my($exec_ansible_cleanup,$continue,$itm_isMounted,$ansible_isMounted,$uninstall_script,@usernames);
 $debug = 0;
 $numArgs = scalar(@ARGV);
@@ -92,7 +92,16 @@ $continue           = 1; # ~true
         "/etc/opt/Bigfix",
         "/etc/BESClient",
         "/root/.ansible");
-
+@cacfUsers = ("kmduxat1",
+        "kmduxat2",
+        "kmnuxat1",
+        "kmnuxat2",
+        "kmwuxat1",
+        "kmwuxat2",
+        "ug2uxat1",
+        "ug2uxat2",
+        "yl5uxat1",
+        "yl5uxat2")
 $logfile = "${scriptn}.log";
 unlink("$logfile");
 open LISTOUT, ">> $logfile" or die "cant open and write to $logfile";
@@ -144,8 +153,8 @@ sub trim($) {
 }
 sub plog {
         $text = shift;
-        print("$text");
-        print(LISTOUT "${text}\n");
+        print("${text}");
+        print(LISTOUT "${text}");
 }
 sub trimout {
         @trimin = ();
@@ -297,7 +306,7 @@ sub check_leftovers {
         trimout();
         $count = scalar @out;
         if ( $count > 1 ) {
-                plog("OK: ${count} file(s) is leftover at server, which was not matched and deleted.");
+                plog("OK: ${count} file(s) is leftover at server, which was not matched and deleted.\n");
                 foreach $line (@out) {
                         plog("${line}\n");
                 }
@@ -321,7 +330,7 @@ sub list_opt_ansible {
         trimout();
         $count = scalar @out;
         if ( $count > 1 ) {
-                plog("OK: ${count} file(s) is in /var/opt/ansible at server, which was not matched and deleted.");
+                plog("OK: ${count} file(s) is in /var/opt/ansible at server, which was not matched and deleted.\n");
                 foreach $line (@out) {
                         plog("${line}\n");
                 }
@@ -449,9 +458,9 @@ sub check_uninstall_script {
         # Check if uninstall.sh exists before running uninstall
         $uninstall_script = "/opt/IBM/ITM/bin/uninstall.sh";
         if ( -e $uninstall_script ) {
-                plog("OK: Found $uninstall_script\n");
+                plog("OK: Found $uninstall_script");
         } else {
-                plog("WARN: $uninstall_script not found. Skipping uninstall.\n");
+                plog("WARN: $uninstall_script not found. Skipping uninstall.");
                 $continue = 0;
                 return;
         }
@@ -505,20 +514,24 @@ sub start_agents {
 }
 sub stop_all_agents {
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # run Stop all
+        # First stop all agents gracefully
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         ++$step;
         undef( @out );
         @out = ();$baz = '';
-        $text = "stop 08 agent";
+        $text = "stop all agents gracefully";
         plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
 
+        # Try graceful stop first
         $cmdexec = "/opt/IBM/ITM/bin/itmcmd agent -f stop all 2>&1";
         if ( $debug ) { plog("\n$cmdexec\n"); }
         @out = `$cmdexec`;
         if ( $debug ) { plog("\nout=>\n@out\n"); }
 
-        plog("OK: agent 08 stopped");
+        # Wait for processes to stop
+        sleep(5);
+
+        plog("OK: all agents stop command issued");
 
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # run kill klzagent
@@ -571,7 +584,7 @@ sub stop_all_agents {
 }
 sub uninstall_agents {
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-        # run start lz agents
+        # Check uninstall script exists
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         ++$step;
         undef( @out );
@@ -582,28 +595,71 @@ sub uninstall_agents {
         # Check if uninstall.sh exists before running uninstall
         my $uninstall_script = "/opt/IBM/ITM/bin/uninstall.sh";
         if ( -e $uninstall_script ) {
-                plog("OK: Found $uninstall_script\n");
+                plog("OK: Found $uninstall_script");
         } else {
-                plog("WARN: $uninstall_script not found. Skipping uninstall.\n");
+                plog("WARN: $uninstall_script not found. Skipping uninstall.");
                 return;
         }
 
+        # Double-check for any remaining ITM processes
+        ++$step;
+        $text = "verify no ITM processes running";
+        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
+
+        $cmdexec = "ps -ef | grep -i /opt/IBM/ITM | grep -v grep";
+        @out = `$cmdexec`;
+        trimout();
+        if (scalar @out > 0) {
+            plog("WARN: Found ITM processes still running. Forcing termination.");
+            system("pkill -9 -f /opt/IBM/ITM");
+            sleep(3);  # Give processes time to die
+        }
+
+        # Backup and clean config files that might prevent uninstall
+        my @config_paths = (
+            '/opt/IBM/ITM/config',
+            '/opt/IBM/ITM/bin/*.ini',
+            '/opt/IBM/ITM/bin/*.config'
+        );
+        foreach my $path (@config_paths) {
+            system("rm -rf $path.old 2>/dev/null");
+            system("mv $path $path.old 2>/dev/null");
+        }
+
+        # Run uninstall with force option
         ++$step;
         undef( @out );
         @out = ();$baz = '';
         $text = "uninstall all agents";
-        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);        $cmdexec = "/opt/IBM/ITM/bin/uninstall.sh REMOVE EVERYTHING";        if ( $debug ) { plog("\n$cmdexec\n"); }
+        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
+
+        $cmdexec = "/opt/IBM/ITM/bin/uninstall.sh -f REMOVE EVERYTHING";  # Add -f for force
+        if ( $debug ) { plog("\n$cmdexec\n"); }
         @out = `ksh $cmdexec`;
         if ( $debug ) { plog("\nout=>\n@out\n"); }
         trimout();
 
-        # Split and log each line of the uninstall output separately
-        plog("OK: ITM agent uninstall details:");
-        foreach my $line (@out) {
-            chomp($line);  # Remove newline
-            if ($line =~ /\S/) {  # Only log non-empty lines
-                plog("    $line");
+        # Log output with proper formatting
+        if (scalar @out > 0) {
+            plog("OK: ITM agent uninstall details:\n");
+            foreach my $line (@out) {
+                chomp($line);
+                if ($line =~ /\S/) {  # Only log non-empty lines
+                    plog("    $line\n");
+                }
             }
+        }
+
+        # Verify uninstall succeeded by checking if key directories still exist
+        ++$step;
+        $text = "verify uninstall completion";
+        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
+
+        if (-d "/opt/IBM/ITM/bin") {
+            plog("WARN: ITM binaries directory still exists. Manual cleanup may be needed.");
+            # Force remove critical files to prevent agent from running
+            system("rm -f /opt/IBM/ITM/bin/*agent 2>/dev/null");
+            system("rm -f /opt/IBM/ITM/bin/itmcmd 2>/dev/null");
         }
 }
 sub cinfo {
@@ -639,7 +695,7 @@ sub list_opt_itm {
         trimout();
         $count = scalar @out;
         if ( $count > 1 ) {
-                plog("OK: ${count} file(s) is in /opt/IBM/ITM/ at server, which was not matched and deleted.");
+                plog("OK: ${count} file(s) is in /opt/IBM/ITM/ at server, which was not matched and deleted.\n");
                 foreach $line (@out) {
                         plog("${line}\n");
                 }
@@ -651,6 +707,8 @@ sub remove_users() {
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # remove itmuser and misc CACF users
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        #NOTE  @cacfUsers #NOTE
+        #NOTE  @cacfUsers #NOTE
 
         @usernames = ('itmuser','dk017862');
 
@@ -735,7 +793,7 @@ sub remove_users() {
                                 plog("OK: Found ${count} file(s) to be deleted");
                                 # Print found files in debug mode
                                 if ( $debug ) {
-                                    foreach my $file (@out) {
+                                    foreach $file (@out) {
                                         plog("Found file: $file");
                                     }
                                 }
