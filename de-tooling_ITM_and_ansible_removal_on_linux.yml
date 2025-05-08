@@ -70,39 +70,39 @@
             dest: '{{ workdir }}de-tooling_ITM_and_ansible_removal_on_linux.pl'
         when: file_stat_ITM.stat.exists
 
-    - name: 'A.1.04 Run de-tooling script'
-      shell: >
-        perl -w {{ workdir }}de-tooling_ITM_and_ansible_removal_on_linux.pl
-        -nodename {{ nodename }}
-        {{ removeAnsibleUsers }}
-        {{ debugScript }}
-      args:
-        chdir: '{{ workdir }}'
-      register: script_stdout
+      - name: 'A.1.04 Run de-tooling script'
+        shell: >
+          perl -w {{ workdir }}de-tooling_ITM_and_ansible_removal_on_linux.pl
+          -nodename {{ nodename }}
+          {{ removeAnsibleUsers }}
+          {{ debugScript }}
+        args:
+          chdir: '{{ workdir }}'
+        register: script_stdout
 
-    - name: 'A.1.05 pass stdout'
-      ignore_errors: true
-      debug:
-        msg: 'de-tool_stddout ==>|{{ script_stdout.stdout }}'
-      when: script_stdout.stat.exists
+      - name: 'A.1.05 pass stdout'
+        ignore_errors: true
+        debug:
+          msg: 'de-tool_stddout ==>|{{ script_stdout.stdout }}'
+        when: script_stdout.stat.exists
 
-    - name: 'A.1.06 - stat uninstall_log'
-      ignore_errors: true
-      stat:
-        path: '{{ workdir }}de-tooling_removal_linux.log'
-      args:
-        chdir: '{{ workdir }}'
-      register: stat_uninstall_log
+      - name: 'A.1.06 - stat uninstall_log'
+        ignore_errors: true
+        stat:
+          path: '{{ workdir }}de-tooling_removal_linux.log'
+        args:
+          chdir: '{{ workdir }}'
+        register: stat_uninstall_log
 
-    - name: 'A.1.07 - Read content'
-      shell: 'cat {{ workdir }}de-tooling_removal_linux.log'
-      args:
-        chdir: '{{ workdir }}'
-      register: cat_uninstall_log
-      when: stat_uninstall_log.stat.exists
+      - name: 'A.1.07 - Read content'
+        shell: 'cat {{ workdir }}de-tooling_removal_linux.log'
+        args:
+          chdir: '{{ workdir }}'
+        register: cat_uninstall_log
+        when: stat_uninstall_log.stat.exists
 
-    - name: 'A.1.08 pass uninstall_log'
-      ignore_errors: true
-      debug:
-        msg: 'de-tool_uninstall_log ==>|{{ cat_uninstall_log.stdout }}'
-      when: cat_uninstall_log.stat.exists
+      - name: 'A.1.08 pass uninstall_log'
+        ignore_errors: true
+        debug:
+          msg: 'de-tool_uninstall_log ==>|{{ cat_uninstall_log.stdout }}'
+        when: cat_uninstall_log.stat.exists
