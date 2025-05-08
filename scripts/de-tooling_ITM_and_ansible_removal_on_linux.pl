@@ -51,10 +51,10 @@ my($silent_config_data,$silent_config_linux_git,$silent_config_linux,$pingonly);
 my($env_file,$env_file_git,$env_data);
 my($ini_file,$ini_file_git,$ini_data);
 my($con_file,$con_file_git,$agent_con_data);
-my($special_cfg,$special_cfg_git,$group,${userid});
+my($special_cfg,$special_cfg_git,$group,$userid,$logfile,@fsList,$FS,@allOut);
 my($exec_ansible_cleanup,$continue,$itm_isMounted,$ansible_isMounted,$uninstall_script,@usernames);
 $debug = 0;
-if  (scalar(@ARGV) >= 0 ) {
+if  (scalar(@ARGV) > 0 ) {
 	$numArgs = $#ARGV + 1;
 	# plog("thanks, you gave me $numArgs cmdexec-line arguments.\n");
 	if 	( ($ARGV[0] =~ /^(-h|-\?|--help)/) ) { help_error(); }
@@ -76,6 +76,22 @@ $scriptname         =~ s/\\/\//g; # turn slash
 $scriptn            = $words[$#words];
 $scriptn            =~ s/\.pl//g;
 $continue           = 1; # ~true
+@fsList = ("/var/opt/ansible",
+        "/var/opt/ansible_workdir",
+        "/etc/ansible",
+        "/root/.ansible_async",
+        "/tmp/gts-ansible",
+        "/etc/opt/bigfix",
+        "/var/tmp/ilmt",
+        "/var/tmp/aicbackup/ilmt",
+        "/var/db/sudo/lectured/ansible",
+        "/etc/opt/Bigfix",
+        "/etc/BESClient",
+        "/root/.ansible");
+
+$logfile = "${scriptn}.log";
+unlink("$logfile");
+open LISTOUT, ">> $logfile" or die "cant open and write to $logfile";
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # read input
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -125,6 +141,7 @@ sub trim($) {
 sub plog {
         $text = shift;
         print("$text");
+        print(LISTOUT "${text}\n");
 }
 sub trimout {
         @trimin = ();
@@ -141,31 +158,26 @@ sub check_ansible_cleanup {
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # check_ansible_cleanup
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
         ++$step;
         undef( @out );
+        undef( @allOut );
         @out = ();$baz = '';
         $text = "check_ansible_cleanup";
         $exec_ansible_cleanup = 0 ;
         plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
-        $cmdexec   = 'find / \( -path "/var/opt/ansible" -o \
-                                -path "/var/opt/ansible_workdir" -o \
-                                -path "/etc/ansible" -o \
-                                -path "/root/.ansible_async" -o \
-                                -path "/tmp/gts-ansible" -o \
-                                -path "/etc/opt/bigfix" -o \
-                                -path "/var/tmp/ilmt" -o \
-                                -path "/var/tmp/aicbackup/ilmt" -o \
-                                -path "/var/db/sudo/lectured/ansible" -o \
-                                -path "/etc/opt/Bigfix" -o \
-                                -path "/etc/BESClient" -o \
-                                -path "/root/.ansible" \) \
-                                2>/dev/null';
-
-        if ( $debug ) { plog("\n$cmdexec\n"); }
-
-        @out = `$cmdexec`;
-        if ( $debug ) { plog("\nout=>\n@out\n"); }
-        trimout();
+        @allOut = ();
+        foreach $FS (@fsList) {
+                if ($FS =~ /^$/) { next; }
+                $cmdexec   = "find $FS 2>&1 || true";
+                if ( $debug ) { plog("\n$cmdexec\n"); }
+                @out = `$cmdexec`;
+                trimout();
+                if ( $debug ) { plog("\nout=>\n@out\n"); }
+                @allOut = (@allOut, @out);
+        }
+        undef( @out );
+        @out =  @allOut;
         $count = scalar @out;
         if ( $count < 6000 ) {
                 $exec_ansible_cleanup = 1;
@@ -179,38 +191,30 @@ sub exec_ansible_cleanup {
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # exec_ansible_cleanup
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-        ++$step;
-        undef( @out );
-        @out = ();$baz = '';
-        $text = "exec_ansible_cleanup";
-        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
-
         if ( $exec_ansible_cleanup ) {
-                $cmdexec   = 'find / \( -path "/var/opt/ansible" -o \
-                                        -path "/var/opt/ansible_workdir" -o \
-                                        -path "/etc/ansible" -o \
-                                        -path "/root/.ansible_async" -o \
-                                        -path "/tmp/gts-ansible" -o \
-                                        -path "/etc/opt/bigfix" -o \
-                                        -path "/var/tmp/ilmt" -o \
-                                        -path "/var/tmp/aicbackup/ilmt" -o \
-                                        -path "/var/db/sudo/lectured/ansible" -o \
-                                        -path "/etc/opt/Bigfix" -o \
-                                        -path "/etc/BESClient" -o \
-                                        -path "/root/.ansible" \) \
-                                        -delete 2>/dev/null';
-
-                # $cmdexec = "find /var/opt/ansible /var/opt/ansible_workdir /etc/ansible /root/.ansible_async /tmp/gts-ansible /etc/opt/bigfix /var/tmp/ilmt -delete 2>/dev/null";
-                if ( $debug ) { plog("\n$cmdexec\n"); }
-                @out = `$cmdexec`;
-                if ( $debug ) { plog("\nout=>\n@out\n"); }
-                trimout();
-
-                if ( $exec_ansible_cleanup ) {
-                        plog("OK: ${baz} file(s) can be deleted");
+                ++$step;
+                undef( @out );
+                undef( @allOut );
+                @out = ();$baz = '';
+                $text = "exec_ansible_cleanup";
+                plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
+                @allOut = ();
+                foreach $FS (@fsList) {
+                        if ($FS =~ /^$/) { next; }
+                        $cmdexec   = "find $FS -delete 2>&1 || true";
+                        if ( $debug ) { plog("\n$cmdexec\n"); }
+                        @out = `$cmdexec`;
+                        trimout();
+                        if ( $debug ) { plog("\nout=>\n@out\n"); }
+                        @allOut = (@allOut, @out);
+                }
+                undef( @out );
+                @out =  @allOut;
+                $count = scalar @out;
+                if ( $count < 6000 ) {
+                        plog("OK: ${count} file(s) can be deleted");
                 } else {
-                        $exec_ansible_cleanup = 0 ;
-                        plog("OK: ${exec_ansible_cleanup} has been skipped.");
+                        plog("warn: ${count} file(s) is over max 6000. usually under. Skipping exec_ansible_cleanup");
                 }
         }
 }
@@ -742,3 +746,4 @@ if ( $continue ) { uninstall_agents(); }
 if ( $continue ) { list_opt_itm(); }
 if ( $continue ) { remove_users(); }
 plog("\nTheEnd\n");
+close LISTOUT;
