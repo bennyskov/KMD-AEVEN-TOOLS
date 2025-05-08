@@ -26,7 +26,6 @@
         ansible_job_id: '{{ tower_job_id }}'
         ansible_become_method: runas
         ansible_become_user: system
-
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # runn de-tooling perl script
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -49,7 +48,7 @@
       block:
       - name: 'A.1.01a - Check if ITM folder exists'
         stat:
-          path: /opt/IBM/ITM
+          path: '{{ workdir }}'
         register: file_stat_ITM
 
       - name: 'A.1.02 - Create scripttemp_dir directory'
@@ -72,8 +71,9 @@
         when: file_stat_ITM.stat.exists
 
       - name: 'A.1.04 Run de-tooling script'
+        ignore_errors: true
         shell: >
-          perl -w {{ workdir }}de-tooling_ITM_and_ansible_removal_on_linux.pl
+          perl -w de-tooling_ITM_and_ansible_removal_on_linux.pl
           -nodename {{ nodename }}
           {{ removeAnsibleUsers }}
           {{ debugScript }}
@@ -97,6 +97,7 @@
         register: stat_uninstall_log
 
       - name: 'A.1.07 - Read content'
+        ignore_errors: true
         shell: 'cat {{ workdir }}de-tooling_removal_linux.log'
         args:
           chdir: '{{ workdir }}'
