@@ -54,16 +54,20 @@ my($con_file,$con_file_git,$agent_con_data);
 my($special_cfg,$special_cfg_git,$group,$userid,$logfile,@fsList,$FS,@allOut);
 my($exec_ansible_cleanup,$continue,$itm_isMounted,$ansible_isMounted,$uninstall_script,@usernames);
 $debug = 0;
-if  (scalar(@ARGV) >= 0 ) {
-	$numArgs = $#ARGV + 1;
-	# plog("thanks, you gave me $numArgs cmdexec-line arguments.\n");
-	if 	( ($ARGV[0] =~ /^(-h|-\?|--help)/) ) { help_error(); }
-	foreach $argnum (0 .. $#ARGV) {
-		plog("$ARGV[$argnum]\n");
-                if ( $ARGV[$argnum] =~ /^\-d$/) { $argnum++; $debug = 1; } # 1=yes
-	}
-} else {
-	help_error();
+$numArgs = scalar(@ARGV);
+if ($numArgs > 0) {
+    if (defined($ARGV[0]) && $ARGV[0] =~ /^(-h|-\?|--help)/) {
+        help_error();
+    }
+    foreach $argnum (0 .. $#ARGV) {
+        if (defined($ARGV[$argnum])) {
+            if ($ARGV[$argnum] eq '-d') {
+                $debug = 1;
+            } else {
+                plog("$ARGV[$argnum]\n");
+            }
+        }
+    }
 }
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # INIT
@@ -588,14 +592,19 @@ sub uninstall_agents {
         undef( @out );
         @out = ();$baz = '';
         $text = "uninstall all agents";
-        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);        $cmdexec = "/opt/IBM/ITM/bin/uninstall.sh REMOVE EVERYTHING";
-
-        if ( $debug ) { plog("\n$cmdexec\n"); }
+        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);        $cmdexec = "/opt/IBM/ITM/bin/uninstall.sh REMOVE EVERYTHING";        if ( $debug ) { plog("\n$cmdexec\n"); }
         @out = `ksh $cmdexec`;
         if ( $debug ) { plog("\nout=>\n@out\n"); }
-        trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
+        trimout();
 
-        plog("OK: ITM agent uninstalled: $baz");
+        # Split and log each line of the uninstall output separately
+        plog("OK: ITM agent uninstall details:");
+        foreach my $line (@out) {
+            chomp($line);  # Remove newline
+            if ($line =~ /\S/) {  # Only log non-empty lines
+                plog("    $line");
+            }
+        }
 }
 sub cinfo {
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
