@@ -51,9 +51,10 @@ my($silent_config_data,$silent_config_linux_git,$silent_config_linux,$pingonly);
 my($env_file,$env_file_git,$env_data);
 my($ini_file,$ini_file_git,$ini_data);
 my($con_file,$con_file_git,$agent_con_data);
-my($special_cfg,$special_cfg_git,$group,$userid,$logfile,@fsList,$FS,@allOut,$file,@cacfUsers);
-my($exec_ansible_cleanup,$continue,$itm_isMounted,$ansible_isMounted,$uninstall_script,@usernames);
+my($special_cfg,$special_cfg_git,$group,$userid,$logfile,@fsList,$FS,@allOut,$file,@cacfUsers,$removeUXusers);
+my($exec_ansible_cleanup,$continue,$itm_isMounted,$ansible_isMounted,$uninstall_script);
 $debug = 0;
+$removeUXusers = 0;
 $numArgs = scalar(@ARGV);
 if ($numArgs > 0) {
     if (defined($ARGV[0]) && $ARGV[0] =~ /^(-h|-\?|--help)/) {
@@ -61,10 +62,11 @@ if ($numArgs > 0) {
     }
     foreach $argnum (0 .. $#ARGV) {
         if (defined($ARGV[$argnum])) {
+            if ($ARGV[$argnum] eq '-u') {
+                $removeUXusers = 1;
+            }
             if ($ARGV[$argnum] eq '-d') {
                 $debug = 1;
-            } else {
-                plog("$ARGV[$argnum]\n");
             }
         }
     }
@@ -92,16 +94,19 @@ $continue           = 1; # ~true
         "/etc/opt/Bigfix",
         "/etc/BESClient",
         "/root/.ansible");
-@cacfUsers = ("kmduxat1",
-        "kmduxat2",
-        "kmnuxat1",
-        "kmnuxat2",
-        "kmwuxat1",
-        "kmwuxat2",
-        "ug2uxat1",
-        "ug2uxat2",
-        "yl5uxat1",
-        "yl5uxat2")
+
+# @cacfUsers = ("kmduxat1",
+#         "kmduxat2",
+#         "kmnuxat1",
+#         "kmnuxat2",
+#         "kmwuxat1",
+#         "kmwuxat2",
+#         "ug2uxat1",
+#         "ug2uxat2",
+#         "yl5uxat1",
+#         "yl5uxat2")
+@cacfUsers = ('itmuser','dk017862');
+
 $logfile = "${scriptn}.log";
 unlink("$logfile");
 open LISTOUT, ">> $logfile" or die "cant open and write to $logfile";
@@ -121,6 +126,7 @@ sub help_error {
 		print ("\n");
 		print ("\n");
 		print ("use: -?, for this message\n");
+                print ("use: -u, for remove ansible users like kmduxat1, kmduxat2.... \n");
                 print ("use: -d, for debug\n");
 		print ("\n");
 		print ("\n");
@@ -703,134 +709,132 @@ sub list_opt_itm {
                 plog("OK: ${count} file(s) in /opt/IBM/ITM/");
         }
 }
-sub remove_users() {
+sub remove_ux_uers() {
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # remove itmuser and misc CACF users
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-        #NOTE  @cacfUsers #NOTE
-        #NOTE  @cacfUsers #NOTE
+        if ( $removeUXusers )  {
 
-        @usernames = ('itmuser','dk017862');
-
-        foreach ${userid} (@usernames) {
-                ++$step;
-                my $cleanup_success = 1;  # Track if all cleanup operations succeeded
-                undef( @out );
-                @out = ();$baz = '';
-                $text = "checking if user ${userid} exists";
-                $is_user_found = 0;
-                plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
-
-                # Check if user exists more reliably using getent
-                $cmdexec = "getent passwd ${userid} > /dev/null 2>&1 && echo 'user_found' || echo 'no_user_found'";
-                if ( $debug ) { plog("\n$cmdexec\n"); }
-                @out = `$cmdexec`;
-                trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
-
-                if ( $baz =~ /user_found/i ) {
-                        $is_user_found = 1;
-                        plog("OK: user ${userid} found");
-
-                        # Check and terminate user processes if any exist
+                foreach ${userid} (@cacfUsers) {
                         ++$step;
+                        my $cleanup_success = 1;  # Track if all cleanup operations succeeded
                         undef( @out );
                         @out = ();$baz = '';
-                        $text = "checking and terminating ${userid}'s processes";
+                        $text = "checking if user ${userid} exists";
+                        $is_user_found = 0;
                         plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
 
-                        # First check if user has any processes
-                        $cmdexec = "ps -u ${userid} -o pid= > /dev/null 2>&1 && echo 'has_processes' || echo 'no_processes'";
+                        # Check if user exists more reliably using getent
+                        $cmdexec = "getent passwd ${userid} > /dev/null 2>&1 && echo 'user_found' || echo 'no_user_found'";
                         if ( $debug ) { plog("\n$cmdexec\n"); }
                         @out = `$cmdexec`;
                         trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
 
-                        if ( $baz =~ /has_processes/i ) {
-                            # Try graceful termination first
-                            $cmdexec = "pkill -TERM -u ${userid} 2>/dev/null || true";
-                            if ( $debug ) { plog("\n$cmdexec\n"); }
-                            `$cmdexec`;
+                        if ( $baz =~ /user_found/i ) {
+                                $is_user_found = 1;
+                                plog("OK: user ${userid} found");
 
-                            # Wait briefly for processes to terminate
-                            sleep(2);
+                                # Check and terminate user processes if any exist
+                                ++$step;
+                                undef( @out );
+                                @out = ();$baz = '';
+                                $text = "checking and terminating ${userid}'s processes";
+                                plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
 
-                            # Force kill any remaining processes
-                            $cmdexec = "pkill -9 -u ${userid} 2>/dev/null || true";
-                            if ( $debug ) { plog("\n$cmdexec\n"); }
-                            `$cmdexec`;
+                                # First check if user has any processes
+                                $cmdexec = "ps -u ${userid} -o pid= > /dev/null 2>&1 && echo 'has_processes' || echo 'no_processes'";
+                                if ( $debug ) { plog("\n$cmdexec\n"); }
+                                @out = `$cmdexec`;
+                                trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
 
-                            # Verify all processes are gone
-                            $cmdexec = "ps -u ${userid} -o pid= > /dev/null 2>&1 && echo 'still_running' || echo 'all_terminated'";
-                            @out = `$cmdexec`;
-                            trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
+                                if ( $baz =~ /has_processes/i ) {
+                                # Try graceful termination first
+                                $cmdexec = "pkill -TERM -u ${userid} 2>/dev/null || true";
+                                if ( $debug ) { plog("\n$cmdexec\n"); }
+                                `$cmdexec`;
 
-                            if ( $baz =~ /still_running/i ) {
-                                plog("WARN: Some processes for ${userid} could not be terminated");
-                                $cleanup_success = 0;
-                            } else {
-                                plog("OK: All processes for ${userid} terminated successfully");
-                            }
-                        } else {
-                            plog("Note: No processes found for ${userid}");
-                        }
+                                # Wait briefly for processes to terminate
+                                sleep(2);
 
-                        # Check and cleanup user files
-                        ++$step;
-                        undef( @out );
-                        @out = ();$baz = '';
-                        $text = "checking ${userid}'s files";
-                        $exec_ansible_cleanup = 0;
-                        plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
+                                # Force kill any remaining processes
+                                $cmdexec = "pkill -9 -u ${userid} 2>/dev/null || true";
+                                if ( $debug ) { plog("\n$cmdexec\n"); }
+                                `$cmdexec`;
 
-                        # Find user's files with error suppression for permission denied
-                        $cmdexec = "find /tmp /var/spool/cron /etc/sudoers.d /home /var/spool/cron /var/mail /var/spool/cups -user ${userid} 2>/dev/null || true";
-                        if ( $debug ) { plog("\n$cmdexec\n"); }
-                        @out = `$cmdexec`;
-                        trimout();
-                        $count = scalar @out;
+                                # Verify all processes are gone
+                                $cmdexec = "ps -u ${userid} -o pid= > /dev/null 2>&1 && echo 'still_running' || echo 'all_terminated'";
+                                @out = `$cmdexec`;
+                                trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
 
-                        if ( $count > 0 && $count < 1000 ) {
-                                $exec_ansible_cleanup = 1;
-                                plog("OK: Found ${count} file(s) to be deleted");
-                                # Print found files in debug mode
-                                if ( $debug ) {
-                                    foreach $file (@out) {
-                                        plog("Found file: $file");
-                                    }
+                                if ( $baz =~ /still_running/i ) {
+                                        plog("WARN: Some processes for ${userid} could not be terminated");
+                                        $cleanup_success = 0;
+                                } else {
+                                        plog("OK: All processes for ${userid} terminated successfully");
                                 }
-                        } elsif ( $count >= 1000 ) {
+                                } else {
+                                plog("Note: No processes found for ${userid}");
+                                }
+
+                                # Check and cleanup user files
+                                ++$step;
+                                undef( @out );
+                                @out = ();$baz = '';
+                                $text = "checking ${userid}'s files";
                                 $exec_ansible_cleanup = 0;
-                                plog("WARN: ${count} file(s) is over max 1000. Usually under. Skipping cleanup");
-                                $cleanup_success = 0;
+                                plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
+
+                                # Find user's files with error suppression for permission denied
+                                $cmdexec = "find /tmp /var/spool/cron /etc/sudoers.d /home /var/spool/cron /var/mail /var/spool/cups -user ${userid} 2>/dev/null || true";
+                                if ( $debug ) { plog("\n$cmdexec\n"); }
+                                @out = `$cmdexec`;
+                                trimout();
+                                $count = scalar @out;
+
+                                if ( $count > 0 && $count < 1000 ) {
+                                        $exec_ansible_cleanup = 1;
+                                        plog("OK: Found ${count} file(s) to be deleted");
+                                        # Print found files in debug mode
+                                        if ( $debug ) {
+                                        foreach $file (@out) {
+                                                plog("Found file: $file");
+                                        }
+                                        }
+                                } elsif ( $count >= 1000 ) {
+                                        $exec_ansible_cleanup = 0;
+                                        plog("WARN: ${count} file(s) is over max 1000. Usually under. Skipping cleanup");
+                                        $cleanup_success = 0;
+                                } else {
+                                        plog("Note: No files found for ${userid}");
+                                }
+
+                                # Remove the user account if cleaning up files was successful
+                                if ( $cleanup_success ) {
+                                ++$step;
+                                $text = "removing user account ${userid}";
+                                plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
+
+                                $cmdexec = "userdel -r ${userid} 2>&1 || true";
+                                if ( $debug ) { plog("\n$cmdexec\n"); }
+                                @out = `$cmdexec`;
+                                trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
+
+                                # Verify user was removed
+                                $cmdexec = "getent passwd ${userid} > /dev/null 2>&1 && echo 'still_exists' || echo 'removed'";
+                                @out = `$cmdexec`;
+                                trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
+
+                                if ( $baz =~ /still_exists/i ) {
+                                        plog("ERROR: Failed to remove user ${userid}");
+                                } else {
+                                        plog("OK: User ${userid} removed successfully");
+                                }
+                                } else {
+                                plog("WARN: Skipping removal of user ${userid} due to cleanup issues");
+                                }
                         } else {
-                                plog("Note: No files found for ${userid}");
+                                plog("Note: User ${userid} not found on server - skipping cleanup operations");
                         }
-
-                        # Remove the user account if cleaning up files was successful
-                        if ( $cleanup_success ) {
-                            ++$step;
-                            $text = "removing user account ${userid}";
-                            plog(sprintf "\n%-13s - step:%02d - %-55s",get_date(),$step,$text);
-
-                            $cmdexec = "userdel -r ${userid} 2>&1 || true";
-                            if ( $debug ) { plog("\n$cmdexec\n"); }
-                            @out = `$cmdexec`;
-                            trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
-
-                            # Verify user was removed
-                            $cmdexec = "getent passwd ${userid} > /dev/null 2>&1 && echo 'still_exists' || echo 'removed'";
-                            @out = `$cmdexec`;
-                            trimout();$baz='';$baz = join(";", @out);$baz = trim($baz);
-
-                            if ( $baz =~ /still_exists/i ) {
-                                plog("ERROR: Failed to remove user ${userid}");
-                            } else {
-                                plog("OK: User ${userid} removed successfully");
-                            }
-                        } else {
-                            plog("WARN: Skipping removal of user ${userid} due to cleanup issues");
-                        }
-                } else {
-                        plog("Note: User ${userid} not found on server - skipping cleanup operations");
                 }
         }
 }
@@ -907,6 +911,6 @@ if ( $continue ) { check_uninstall_script(); }
 if ( $continue ) { stop_all_agents(); }
 if ( $continue ) { uninstall_agents(); }
 if ( $continue ) { list_opt_itm(); }
-if ( $continue ) { remove_users(); }
+if ( $continue ) { remove_ux_uers(); }
 plog("\nTheEnd\n");
 close LISTOUT;
