@@ -39,7 +39,7 @@ use strict;
 use File::Basename;
 # use File::Path qw(make_path);
 # use Cwd qw(abs_path);
-use Sys::nodename;
+use Sys::Hostname;
 use File::Copy;
 my($foo,$bar,$baz,$qux,$quux,$quuz,$corge,$grault,$garply,$waldo,$fred,$plugh,$xyzzy,$thud);
 my($envirShore,$step,$scriptname,$scriptn,@words);
@@ -51,11 +51,11 @@ my($silent_config_data,$silent_config_linux_git,$silent_config_linux,$pingonly);
 my($env_file,$env_file_git,$env_data);
 my($ini_file,$ini_file_git,$ini_data);
 my($con_file,$con_file_git,$agent_con_data);
-my($special_cfg,$special_cfg_git,$group,$userid,$logfile,@fsList,$FS,@allOut,$file,@cacfUsers,$removeUXusers);
+my($special_cfg,$special_cfg_git,$group,$userid,$logfile,@fsList,$FS,@allOut,$file,@cacfUsers,$removeAnsibleUsers);
 my($exec_ansible_cleanup,$continue,$itm_isMounted,$ansible_isMounted,$uninstall_script);
 $debug = 0;
-$removeUXusers = 0;
-$nodename = hostname;
+$removeAnsibleUsers = 0;
+$nodename = Hostname;
 $nodename = lc($nodename);
 $numArgs = scalar(@ARGV);
 if ($numArgs > 0) {
@@ -64,9 +64,9 @@ if ($numArgs > 0) {
         }
         foreach $argnum (0 .. $#ARGV) {
                 if (defined($ARGV[$argnum])) {
-                        if ( $ARGV[$argnum] =~ /^\-n$/) { $argnum++; $nodename = "$ARGV[$argnum]"; }
-                        if ( $ARGV[$argnum] =~ /^\-u$/) { $removeUXusers = 1; }
-                        if ( $ARGV[$argnum] =~ /^\-d$/) { $debug = 1; }
+                        if ( $ARGV[$argnum] =~ /^\-nodename$/)                  { $argnum++; $nodename = "$ARGV[$argnum]"; }
+                        if ( $ARGV[$argnum] =~ /^\-removeAnsibleUsers$/)        { $removeAnsibleUsers = 1; }
+                        if ( $ARGV[$argnum] =~ /^\-debugScript$/)               { $debug = 1; }
                 }
 }
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -710,7 +710,7 @@ sub remove_ux_uers() {
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # remove itmuser and misc CACF users
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-        if ( $removeUXusers )  {
+        if ( $removeAnsibleUsers )  {
 
                 foreach ${userid} (@cacfUsers) {
                         ++$step;

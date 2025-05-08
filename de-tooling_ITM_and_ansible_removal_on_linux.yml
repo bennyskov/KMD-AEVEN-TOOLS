@@ -29,14 +29,10 @@
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # runn de-tooling perl script
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-# -d    write debug messages
-# -u    remove ansible users. "kmduxat2,kmnuxat1,kmnuxat2,kmwuxat1,kmwuxat2,ug2uxat1,ug2uxat2,yl5uxat1,yl5uxat2" #!NOTE this is point of no return. NO ANSIBLE AND NO ITM
+# -debugScript            write debug messages
+# -removeAnsibleUsers     remove ansible users. "kmduxat2,kmnuxat1,kmnuxat2,kmwuxat1,kmwuxat2,ug2uxat1,ug2uxat2,yl5uxat1,yl5uxat2" #!NOTE this is point of no return. NO ANSIBLE AND NO ITM
 #
-# shell: perl -w de-tooling_ITM_and_ansible_removal_on_linux.pl -d -u
-#
-# "nodename" : "kmdwinitm001"
-# "removeAnsibleUsers": ""  # "-u"
-# "debugScript": ""         # "-d"
+# shell: perl -w de-tooling_ITM_and_ansible_removal_on_linux.pl -nodename [nodename] -removeAnsibleUsers -debugScript
 #
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 - name: 'A.1.0 de-tooling of servers as part of handover to Aeven'
@@ -47,13 +43,13 @@
     removeAnsibleUsers: '{{ removeAnsibleUsers }}'
     debugScript: '{{ debugScript }}'
   # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-  # set_maintenance_mode
+  #
   # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
   tasks:
   - name: 'A.1.2 Run de-tooling script'
     shell: >
       perl -w de-tooling_ITM_and_ansible_removal_on_linux.pl
-      -n {{ nodename }}
+      -nodename {{ nodename }}
       {{ removeAnsibleUsers }}
       {{ debugScript }}
     args:
