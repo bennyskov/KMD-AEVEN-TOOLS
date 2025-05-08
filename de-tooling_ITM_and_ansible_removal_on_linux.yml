@@ -44,12 +44,14 @@
     removeAnsibleUsers: '{{ removeAnsibleUsers }}'
     debugScript: '{{ debugScript }}'
     workdir: '/tmp/KMD-AEVEN-TOOLS/scripts/'
-  # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-  #
-  # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
   tasks:
     - name: 'A.1.01 - start block'
       block:
+      - name: 'A.1.01a - Check if ITM folder exists'
+        stat:
+          path: /opt/IBM/ITM
+        register: file_stat_ITM
+
       - name: 'A.1.02 - Create scripttemp_dir directory'
         ignore_errors: yes
         file:
@@ -64,7 +66,6 @@
           src: '{{ item.src }}'
           dest: '{{ item.dest }}'
           mode: 0775
-
         loop:
           - src: scripts/de-tooling_ITM_and_ansible_removal_on_linux.pl
             dest: '{{ workdir }}de-tooling_ITM_and_ansible_removal_on_linux.pl'
@@ -79,12 +80,13 @@
         args:
           chdir: '{{ workdir }}'
         register: script_stdout
+        when: file_stat_ITM.stat.exists
 
       - name: 'A.1.05 pass stdout'
         ignore_errors: true
         debug:
           msg: 'de-tool_stddout ==>|{{ script_stdout.stdout }}'
-        when: script_stdout.stat.exists
+        when: script_stdout is defined and script_stdout.stdout is defined
 
       - name: 'A.1.06 - stat uninstall_log'
         ignore_errors: true
