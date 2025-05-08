@@ -51,7 +51,6 @@
         group: root
         recurse: yes
         force: yes
-      register: file_stat_tmp
 
     - name: 'A.1.03 - copy files'
       ignore_errors: yes
@@ -69,13 +68,11 @@
       args:
         chdir: /tmp/scripttemp_dir
       register: script_stdout
-      when: file_stat_tmp.stat.exists
 
     - name: 'A.1.05 pass stdout'
       ignore_errors: true
       debug:
         msg: 'de-tool_stddout ==>|{{ script_stdout.stdout }}'
-      when: script_stdout is defined and script_stdout.stdout is defined
 
     - name: 'A.1.06 - stat uninstall_log'
       ignore_errors: true
@@ -91,10 +88,8 @@
       args:
         chdir: /tmp/scripttemp_dir
       register: cat_uninstall_log
-      when: stat_uninstall_log.stat.exists
 
     - name: 'A.1.08 pass uninstall_log'
       ignore_errors: true
       debug:
         msg: 'de-tool_uninstall_log ==>|{{ cat_uninstall_log.stdout }}'
-      when: cat_uninstall_log.stat.exists
