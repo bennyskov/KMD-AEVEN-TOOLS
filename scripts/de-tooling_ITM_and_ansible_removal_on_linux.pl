@@ -39,12 +39,12 @@ use strict;
 use File::Basename;
 # use File::Path qw(make_path);
 # use Cwd qw(abs_path);
-use Sys::Hostname;
+use Sys::nodename;
 use File::Copy;
 my($foo,$bar,$baz,$qux,$quux,$quuz,$corge,$grault,$garply,$waldo,$fred,$plugh,$xyzzy,$thud);
 my($envirShore,$step,$scriptname,$scriptn,@words);
 my(@foo,@bar,@baz,@out,@trimin,$argnum,$numArgs);
-my($cmdexec,$text,$debug,$csv_data,%hash_rtems,@csv_rows,@csv_lines,@fields,$line,$row,$count,$status,$ccode,$hostname,$itm_nodename);
+my($cmdexec,$text,$debug,$csv_data,%hash_rtems,@csv_rows,@csv_lines,@fields,$line,$row,$count,$status,$ccode,$nodename);
 my($rtemsCi,$rtemsIP,$rtemsConnect,$rtemsPairs,$rtemsFunction,$rtemsPrimSec,$rtemsTier,$rtemsEnvir,$rtemsShore,$result,$itmuser_found,$is_user_found);
 my($primary,$secondary,$pairsNumber,$CT_CMSLIST,$rtems_file,$handle,$agent,$shore,$envir);
 my($silent_config_data,$silent_config_linux_git,$silent_config_linux,$pingonly);
@@ -55,6 +55,8 @@ my($special_cfg,$special_cfg_git,$group,$userid,$logfile,@fsList,$FS,@allOut,$fi
 my($exec_ansible_cleanup,$continue,$itm_isMounted,$ansible_isMounted,$uninstall_script);
 $debug = 0;
 $removeUXusers = 0;
+$nodename = hostname;
+$nodename = lc($nodename);
 $numArgs = scalar(@ARGV);
 if ($numArgs > 0) {
         if (defined($ARGV[0]) && $ARGV[0] =~ /^(-h|-\?|--help)/) {
@@ -62,20 +64,14 @@ if ($numArgs > 0) {
         }
         foreach $argnum (0 .. $#ARGV) {
                 if (defined($ARGV[$argnum])) {
-                        if ($ARGV[$argnum] eq '-u') {
-                                $removeUXusers = 1;
-                        }
-                        if ($ARGV[$argnum] eq '-d') {
-                                $debug = 1;
-                        }
+                        if ( $ARGV[$argnum] =~ /^\-n$/) { $argnum++; $nodename = "$ARGV[$argnum]"; }
+                        if ( $ARGV[$argnum] =~ /^\-u$/) { $removeUXusers = 1; }
+                        if ( $ARGV[$argnum] =~ /^\-d$/) { $debug = 1; }
                 }
-        }
 }
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # INIT
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-$hostname           = hostname;
-$hostname           = lc($hostname);
 $scriptname         = $0;
 $scriptname         =~ s/\\/\//g; # turn slash
 @words              = split(/\//, $scriptname);
@@ -113,11 +109,11 @@ open LISTOUT, ">> $logfile" or die "cant open and write to $logfile";
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # read input
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-plog("\nhostname: $hostname");
+plog("\nnodename: $nodename");
 plog("\ndebug:    $debug");
 plog("\nscriptn:  $scriptn");
-if ( $hostname =~ /\./i) {
-        ($hostname,$bar) = split(/\./, $hostname, -1);
+if ( $nodename =~ /\./i) {
+        ($nodename,$bar) = split(/\./, $nodename, -1);
 }
 # ----------------------------------------------------------------------------------------------------------------------------
 # help
@@ -126,6 +122,7 @@ sub help_error {
 		print ("\n");
 		print ("\n");
 		print ("use: -?, for this message\n");
+                print ("use: -n, for nodename \n");
                 print ("use: -u, for remove ansible users like kmduxat1, kmduxat2.... \n");
                 print ("use: -d, for debug\n");
 		print ("\n");
