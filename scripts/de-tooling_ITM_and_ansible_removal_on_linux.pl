@@ -226,7 +226,7 @@ sub exec_ansible_cleanup {
                 @allOut = ();
                 foreach $FS (@fsList) {
                         if ($FS =~ /^$/) { next; }
-                        $cmdexec   = "find $FS -not -path "/tmp/KMD-AEVEN-TOOLS/scripts/* -delete 2>&1 || true";
+                        $cmdexec   = "find $FS -not -path /tmp/KMD-AEVEN-TOOLS/scripts/* -delete 2>&1 || true";
                         if ( $debug ) { plog("\n$cmdexec\n"); }
                         @out = `$cmdexec`;
                         trimout();
@@ -918,6 +918,7 @@ if ( $continue ) { check_uninstall_script(); }
 if ( $continue ) { stop_all_agents(); }
 if ( $continue ) { uninstall_agents(); }
 if ( $continue ) { list_opt_itm(); }
-if ( $continue ) { remove_ux_uers(); }
+if ( $removeAnsibleUsers ) { remove_ux_uers(); }
+
 plog("\nTheEnd\n");
 close LISTOUT;
