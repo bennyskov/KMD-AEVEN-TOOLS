@@ -99,18 +99,18 @@ $continue           = 1; # ~true
         "/home/*/.ansible*"
         );
 
-@cacfUsers = ("kmduxat1",
-        "kmduxat2",
-        "kmnuxat1",
-        "kmnuxat2",
-        "kmwuxat1",
-        "kmwuxat2",
-        "ug2uxat1",
-        "ug2uxat2",
-        "yl5uxat1",
-        "yl5uxat2");
+# @cacfUsers = ("kmduxat1",
+#         "kmduxat2",
+#         "kmnuxat1",
+#         "kmnuxat2",
+#         "kmwuxat1",
+#         "kmwuxat2",
+#         "ug2uxat1",
+#         "ug2uxat2",
+#         "yl5uxat1",
+#         "yl5uxat2");
 
-# @cacfUsers = ('itmuser','dk017862');
+@cacfUsers = ('itmuser');
 
 $logfile = "de_tooling_removal_linux.log";
 unlink("$logfile");
