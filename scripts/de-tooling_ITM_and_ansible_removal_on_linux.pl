@@ -95,8 +95,7 @@ $continue           = 1; # ~true
         "/var/opt/ansible*",
         "/var/log/ansible*",
         "/_opt_IBM_ITM_i",
-        "/usr/bin/ansibl*",
-        "/home/*/.ansible*"
+        "/usr/bin/ansibl*"
         );
 
 # @cacfUsers = ("kmduxat1",
