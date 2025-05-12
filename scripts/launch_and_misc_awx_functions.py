@@ -294,15 +294,16 @@ else:
 if re.search(r".*kmdwinitm001.*", awx_hostname, re.IGNORECASE): isRunningLocally = True
 if re.search(r"^automation-job.*", awx_hostname, re.IGNORECASE): isRunningLocally = False
 if isRunningLocally:
-    nodename            = 'kmdlnxprx001'
+    nodename            = 'stsapp4215'
     change              = "CHG000000"
     twusr               = 'functional_id_001'
     twpwd               = 'm9AHKuXYa*MeZZWLsHqB'
     #
     #
+    launch_template_name= 'kmn_jobtemplate_de-tooling_ITM_and_ansible_removal_on_linux'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_disable_SCCM_windows'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_REinstall_ITM_windows' # not part of kmn_jobtemplate_de-tooling_begin
-    launch_template_name= 'kmn_jobtemplate_de-tooling_cleanup_CACF_linux'
+    # launch_template_name= 'kmn_jobtemplate_de-tooling_cleanup_CACF_linux'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_servercheck_windows'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_set_maintenancemode'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_windows'
@@ -728,44 +729,43 @@ if CONTINUE and LAUNCH_TEMPLATE:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # launch_job_template
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# if CONTINUE and LAUNCH_TEMPLATE:
-#     try:
-#         stepName = f'{exectype}_launch_job_template'
-#         f_log(f'{stepName}','',debug)
-#         f_log(f'credentials_ids',f'{credentials_ids}',debug)
-#         if useRestAPI:
-#             payload = {
-#                 "inventory": inventory_id,
-#                 "credentials": credentials_ids,
-#                 "extra_vars": {
-#                     "nodename": f"{nodename}",
-#                     "change" : "CHG000000"
-#                 }
-#             }
-#             request = f'job_templates/{template_id}/launch/'
-#             result,RC = f_requests(request,twusr,twpwd,payload,debug)
-#             # f_log(f'result',f'{result}',debug)
-#             # jobid = result['id']
-#             # f_log(f'jobid',f'{jobid}',debug)
-#         else:
-#             job_template    = f'--name {launch_template_name} '
-#             credential      = f'--credentials {credentials_ids} '
-#             inventory       = f'--inventory {inventory_id} '
-#             extra_vars = {
-#                 'nodename': f'{nodename}',
-#                 'change': f'{change}',
-#             }
-#             extra_vars  = f'--extra_vars \"{extra_vars}\"'
-#             cmdexec = f"awx job_templates launch {launch_template_name} {credential} {inventory} {extra_vars}"
-#             f_log(f'cmdexec',f'{cmdexec}',debug)
-#             # result,RC = f_cmdexec(cmdexec,debug)
-#             # jobid = result['id']
-#             # f_log(f'jobid',f'{jobid}',debug)
-#         if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
-#         if isRunningLocally:
-#             f_dump_and_write(result,stepName,debug)
-#     except Exception as e:
-#         if debug: logging.error(e)
-#         RC = 12
+if CONTINUE and LAUNCH_TEMPLATE:
+    try:
+        stepName = f'{exectype}_launch_job_template'
+        f_log(f'{stepName}','',debug)
+        f_log(f'credentials_ids',f'{credentials_ids}',debug)
+        if useRestAPI:
+            payload = {
+                "inventory": inventory_id,
+                "credentials": credentials_ids,
+                "extra_vars": {
+                    "nodename": f"{nodename}",
+                    "change" : "CHG000000"
+                }
+            }
+            request = f'job_templates/{template_id}/launch/'
+            result,RC = f_requests(request,twusr,twpwd,payload,debug)
+            # f_log(f'result',f'{result}',debug)
+            # jobid = result['id']
+            # f_log(f'jobid',f'{jobid}',debug)
+        else:
+            job_template    = f'--name {launch_template_name} '
+            credential      = f'--credentials {credentials_ids} '
+            inventory       = f'--inventory {inventory_id} '
+            extra_vars = {
+                'nodename': f'{nodename}',
+            }
+            extra_vars  = f'--extra_vars \"{extra_vars}\"'
+            cmdexec = f"awx job_templates launch {launch_template_name} {credential} {inventory} {extra_vars}"
+            f_log(f'cmdexec',f'{cmdexec}',debug)
+            # result,RC = f_cmdexec(cmdexec,debug)
+            # jobid = result['id']
+            # f_log(f'jobid',f'{jobid}',debug)
+        if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
+        if isRunningLocally:
+            f_dump_and_write(result,stepName,debug)
+    except Exception as e:
+        if debug: logging.error(e)
+        RC = 12
 f_end(RC)
 #endregion
