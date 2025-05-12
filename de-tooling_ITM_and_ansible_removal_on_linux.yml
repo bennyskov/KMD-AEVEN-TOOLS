@@ -36,6 +36,17 @@
 # shell: perl -w de-tooling_ITM_and_ansible_removal_on_linux.pl -nodename [nodename] -removeAnsibleUsers -debugScript
 #
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+- name: 'A.1.0a checks'
+  hosts: '{{ nodename }}'
+  become: true
+  gather_facts: false
+  tasks:
+    - name: 'A.1.0b - test ssh'
+      ignore_errors: yes
+      shell: >
+        ssh -vvv username@172.30.213.77 && echo "SSH connection successful"
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 - name: 'A.1.0 de-tooling of servers as part of handover to Aeven'
   hosts: '{{ nodename }}'
   become: true
