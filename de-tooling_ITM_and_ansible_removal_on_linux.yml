@@ -41,10 +41,23 @@
   become: true
   gather_facts: false
   tasks:
-    - name: 'A.1.0b - test ssh'
+    - name: 'A.1.0b - test ssh with debugging'
+      ignore_errors: yes
+      vars:
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -vvv'
+        ansible_ssh_retries: 3
+        ansible_connection_timeout: 30
+      shell: >
+        ssh -o PreferredAuthentications=publickey
+            -o PubkeyAuthentication=yes
+            -o PasswordAuthentication=no
+            -v pimuxte@172.30.213.77
+
+    - name: 'A.1.0c - test ssh'
       ignore_errors: yes
       shell: >
-        ssh -vvv username@172.30.213.77 && echo "SSH connection successful"
+        ssh -v -o ProxyCommand="ssh -W %h:%p kmdjbat2@84.255.92.111 -i $JH1_SSH_PRIVATE_KEY" pimuxte@172.30.213.77
+
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 - name: 'A.1.0 de-tooling of servers as part of handover to Aeven'
