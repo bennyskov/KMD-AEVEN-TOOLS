@@ -73,29 +73,38 @@ if ($numArgs > 0) {
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # INIT
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 $scriptname         = $0;
 $scriptname         =~ s/\\/\//g; # turn slash
 @words              = split(/\//, $scriptname);
 $scriptn            = $words[$#words];
 $scriptn            =~ s/\.pl//g;
 $continue           = 1; # ~true
-@fsList = ("/var/opt/ansible",
-        "/var/opt/ansible_workdir",
-        "/etc/ansible",
-        "/root/.ansible_async",
-        "/tmp/gts-ansible",
-        "/etc/opt/bigfix",
+# @fsList_orig = ("/var/opt/ansible",
+#         "/var/opt/ansible_workdir",
+#         "/etc/ansible",
+#         "/root/.ansible_async",
+#         "/tmp/gts-ansible",
+#         "/etc/opt/bigfix",
+#         "/var/tmp/ilmt",
+#         "/var/tmp/aicbackup/ilmt",
+#         "/var/db/sudo/lectured/ansible",
+#         "/etc/opt/Bigfix",
+#         "/etc/BESClient",
+#         "/tmp/*BESClient*",
+#         "/root/.ansible",
+#         "/var/opt/ansible*",
+#         "/var/log/ansible*",
+#         "/_opt_IBM_ITM_i",
+#         "/usr/bin/ansibl*"
+#         );
+@fsList = ("/etc/opt/bigfix",
         "/var/tmp/ilmt",
         "/var/tmp/aicbackup/ilmt",
-        "/var/db/sudo/lectured/ansible",
         "/etc/opt/Bigfix",
         "/etc/BESClient",
         "/tmp/*BESClient*",
-        "/root/.ansible",
-        "/var/opt/ansible*",
-        "/var/log/ansible*",
         "/_opt_IBM_ITM_i",
-        "/usr/bin/ansibl*"
         );
 
 # @cacfUsers = ("kmduxat1",
