@@ -51,10 +51,10 @@ my($silent_config_data,$silent_config_linux_git,$silent_config_linux,$pingonly);
 my($env_file,$env_file_git,$env_data);
 my($ini_file,$ini_file_git,$ini_data);
 my($con_file,$con_file_git,$agent_con_data);
-my($special_cfg,$special_cfg_git,$group,$userid,$logfile,@fsList,$FS,@allOut,$file,@cacfUsers,$removeAnsibleUsers);
+my($special_cfg,$special_cfg_git,$group,$userid,$logfile,@fsList,$FS,@allOut,$file,@cacfUsers,$RemoveAnsibleUsers);
 my($exec_ansible_cleanup,$continue,$itm_isMounted,$ansible_isMounted,$uninstall_script);
 $debug = 0;
-$removeAnsibleUsers = 0;
+$RemoveAnsibleUsers = 0;
 $nodename = hostname;
 $nodename = lc($nodename);
 $numArgs = scalar(@ARGV);
@@ -65,8 +65,8 @@ if ($numArgs > 0) {
         foreach $argnum (0 .. $#ARGV) {
                 if (defined($ARGV[$argnum])) {
                         if ( $ARGV[$argnum] =~ /^\-nodename$/)                  { $argnum++; $nodename = "$ARGV[$argnum]"; }
-                        if ( $ARGV[$argnum] =~ /^\-removeAnsibleUsers$/)        { $removeAnsibleUsers = 1; }
-                        if ( $ARGV[$argnum] =~ /^\-debugScript$/)               { $debug = 1; }
+                        if ( $ARGV[$argnum] =~ /^\-RemoveAnsibleUsers$/)        { $RemoveAnsibleUsers = 1; }
+                        if ( $ARGV[$argnum] =~ /^\-DebugScript$/)               { $debug = 1; }
                 }
         }
 }
@@ -728,7 +728,7 @@ sub remove_ux_uers() {
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # remove itmuser and misc CACF users
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-        if ( $removeAnsibleUsers )  {
+        if ( $RemoveAnsibleUsers )  {
 
                 foreach ${userid} (@cacfUsers) {
                         ++$step;
@@ -926,7 +926,7 @@ if ( $continue ) { check_uninstall_script(); }
 if ( $continue ) { stop_all_agents(); }
 if ( $continue ) { uninstall_agents(); }
 if ( $continue ) { list_opt_itm(); }
-if ( $removeAnsibleUsers ) { remove_ux_uers(); }
+if ( $RemoveAnsibleUsers ) { remove_ux_uers(); }
 
 plog("\nTheEnd\n");
 close LISTOUT;
