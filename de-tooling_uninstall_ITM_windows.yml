@@ -61,10 +61,10 @@
 # now working on {{ nodename }} host
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #
-# Installation playbook of a ITM agent on Windows server
+# Install or UNinstallation playbook of a ITM agent on Windows server
 #
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: "Installation playbook of a ITM agent on Windows server {{ hostlist }}"
+- name: "# Install or UNinstallation playbook of a ITM agent on Windows server {{ nodename }}"
   hosts: "{{ nodename }}"
   become: true
   gather_facts: true
@@ -74,8 +74,8 @@
     itmZip: "ITM_win_6307SP14-349-1KMD.zip"
     RepoUrl: "http://84.255.93.70:8080/repository/ITM/"
     tmpdir: "C:/Windows/Temp/KMD-AEVEN-TOOLS/"
-    debugfile: "ITMAgentInstall_windows_debugfile.log"
-    pingfile: "ITMAgentInstall_windows_pingfile.log"
+    debugfile: "ITMAgentInstall_UNinstall_windows_debugfile.log"
+    pingfile: "ITMAgentInstall_UNinstall_windows_pingfile.log"
     no_proxy: 84.255.93.70
     trans_num: "{{ tower_job_id }}"
   tasks:
@@ -106,7 +106,7 @@
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     # Delete & create new KMD-AEVEN-TOOLS directory
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: "Get-Processes on  {{ nodename }}"
+    - name: "Get-Processes on {{ nodename }}"
       run_once: true
       win_shell: Get-Process -Name "*ITM*"
       ignore_errors: yes
@@ -116,7 +116,7 @@
       debug:
         var: script_getprocess.stdout_lines
 
-    - name: "Delete tmpdir directory on  {{ nodename }}"
+    - name: "Delete tmpdir directory on {{ nodename }}"
       run_once: true
       win_file:
         path: "{{ tmpdir }}"
@@ -222,10 +222,10 @@
         delete_archive: yes
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     # run python script
-    # {{ tmpdir }}PortablePython/Scripts/python.exe {{ tmpdir }}ITMAgentInstall_windows.py
-    # ITMAgentInstall_windows.cmd -nodename kmdwinitm001 -ccode kmn -shore nearshore -envir . -f
+    # {{ tmpdir }}PortablePython/Scripts/python.exe {{ tmpdir }}ITMAgentInstall_UNinstall_windows.py
+    # ITMAgentInstall_UNinstall_windows.cmd -nodename kmdwinitm001 -ccode kmn -shore nearshore -envir . -f
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: Run ITMAgentInstall_windows
+    - name: Run ITMAgentInstall_UNinstall_windows
       win_shell: ./ITMAgentInstall_UNinstall_windows.cmd -nodename {{ nodename }} -u -d -f
       args:
         chdir: "{{ tmpdir }}scripts/"
@@ -288,16 +288,16 @@
         path: "{{ tmpdir }}scripts/ITM_win_6307SP14-349-1KMD"
         state: absent
 
-    - name: Remove ITMAgentInstall_windows.cmd
+    - name: Remove ITMAgentInstall_UNinstall_windows.cmd
       ignore_errors: true
       win_file:
-        path: "{{ tmpdir }}scripts/ITMAgentInstall_windows.cmd"
+        path: "{{ tmpdir }}scripts/ITMAgentInstall_UNinstall_windows.cmd"
         state: absent
 
-    - name: Remove ITMAgentInstall_windows.py
+    - name: Remove ITMAgentInstall_UNinstall_windows.py
       ignore_errors: true
       win_file:
-        path: "{{ tmpdir }}scripts/ITMAgentInstall_windows.py"
+        path: "{{ tmpdir }}scripts/ITMAgentInstall_UNinstall_windows.py"
         state: absent
 
     - name: Remove ITMAgentRepair_linux.pl
