@@ -58,14 +58,14 @@
         var: script_tmp.stdout_lines
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-# now working on {{ hostlist }} host
+# now working on {{ nodename }} host
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 #
 # Installation playbook of a ITM agent on Windows server
 #
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 - name: "Installation playbook of a ITM agent on Windows server {{ hostlist }}"
-  hosts: "{{ hostlist }}"
+  hosts: "{{ nodename }}"
   become: true
   gather_facts: true
   vars:
@@ -73,7 +73,7 @@
     PortablePythonDir: "PortablePython"
     itmZip: "ITM_win_6307SP14-349-1KMD.zip"
     RepoUrl: "http://84.255.93.70:8080/repository/ITM/"
-    tmpdir: "C:/Windows/Temp/HSM-TOOLS/"
+    tmpdir: "C:/Windows/Temp/KMD-AEVEN-TOOLS/"
     debugfile: "ITMAgentInstall_windows_debugfile.log"
     pingfile: "ITMAgentInstall_windows_pingfile.log"
     no_proxy: 84.255.93.70
@@ -82,7 +82,7 @@
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     # write global vars
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: "print debug vars {{ hostlist }}"
+    - name: "print debug vars {{ nodename }}"
       debug:
         msg: |-
           "RepoUrl = {{ RepoUrl }}"
@@ -104,9 +104,9 @@
       debug:
         var: path_out.stdout_lines
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    # Delete & create new HSM-TOOLS directory
+    # Delete & create new KMD-AEVEN-TOOLS directory
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: "Get-Processes on  {{ hostlist }}"
+    - name: "Get-Processes on  {{ nodename }}"
       run_once: true
       win_shell: Get-Process -Name "*ITM*"
       ignore_errors: yes
@@ -116,7 +116,7 @@
       debug:
         var: script_getprocess.stdout_lines
 
-    - name: "Delete tmpdir directory on  {{ hostlist }}"
+    - name: "Delete tmpdir directory on  {{ nodename }}"
       run_once: true
       win_file:
         path: "{{ tmpdir }}"
@@ -226,12 +226,7 @@
     # ITMAgentInstall_windows.cmd -nodename kmdwinitm001 -ccode kmn -shore nearshore -envir . -f
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     - name: Run ITMAgentInstall_windows
-      win_shell: >
-        ./ITMAgentInstall_UNinstall_windows.cmd
-        -nodename {{ hostlist }}
-        {{ UninstallClanup }}
-        {{ DisableAllServices }}
-        {{ ForceUninstall }}
+      win_shell: ./ITMAgentInstall_UNinstall_windows.cmd -nodename {{ nodename }} -u -d -f
       args:
         chdir: "{{ tmpdir }}scripts/"
       register: script_run
@@ -365,7 +360,7 @@
         state: absent
         remote_src: no
 
-    - name: "List whats left on {{ hostlist }}"
+    - name: "List whats left on {{ nodename }}"
       run_once: true
       win_shell: Get-ChildItem -Recurse -Path "{{ tmpdir }}"
       ignore_errors: yes

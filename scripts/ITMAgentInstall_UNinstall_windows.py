@@ -25,6 +25,8 @@ from pathlib import Path
 from pprint import pprint
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+import warnings
+warnings.filterwarnings('ignore', category=SyntaxWarning)
 # ---------------------------------------------------------------------------------------------------------------------------------------
 #
 #
@@ -55,13 +57,13 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # ---------------------------------------------------------------------------------------------------------------------------------------
 # Changelog
 #
-# ITMAgentInstall_windows.py    :   Uninstall All ITM agents, and INSTALL new thereafter
+# ITMAgentInstall_UNinstall_windows.py    :   Uninstall All ITM agents, and INSTALL new thereafter
 #
 # 2024-02-27    version V1.0    :   Initial release ( Benny Skov/Denmark/IBM )
 #
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 #
-#   .\ITMAgentInstall_windows.py -nodename kmdwinitm001 -ccode kmn -shore nearshore -envir classic
+#   .\ITMAgentInstall_UNinstall_windows.py -nodename kmdwinitm001 -ccode kmn -shore nearshore -envir classic
 #
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # INIT logging
@@ -76,10 +78,10 @@ scriptName  = sys.argv[0]
 scriptName  = scriptName.replace('\\','/').strip()
 scriptName  = scriptName.split('/')[-1]
 scriptName  = scriptName.split(".")[0]
-# if getattr(sys, 'frozen', False):
-#     workdir = os.path.dirname(sys.executable) # needed for getting the current dir where the exe file is placed
-# else:
-#     workdir = os.path.dirname(os.path.abspath(__file__))
+if getattr(sys, 'frozen', False):
+    workdir = os.path.dirname(sys.executable) # needed for getting the current dir where the exe file is placed
+else:
+    workdir = os.path.dirname(os.path.abspath(__file__))
 workdir     = os.path.dirname(os.path.abspath(__file__))
 workdir     = workdir.replace('\\','/').strip()
 workdir     = workdir.split('/')[0:-1]
@@ -112,12 +114,12 @@ def f_help_error():
     print(" ")
     print("\t\t\texample:")
     print(" ")
-    print('\t\t\t ITMAgentInstall_windows.cmd -nodename kmdwinitm001 -ccode kmn -shore nearshore -envir . -f')
-    print('\t\t\t ITMAgentInstall_windows.cmd -nodename kmdwinitm001 -ccode kmn -shore nearshore -envir classic -f')
-    print('\t\t\t ITMAgentInstall_windows.cmd -nodename kmdwinitm001 -ccode kmn -primary 84.255.124.200 -secondary 84.255.124.201 -f')
-    print('\t\t\t ITMAgentInstall_windows.cmd -nodename kmdwinitm001 -p      ( ping only. )')
-    print('\t\t\t ITMAgentInstall_windows.cmd -nodename kmdwinitm001 -u      ( uninstall only. )')
-    print('\t\t\t ITMAgentInstall_windows.cmd -nodename kmdwinitm001 -u -d   ( set all services disabled. and uninstall )')
+    print('\t\t\t ITMAgentInstall_UNinstall_windows.cmd -nodename kmdwinitm001 -ccode kmn -shore nearshore -envir . -f')
+    print('\t\t\t ITMAgentInstall_UNinstall_windows.cmd -nodename kmdwinitm001 -ccode kmn -shore nearshore -envir classic -f')
+    print('\t\t\t ITMAgentInstall_UNinstall_windows.cmd -nodename kmdwinitm001 -ccode kmn -primary 84.255.124.200 -secondary 84.255.124.201 -f')
+    print('\t\t\t ITMAgentInstall_UNinstall_windows.cmd -nodename kmdwinitm001 -p      ( ping only. )')
+    print('\t\t\t ITMAgentInstall_UNinstall_windows.cmd -nodename kmdwinitm001 -u      ( uninstall only. )')
+    print('\t\t\t ITMAgentInstall_UNinstall_windows.cmd -nodename kmdwinitm001 -u -d   ( set all services disabled. and uninstall )')
     print(" ")
     print(" ")
     exit()
@@ -553,7 +555,7 @@ pwsh                = "powershell -ExecutionPolicy bypass -NoProfile -NonInterac
 # settings for ITM6 agent uninstall
 #
 # ----------------------------------------------------------------------------------------------------------------------------
-project             = "HSM-TOOLS"
+project             = "KMD-AEVEN-TOOLS"
 UninstName          = 'ITMRmvAll.exe'
 DisplayName         = 'monitoring Agent'
 ServiceName         = '^k.*'
@@ -967,13 +969,13 @@ else:
     # ----------------------------------------
     # cleanup config & make a new zip file
     # ----------------------------------------
-    zip_path = f"{workdir}/smitoolConfigZIP.zip"
+    zip_path = f"{workdir}/scripts/smitoolConfigZIP.zip"
     archive_path = "C:/IBM/ITM/smitools/config/"
     f_zip_archive(zip_path, archive_path,debug)
     # ----------------------------------------
     # cleanup scripts & make a new zip file
     # ----------------------------------------
-    zip_path = f"{workdir}/smitoolScriptZIP.zip"
+    zip_path = f"{workdir}/scripts/smitoolScriptZIP.zip"
     archive_path = "C:/IBM/ITM/smitools/scripts/"
     f_zip_archive(zip_path, archive_path,debug)
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1100,7 +1102,7 @@ if Install:
     # ----------------------------------------
     # extract config
     # ----------------------------------------
-    zip_path = f"{workdir}/smitoolConfigZIP.zip"
+    zip_path = f"{workdir}/scripts/smitoolConfigZIP.zip"
     extract_path = "C:/IBM/ITM/smitools/config"
     f_zip_extract(zip_path, extract_path,debug)
     # ----------------------------------------
