@@ -11,8 +11,8 @@ from datetime import timedelta
 from subprocess import Popen, PIPE, CalledProcessError
 from datetime import datetime
 from sys import exit
-# from awxkit import *
-# from awxkit.api.pages import Api
+from awxkit import *
+from awxkit.api.pages import Api
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import warnings
@@ -149,7 +149,6 @@ def f_load_data(string):
     if not string or string.isspace():
         return ""
 
-    # First try to parse as JSON which is the most likely format from AWX CLI
     try:
         obj = json.loads(string)
         return obj
@@ -294,19 +293,19 @@ else:
 if re.search(r".*kmdwinitm001.*", awx_hostname, re.IGNORECASE): isRunningLocally = True
 if re.search(r"^automation-job.*", awx_hostname, re.IGNORECASE): isRunningLocally = False
 if isRunningLocally:
-    nodename            = 'stsapp4215'
+    nodename            = 'kmdwinitm001'
     change              = "CHG000000"
     twusr               = 'functional_id_001'
     twpwd               = 'm9AHKuXYa*MeZZWLsHqB'
     #
     #
-    launch_template_name= 'kmn_jobtemplate_de-tooling_ITM_and_ansible_removal_on_linux'
+    # launch_template_name= 'kmn_jobtemplate_de-tooling_ITM_and_ansible_removal_on_linux'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_disable_SCCM_windows'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_REinstall_ITM_windows' # not part of kmn_jobtemplate_de-tooling_begin
     # launch_template_name= 'kmn_jobtemplate_de-tooling_cleanup_CACF_linux'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_servercheck_windows'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_set_maintenancemode'
-    # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_windows'
+    launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_windows'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_linux'
     #
     #
@@ -431,7 +430,7 @@ if CONTINUE:
                 os.environ['TOWER_OAUTH_TOKEN'] = twtok
                 f_log('New token obtained', f'{twtok[:10]}...', debug)
 
-                # Configure AWX client to use the token
+                # Configure client to use the token
                 cmdexec = ['awx', 'config', 'oauth_token', f'{twtok}']
                 result, RC = f_cmdexec(cmdexec, debug)
                 # f_log('token config', f'{result}', debug)
@@ -727,6 +726,49 @@ if CONTINUE and LAUNCH_TEMPLATE:
 #endregion
 #region launch_job_template
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
+# syntax check playbook
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+if CONTINUE and LAUNCH_TEMPLATE:
+    try:
+        # curl -k -H "Authorization: Bearer $TOWER_TOKEN" https://your-tower-url/api/v2/jobs/job_template_id/launch/ -X POST -H "Content-Type: application/json" --data '{"extra_vars": {"check_mode": true}}'
+        stepName = f'{exectype}_template_syntax_check'
+        f_log(f'{stepName}','',debug)
+        f_log(f'credentials_ids',f'{credentials_ids}',debug)
+        if useRestAPI:            payload = {
+                "inventory": inventory_id,
+                "credentials": credentials_ids,
+                "extra_vars": {
+                    "nodename": nodename,
+                    "check_mode": True
+                }
+            }
+            request = f'job_templates/{template_id}/launch/'
+            result,RC = f_requests(request,twusr,twpwd,payload,debug)
+            f_log(f'result',f'{result}',debug)
+            jobid = result['id']
+            f_log(f'jobid',f'{jobid}',debug)
+        else:
+            job_template    = f'--name {launch_template_name} '
+            credential      = f'--credentials {credentials_ids} '
+            inventory       = f'--inventory {inventory_id} '            extra_vars = {
+                'nodename': f'{nodename}',
+                'check_mode': True
+            }
+            extra_vars  = f'--extra_vars \"{extra_vars}\"'
+            cmdexec = f"awx job_templates launch {launch_template_name} {credential} {inventory} {extra_vars}"
+            f_log(f'cmdexec',f'{cmdexec}',debug)
+            # result,RC = f_cmdexec(cmdexec,debug)
+            # jobid = result['id']
+            # f_log(f'jobid',f'{jobid}',debug)
+        if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
+        if isRunningLocally:
+            f_dump_and_write(result,stepName,debug)
+    except Exception as e:
+        if debug: logging.error(e)
+        RC = 12
+#endregion
+#region launch_job_template
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # launch_job_template
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 if CONTINUE and LAUNCH_TEMPLATE:
@@ -739,8 +781,7 @@ if CONTINUE and LAUNCH_TEMPLATE:
                 "inventory": inventory_id,
                 "credentials": credentials_ids,
                 "extra_vars": {
-                    "nodename": f"{nodename}",
-                    "change" : "CHG000000"
+                    "nodename": f"{nodename}"
                 }
             }
             request = f'job_templates/{template_id}/launch/'
