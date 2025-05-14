@@ -188,6 +188,7 @@ def f_requests(request,twusr,twpwd,payload,debug):
         f_log(f'url',f'{url}',debug)
         if isinstance(payload, dict) and payload:
             payload = json.dumps(payload, ensure_ascii=False)
+            f_log(f'payload',f'{payload}',debug)
             response = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False, timeout=1440)
         else:
             response = requests.get(url, auth=(twusr, twpwd), verify=False, timeout=1440)
@@ -226,6 +227,7 @@ def f_requestsUpdate(update_request,twusr,twpwd,payload,debug):
         f_log(f'url',f'{url}',debug)
         if isinstance(payload, dict) and payload:
             payload = json.dumps(payload, ensure_ascii=False)
+            f_log(f'payload',f'{payload}',debug)
         response = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False, timeout=1440)
         response.raise_for_status()
         if response.status_code == 200 or response.status_code == 201:
@@ -733,10 +735,10 @@ if CONTINUE and LAUNCH_TEMPLATE:
         RC = 12
         exit(RC)
 #endregion
-#region launch_job_template
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# syntax check playbook
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+# #region _template_syntax_check
+# # ----------------------------------------------------------------------------------------------------------------------------------------------------------
+# # _template_syntax_check
+# # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # if CONTINUE and LAUNCH_TEMPLATE:
 #     try:
 #         stepName = f'{exectype}_template_syntax_check'
@@ -751,26 +753,23 @@ if CONTINUE and LAUNCH_TEMPLATE:
 #                     "check_mode": True
 #                 }
 #             }
-#             f_log(f'payload',f'{payload}',debug)
 #             request = f'job_templates/{template_id}/launch/'
 #             result,RC = f_requests(request,twusr,twpwd,payload,debug)
 #             f_log(f'result',f'{result}',debug)
-#             # jobid = result['id']
-#             # f_log(f'jobid',f'{jobid}',debug)
+#             jobid = result['id']
+#             f_log(f'jobid',f'{jobid}',debug)
 #         else:
 #             job_template    = f'--name {launch_template_name} '
 #             credential      = f'--credentials {credentials_ids} '
 #             inventory       = f'--inventory {inventory_id} '
 #             extra_vars = {
-#                 'nodename': nodename,
-#                 'check_mode': True
+#                 "nodename": f"{nodename}",
 #             }
+#             extra_vars  = json.dumps(extra_vars, ensure_ascii=False)
 #             extra_vars  = f'--extra_vars \"{extra_vars}\"'
-#             f_log(f'extra_vars',f'{extra_vars}',debug)
 #             cmdexec = f"awx job_templates launch {launch_template_name} {credential} {inventory} {extra_vars}"
 #             f_log(f'cmdexec',f'{cmdexec}',debug)
 #             result,RC = f_cmdexec(cmdexec,debug)
-#             f_log(f'result',f'{result}',debug)
 #             # jobid = result['id']
 #             # f_log(f'jobid',f'{jobid}',debug)
 #         if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
@@ -779,7 +778,7 @@ if CONTINUE and LAUNCH_TEMPLATE:
 #     except Exception as e:
 #         if debug: logging.error(e)
 #         RC = 12
-#endregion
+# #endregion
 #region launch_job_template
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # launch_job_template
@@ -790,30 +789,18 @@ if CONTINUE and LAUNCH_TEMPLATE:
         f_log(f'{stepName}','',debug)
         f_log(f'credentials_ids',f'{credentials_ids}',debug)
         if useRestAPI:
-            # payload = {
-            #     "inventory": inventory_id,
-            #     "credentials": credentials_ids,
-            #     "extra_vars": {
-            #         "nodename": nodename
-            #     }
-            # }
-            # payload = payload.replace('\'','\"').strip()
-            # f_log(f'payload replaced with \"\"',f'{payload}',debug)
             payload = {
-                'inventory': inventory_id,
-                'credentials': credentials_ids,
-                'extra_vars': {
-                    'nodename': nodename
+                "inventory": inventory_id,
+                "credentials": credentials_ids,
+                "extra_vars": {
+                    "nodename": nodename
                 }
             }
-            payload_json = json.dumps(payload, ensure_ascii=False)
-
-            f_log(f'payload_json',f'{payload_json}',debug)
             request = f'job_templates/{template_id}/launch/'
-            result,RC = f_requests(request,twusr,twpwd,payload_json,debug)
+            result,RC = f_requests(request,twusr,twpwd,payload,debug)
             f_log(f'result',f'{result}',debug)
-            # jobid = result['id']
-            # f_log(f'jobid',f'{jobid}',debug)
+            jobid = result['id']
+            f_log(f'jobid',f'{jobid}',debug)
         else:
             job_template    = f'--name {launch_template_name} '
             credential      = f'--credentials {credentials_ids} '

@@ -8,6 +8,7 @@
 		}
 	],
 	"settings": {
-		"powershell.cwd": "KMD-AEVEN-TOOLS"
+		"powershell.cwd": "KMD-AEVEN-TOOLS",
+		"terminal.integrated.wordWrap": false
 	}
 }
