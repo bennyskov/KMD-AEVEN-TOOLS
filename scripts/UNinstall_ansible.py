@@ -1,24 +1,17 @@
 # -*- coding: utf-8 -*-
-# Standard library imports first
 import json
-import os
-import sys
+import pandas as pd
+import sys, os
 import re
-from time import time, sleep
+import time
+import logging
+import logging.config
 import shutil
+import psutil
 import random
 import platform
-import socket
-from pathlib import Path
-from datetime import datetime, timedelta
-from subprocess import Popen, PIPE, CalledProcessError
-import subprocess
-from pprint import pprint
-
-# Third party imports
-import pandas as pd
-import psutil
 import ipaddress
+import socket
 import wmi
 import dns
 from dns import resolver
@@ -33,48 +26,10 @@ from pprint import pprint
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import warnings
-# Suppress all SyntaxWarnings for invalid escape sequences in the dns module
-warnings.filterwarnings('ignore', r'invalid escape sequence.*', SyntaxWarning, 'dns.ipv6')
-warnings.filterwarnings('ignore', r'invalid escape sequence.*', SyntaxWarning, 'dns.rdata')
 warnings.filterwarnings('ignore', category=SyntaxWarning)
-# ---------------------------------------------------------------------------------------------------------------------------------------
-#
-#
-#                                                                             dddddddd
-#   kkkkkkkk                                                                  d::::::d                                        lllllll
-#   k::::::k                                                                  d::::::d                                        l:::::l
-#   k::::::k                                                                  d::::::d                                        l:::::l
-#   k::::::k                                                                  d:::::d                                         l:::::l
-#   k:::::k    kkkkkkkyyyyyyy           yyyyyyynnnn  nnnnnnnn        ddddddddd:::::drrrrr   rrrrrrrrryyyyyyy           yyyyyyyl::::l
-#   k:::::k   k:::::k  y:::::y         y:::::y n:::nn::::::::nn    dd::::::::::::::dr::::rrr:::::::::ry:::::y         y:::::y l::::l
-#   k:::::k  k:::::k    y:::::y       y:::::y  n::::::::::::::nn  d::::::::::::::::dr:::::::::::::::::ry:::::y       y:::::y  l::::l
-#   k:::::k k:::::k      y:::::y     y:::::y   nn:::::::::::::::nd:::::::ddddd:::::drr::::::rrrrr::::::ry:::::y     y:::::y   l::::l
-#   k::::::k:::::k        y:::::y   y:::::y      n:::::nnnn:::::nd::::::d    d:::::d r:::::r     r:::::r y:::::y   y:::::y    l::::l
-#   k:::::::::::k          y:::::y y:::::y       n::::n    n::::nd:::::d     d:::::d r:::::r     rrrrrrr  y:::::y y:::::y     l::::l
-#   k:::::::::::k           y:::::y:::::y        n::::n    n::::nd:::::d     d:::::d r:::::r               y:::::y:::::y      l::::l
-#   k::::::k:::::k           y:::::::::y         n::::n    n::::nd:::::d     d:::::d r:::::r                y:::::::::y       l::::l
-#   k::::::k k:::::k           y:::::::y          n::::n    n::::nd::::::ddddd::::::ddr:::::r                 y:::::::y       l::::::l
-#   k::::::k  k:::::k           y:::::y           n::::n    n::::n d:::::::::::::::::dr:::::r                  y:::::y        l::::::l
-#   k::::::k   k:::::k         y:::::y            n::::n    n::::n  d:::::::::ddd::::dr:::::r                 y:::::y         l::::::l
-#   kkkkkkkk    kkkkkkk       y:::::y             nnnnnn    nnnnnn   ddddddddd   dddddrrrrrrr                y:::::y          llllllll
-#                            y:::::y                                                                        y:::::y
-#                           y:::::y                                                                        y:::::y
-#                          y:::::y                                                                        y:::::y
-#                         y:::::y                                                                        y:::::y
-#                        yyyyyyy                                                                        yyyyyyy
-#
-#
-# ---------------------------------------------------------------------------------------------------------------------------------------
-# Changelog
-#
-# ITMAgentInstall_UNinstall_windows.py    :   Uninstall All ITM agents, and INSTALL new thereafter
-#
-# 2024-02-27    version V1.0    :   Initial release ( Benny Skov/Denmark/IBM )
-#
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-#
-#   .\ITMAgentInstall_UNinstall_windows.py -nodename kmdwinitm001 -ccode kmn -shore nearshore -envir classic
-#
+# Specifically ignore dns module escape sequence warnings
+warnings.filterwarnings('ignore', r'.*SyntaxWarning.*invalid escape sequence.*')
+warnings.filterwarnings('ignore', r'.*token.is_identifier.*')
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # INIT logging
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -82,7 +37,7 @@ version     = "version KMD V1.2"
 debug       = bool
 debug       = True
 RC          = 0
-start       = time()
+start       = time.time()
 now         = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 scriptName  = sys.argv[0]
 scriptName  = scriptName.replace('\\','/').strip()
@@ -101,39 +56,6 @@ nodename    = socket.gethostname().lower()
 #
 # Functions
 #
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# f_help_error
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_help_error():
-    print(" ")
-    print(" ")
-    print(" use: -?             for this help message")
-    print(" use: -nodename      [optional] nodename on which you want the itm agent to be installed. Default is nodename set as hostname ")
-    print(" use: -ccode         Customer Code - to be prefixed at the ITM agent name")
-    print(" use: -shore         onshore or nearshore")
-    print(" use: -envir         The RTEMS environtment must be either (paas|classic|fmo|energinet|infrastructure)")
-    print(" use: -primary       [optional] primary RTEMS hostIP. if you know beforehand, then use -primary 84.255.124.200")
-    print(" use: -secondary     [optional] secondary RTEMS hostIP. if you know beforehand, then use -secondary 84.255.124.201")
-    print(" use: -f             [optional] ForceUninstall to also remove subagents is present on server")
-    print(" use: -p             [optional] this will only do the select, and do a port check. and create a csv file")
-    print(" use: -u             [optional] this will UNINSTALL and cleanup to remove IP for kyndryl")
-    print(" use: -d             [optional] set services to disabled after stop")
-    print(" use: -version       [optional] displays this script version")
-    print(" ")
-    print(" ")
-    print("\t\t\texample:")
-    print(" ")
-    print('\t\t\t ITMAgentInstall_UNinstall_windows.cmd -nodename kmdwinitm001 -ccode kmn -shore nearshore -envir . -f')
-    print('\t\t\t ITMAgentInstall_UNinstall_windows.cmd -nodename kmdwinitm001 -ccode kmn -shore nearshore -envir classic -f')
-    print('\t\t\t ITMAgentInstall_UNinstall_windows.cmd -nodename kmdwinitm001 -ccode kmn -primary 84.255.124.200 -secondary 84.255.124.201 -f')
-    print('\t\t\t ITMAgentInstall_UNinstall_windows.cmd -nodename kmdwinitm001 -p      ( ping only. )')
-    print('\t\t\t ITMAgentInstall_UNinstall_windows.cmd -nodename kmdwinitm001 -u      ( uninstall only. )')
-    print('\t\t\t ITMAgentInstall_UNinstall_windows.cmd -nodename kmdwinitm001 -u -d   ( set all services disabled. and uninstall )')
-    print(" ")
-    print(" ")
-    exit()
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_set_debug_logging
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_set_debug_logging(debug):
@@ -201,63 +123,7 @@ def f_set_priority():
     else:  # MAC OS X or other
         process.nice(20)
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# f_check_port
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_check_port(host,port,debug):
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(1)  # Adjust timeout as needed
-            s.connect((host, port))
-        return True
-    except Exception as e:
-        # if debug:
-        #     logging.info(f"Error\t={e}")
-        return False
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# f_read_csv_and_ping
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_read_csv_and_ping(frtems,rtemsPreselected,primary,secondary,rtemsFiltered,envir,shore,debug):
-
-    Hash_rtemsCi = {}
-
-    rtems = pd.read_csv(frtems, delimiter=";", encoding='utf-8')
-    rtems = rtems.astype(str)
-    rtems = rtems.map(lambda x: x.strip() if isinstance(x, str) else x)
-    for i, row in rtems.iterrows():
-        rtemsCi = str(row["rtemsCi"].strip().lower())
-        rtemsIP = str(row["rtemsIP"].strip().lower())
-        rtemsPairs = row["rtemsPairs"].strip().lower()
-        rtemsPairs = str(rtemsPairs)
-        rtemsPrimSec = str(row["rtemsPrimSec"].strip().lower())
-        rtemsPrimSec = str(row["rtemsPrimSec"].strip().lower())
-        rtemsTier = str(row["rtemsTier"].strip().lower())
-        rtemsEnvir = str(row["rtemsEnvir"].strip().lower())
-        rtemsShore = str(row["rtemsShore"].strip().lower())
-
-        if rtemsPreselected:
-            if not ( (re.search(f"{rtemsIP}", primary, re.IGNORECASE)) or (re.search(f"{rtemsIP}", secondary, re.IGNORECASE))):
-                envir = rtemsEnvir
-                shore = rtemsShore
-                continue
-
-        if rtemsFiltered:
-            if (re.search('Emptying', rtemsTier, re.IGNORECASE)): continue
-            if not (re.search(f"{shore}", rtemsShore, re.IGNORECASE)): continue
-            if not (re.search(f"{envir}", rtemsEnvir, re.IGNORECASE)): continue
-
-        host = rtemsIP
-        port = 3660
-        if f_check_port(host,port,debug):
-            text = f"Port {port} is open on {host}."
-            Hash_rtemsCi[rtemsIP] = f"True;{nodename};{ip_address};{subnet_mask};{network_address};{broadcast_address};{dns_servers};{rtemsCi};{rtemsIP};{rtemsPairs};{rtemsPrimSec};{rtemsTier};{rtemsEnvir};{rtemsShore}"
-        else:
-            text = f"Port {port} is closed on {host}."
-        # if debug:
-        #     logging.info(f"rtemsCi: {text}")
-
-    return Hash_rtemsCi
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# write all pings
+# write all leftovers
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_write_pings(Hash_rtemsCi,pingfile,debug):
     with open(pingfile, 'w') as file:
@@ -265,79 +131,6 @@ def f_write_pings(Hash_rtemsCi,pingfile,debug):
         file.write(f"{value}\n")
         for key, value in Hash_rtemsCi.items():
             file.write(f"{value}\n")
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# f_get_network_info
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_get_network_info(ip_address,debug):
-    try:
-        # Get the network details
-        network = ipaddress.ip_network(ip_address, strict=False)
-        subnet_mask = network.netmask
-        network_address = network.network_address
-        broadcast_address = network.broadcast_address
-
-        # Get default gateway (assuming it's reachable)
-        gateway_ip = str(network.network_address + 1)  # Change if default gateway IP is different
-        gateway_reachable = f_check_port(gateway_ip, 80,debug)  # Assuming HTTP port for gateway check
-
-        if gateway_reachable:
-            default_gateway = gateway_ip
-        else:
-            default_gateway = "Unknown (not reachable)"
-
-        # Get DNS servers
-        result = dns.resolver.Resolver(ip_address, 'PTR')
-        dns_servers = str(result.nameservers)
-
-        return {
-            "ip_address": ip_address,
-            "subnet_mask": str(subnet_mask),
-            "network_address": str(network_address),
-            "broadcast_address": str(broadcast_address),
-            "default_gateway": default_gateway,
-            "dns_servers": dns_servers
-        }
-    except Exception as e:
-        return {"Error": str(e)}
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# f_zip_archive
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_zip_archive(zip_path, archive_path,debug):
-    try:
-        if os.path.isfile(zip_path):
-            os.remove(zip_path)
-        if os.path.isdir(archive_path):
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                    for root, dirs, files in os.walk(archive_path):
-                        for file in files:
-                            zipf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), archive_path))
-            if debug:
-                logging.info(f"The earlier GSMA files in {archive_path} has been zipped to {zip_path}, to be restored after reinstall")
-        else:
-            if debug:
-                logging.info(f"There were no earlier GSMA files in {archive_path} ")
-        return False
-    except Exception as e:
-        if debug:
-            logging.info(f"Error\t={e}")
-        return False
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# f_zip_extract
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_zip_extract(zip_path, extract_path,debug):
-    try:
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            for entry in zip_ref.infolist():
-                target_path = os.path.join(extract_path, entry.filename)
-                if os.path.exists(target_path):
-                    os.remove(target_path)  # Remove existing file
-                zip_ref.extract(entry, path=extract_path)
-        if debug:
-            logging.info(f"# ========> GSMA files in {zip_path} has been restored/extracted to {extract_path}")
-    except Exception as e:
-        if debug:
-            logging.info(f"Error\t={e}")
-        return False
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_cmdexec
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -366,81 +159,6 @@ def f_cmdexec(cmdexec,debug):
 
     return result, RC
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# stop agents if any is active
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_stopItmServices(DisableAllServices,debug):
-    RC = 0
-    result = ""
-    c = wmi.WMI()
-    query = f"SELECT * FROM Win32_Service where DisplayName like '%Monitoring Agent for%'"
-    services = c.query(query)
-    # if debug: logging.info("{:30s} - {}".format("services",f"{services}"))
-
-    if len(services) == 0:
-        result = "no ITM services found. There is no ITM agent installed"
-        if debug: logging.info(result)
-        RC = 12
-    else:
-        if DisableAllServices:
-            for service in services:
-                serviceName = service.Name
-                serviceState = service.State
-                serviceType = service.StartMode
-                cmdexec = f"{pwsh} \"Set-Service -Name {serviceName} -StartupType Disabled\""
-                result, RC = f_cmdexec(cmdexec,debug)
-                if debug: logging.info("{:30s} - {}".format("result",f"{result}"))
-
-        for service in services:
-            serviceName = service.Name
-            serviceState = service.State
-            serviceType = service.StartMode
-            if debug: logging.info("{:30s} - {}".format("serviceName",serviceName))
-            if debug: logging.info("{:30s} - {}".format("serviceState",serviceState))
-            if debug: logging.info("{:30s} - {}".format("serviceType",serviceType))
-            cmdexec = f"{pwsh} \"Stop-Service -Name {serviceName} -Force -ErrorAction SilentlyContinue\""
-            result, RC = f_cmdexec(cmdexec,debug)
-            if debug: logging.info("{:30s} - {}".format("result",f"{result}"))
-
-    return result, RC
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# start agents
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_startItmServices(debug):
-    RC = 0
-    result = ""
-    if debug:
-        logging.info(f"# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------  ")
-        logging.info(f"#  start agents")
-        logging.info(f"# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------  ")
-
-    c = wmi.WMI()
-    query = f"SELECT * FROM Win32_Service where DisplayName like '%Monitoring Agent for%'"
-    services = c.query(query)
-    # if debug: logging.info("{:30s} - {}".format("services",f"{services}"))
-
-    if len(services) == 0:
-        result = "no ITM services found. There is no ITM agent installed"
-        if debug: logging.info(result)
-        RC = 12
-    else:
-        for service in services:
-            serviceName = service.Name
-            serviceState = service.State
-            serviceType = service.StartMode
-            if debug: logging.info("{:30s} - {}".format("serviceName",serviceName))
-            if debug: logging.info("{:30s} - {}".format("serviceState",serviceState))
-            if debug: logging.info("{:30s} - {}".format("serviceType",serviceType))
-            if re.search(f"KNTCMA_Primary", serviceName, re.IGNORECASE):
-                cmdexec = f"{pwsh} \"Set-Service -Name {serviceName} -StartupType Automatic\""
-            else:
-                cmdexec = f"{pwsh} \"Set-Service -Name {serviceName} -StartupType Manual\""
-            result, RC = f_cmdexec(cmdexec,debug)
-
-            cmdexec = f"{pwsh} \"Start-Service -Name {serviceName} -ErrorAction SilentlyContinue\""
-            result, RC = f_cmdexec(cmdexec,debug)
-            if debug: logging.info("{:30s} - {}".format("result",f"{result}"))
-    return result, RC
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_check_process_running
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_check_process_running(process_name,debug):
@@ -462,14 +180,14 @@ def f_check_process_running(process_name,debug):
 # f_wait_for_process_completion
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_wait_for_process_completion(process_name,timeout,debug):
-    start_time = time()
+    start_time = time.time()
     while f_check_process_running(process_name,debug):
-        if time() - start_time > timeout:
+        if time.time() - start_time > timeout:
             text = f"Process {process_name} did not complete within {timeout} seconds."
             if debug:
                 logging.info(f"{text}")
             return False
-        sleep(1)
+        time.sleep(1)
     return True
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_close_locked_handle
@@ -514,7 +232,7 @@ def f_kill_if_process_hangs(process_name,debug):
 # f_end
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_end(RC, debug):
-    end = time()
+    end = time.time()
     hours, rem = divmod(end-start, 3600)
     minutes, seconds = divmod(rem, 60)
     endPrint = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -530,35 +248,13 @@ def f_end(RC, debug):
 #
 #
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-logfile     = f_set_debug_logging(debug)
+logfile             = f_set_debug_logging(debug)
 f_set_priority()
-platformnode= platform.node().lower()
-OSsystem    = platform.system()
-OSrelease   = platform.release()
-OSversion   = platform.version()
-ip_address  = socket.gethostbyname(nodename)
-network_info= f_get_network_info(ip_address,debug)
-# for key, value in network_info.items():
-#     print(f"{key}: {value}")
-ip_address          = str(network_info["ip_address"])
-subnet_mask         = str(network_info["subnet_mask"])
-network_address     = str(network_info["network_address"])
-broadcast_address   = str(network_info["broadcast_address"])
-default_gateway     = str(network_info["default_gateway"])
-dns_servers         = str(network_info["dns_servers"])
-Install             = False
-ForceUninstall      = False
-Pingonly            = False
-Uninstall     = False
-DisableAllServices  = False
-cleaupTemp          = False
-ccode               = ""
-shore               = ""
-envir               = ""
-primary             = ""
-secondary           = ""
-rtemsPreselected    = False
-rtemsFiltered       = False
+platformnode        = platform.node().lower()
+OSsystem            = platform.system()
+OSrelease           = platform.release()
+OSversion           = platform.version()
+Uninstall           = False
 pwsh                = "powershell -ExecutionPolicy bypass -NoProfile -NonInteractive -InputFormat none -c "
 # ----------------------------------------------------------------------------------------------------------------------------
 #
@@ -574,51 +270,64 @@ UninstPath          = f"{workdir}/bin/{UninstName}"
 UninstCmdexec       = ("start", "/WAIT", "/MIN", f"{UninstPath}", "-batchrmvall", "-removegskit")
 step                = 0
 RegistryKeys = (
-    'HKLM:/SOFTWARE/Candle'
+    'HKLM:/SOFTWARE/Candle',
     'HKLM:/SOFTWARE/Wow6432Node/Candle',
     'HKLM:/SYSTEM/CurrentControlSet/Services/Candle',
     'HKLM:/SYSTEM/CurrentControlSet/Services/IBM/ITM'
 )
-# RemoveDirs = (
-#     "C:/Windows/Temp",
-#     "C:/Temp/scanner_logs",
-#     "C:/Temp/jre",
-#     "C:/Temp/report",
-#     "C:/Temp/exclude_config.txt",
-#     "C:/Temp/Get-Win-Disks-and-Partitions.ps1",infrastructure
-#     "C:/Temp/log4j2-scanner-2.6.5.jar",
-#     "C:/salt",
-#     "${scriptBin}"
-# )
 RemoveDirs = (
-    "C:/Temp"
+    "C:/Windows/Temp",
+    "C:/Temp/scanner_logs",
+    "C:/Temp/jre",
+    "C:/Temp/report",
+    "C:/Temp/exclude_config.txt",
+    "C:/Temp/Get-Win-Disks-and-Partitions.ps1",
+    "C:/Temp/log4j2-scanner-2.6.5.jar",
+    "C:/salt",
+    "${scriptBin}"
 )
+# @fsList_orig = ("/var/opt/ansible",
+#         "/var/opt/ansible_workdir",
+#         "/etc/ansible",
+#         "/root/.ansible_async",
+#         "/tmp/gts-ansible",
+#         "/etc/opt/bigfix",
+#         "/var/tmp/ilmt",
+#         "/var/tmp/aicbackup/ilmt",
+#         "/var/db/sudo/lectured/ansible",
+#         "/etc/opt/Bigfix",
+#         "/etc/BESClient",
+#         "/tmp/*BESClient*",
+#         "/root/.ansible",
+#         "/var/opt/ansible*",
+#         "/var/log/ansible*",
+#         "/_opt_IBM_ITM_i",
+#         "/usr/bin/ansibl*"
+#         );
+# @fsList = ("/etc/opt/bigfix",
+#         "/var/tmp/ilmt",
+#         "/var/tmp/aicbackup/ilmt",
+#         "/etc/opt/Bigfix",
+#         "/etc/BESClient",
+#         "/tmp/*BESClient*",
+#         "/_opt_IBM_ITM_i",
+#         );
+
+# @cacfUsers = ("kmduxat1",
+#         "kmduxat2",
+#         "kmnuxat1",
+#         "kmnuxat2",
+#         "kmwuxat1",
+#         "kmwuxat2",
+#         "ug2uxat1",
+#         "ug2uxat2",
+#         "yl5uxat1",
+#         "yl5uxat2");
+
 # ----------------------------------------------------------------------------------------------------------------------------
 # display vars
 # ----------------------------------------------------------------------------------------------------------------------------
-# $text = "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"; Logline -logstring $text -step $step
-# text = f'begin:             {now}' if debug: logging.info(f'{now}')
-# $text = "psvers:            " + $psvers; Logline -logstring $text -stexttep $step
-# $text = "hostname:          " + $hostname; Logline -logstring $text -step $step
-# $text = "hostIp:            " + $hostIp; Logline -logstring $text -step $step
-# $text = "scriptName:        " + $scriptName; Logline -logstring $text -step $step
-# $text = "scriptPath:        " + $scriptPath; Logline -logstring $text -step $step
-# $text = "scriptDir:         " + $scriptDir; Logline -logstring $text -step $step
-# $text = "logfile:           " + $logfile; Logline -logstring $text -step $step
-# $text = "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"; Logline -logstring $text -step $step
-# $text = "UninstName:        " + $UninstName; Logline -logstring $text -step $step
-# $text = "DisplayName:       " + $DisplayName; Logline -logstring $text -step $step
-# $text = "ServiceName:       " + $ServiceName; Logline -logstring $text -step $step
-# $text = "CommandLine:       " + $CommandLine; Logline -logstring $text -step $step
-# $text = "UninstPath:        " + $UninstPath; Logline -logstring $text -step $step
-# $text = "UninstCmdexec:     " + $UninstCmdexec; Logline -logstring $text -step $step
-# $text = "DisableAllServices:    " + $DisableAllServices; Logline -logstring $text -step $step
-# foreach ( $key in $RegistryKeys ) {
-#     $text = "registry key to be removed: " + $key; Logline -logstring $text -step $step
-# }
-# foreach ( $dir in $RemoveDirs ) {
-#     $text = "directory to be removed: " + $dir; Logline -logstring $text -step $step
-# }
+
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Begin  {:65s} - {}".format(scriptName,now))
 if debug:
@@ -1190,7 +899,6 @@ if cleaupTemp:
     #     if debug:
     #         p = p.strip()
     #         if len(p) > 0: logging.info(p)
-
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # THE END
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
