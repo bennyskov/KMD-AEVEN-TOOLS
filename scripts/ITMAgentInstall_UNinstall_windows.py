@@ -28,10 +28,8 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import warnings
 warnings.filterwarnings('ignore', category=SyntaxWarning)
 # Specifically ignore dns module escape sequence warnings
-warnings.filterwarnings('ignore', r'invalid escape sequence.*\\#.*', SyntaxWarning, 'dns.rdata')
-warnings.filterwarnings('ignore', r'invalid escape sequence.*\\d.*', SyntaxWarning, 'dns.ipv6')
-warnings.filterwarnings("ignore", 'This pattern is interpreted as a regular expression, and has match groups.')
-
+warnings.filterwarnings('ignore', r'.*SyntaxWarning.*invalid escape sequence.*')
+warnings.filterwarnings('ignore', r'.*token.is_identifier.*')
 # ---------------------------------------------------------------------------------------------------------------------------------------
 #
 #
