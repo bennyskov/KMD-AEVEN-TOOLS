@@ -11,8 +11,8 @@ from datetime import timedelta
 from subprocess import Popen, PIPE, CalledProcessError
 from datetime import datetime
 from sys import exit
-from awxkit import *
-from awxkit.api.pages import Api
+# from awxkit import *
+# from awxkit.api.pages import Api
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import warnings
@@ -187,6 +187,7 @@ def f_requests(request,twusr,twpwd,payload,debug):
         RC                      = 0
         f_log(f'url',f'{url}',debug)
         if isinstance(payload, dict) and payload:
+            payload = json.dumps(payload, ensure_ascii=False)
             response = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False, timeout=1440)
         else:
             response = requests.get(url, auth=(twusr, twpwd), verify=False, timeout=1440)
@@ -196,6 +197,12 @@ def f_requests(request,twusr,twpwd,payload,debug):
             result_loaded       = f_load_data(result_decoded)
             result_dumps        = json.dumps(result_loaded, indent=5)
             result              = json.loads(result_dumps)
+        elif response.status_code == 400:
+            f_log(f'error',f'Bad Request: {request}',debug)
+        elif response.status_code == 404:
+            f_log(f'error',f'Not Found: {request}',debug)
+        elif response.status_code == 500:
+            f_log(f'error',f'Internal Server Error: {request}',debug)
     except Exception as e:
         if debug:
             f_log(f'request',f'{request}',debug)
@@ -217,6 +224,8 @@ def f_requestsUpdate(update_request,twusr,twpwd,payload,debug):
         url                     = f'{tower_url}{update_request}'
         RC                      = 0
         f_log(f'url',f'{url}',debug)
+        if isinstance(payload, dict) and payload:
+            payload = json.dumps(payload, ensure_ascii=False)
         response = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False, timeout=1440)
         response.raise_for_status()
         if response.status_code == 200 or response.status_code == 201:
@@ -728,44 +737,48 @@ if CONTINUE and LAUNCH_TEMPLATE:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # syntax check playbook
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if CONTINUE and LAUNCH_TEMPLATE:
-    try:
-        # curl -k -H "Authorization: Bearer $TOWER_TOKEN" https://your-tower-url/api/v2/jobs/job_template_id/launch/ -X POST -H "Content-Type: application/json" --data '{"extra_vars": {"check_mode": true}}'
-        stepName = f'{exectype}_template_syntax_check'
-        f_log(f'{stepName}','',debug)
-        f_log(f'credentials_ids',f'{credentials_ids}',debug)
-        if useRestAPI:            payload = {
-                "inventory": inventory_id,
-                "credentials": credentials_ids,
-                "extra_vars": {
-                    "nodename": nodename,
-                    "check_mode": True
-                }
-            }
-            request = f'job_templates/{template_id}/launch/'
-            result,RC = f_requests(request,twusr,twpwd,payload,debug)
-            f_log(f'result',f'{result}',debug)
-            jobid = result['id']
-            f_log(f'jobid',f'{jobid}',debug)
-        else:
-            job_template    = f'--name {launch_template_name} '
-            credential      = f'--credentials {credentials_ids} '
-            inventory       = f'--inventory {inventory_id} '            extra_vars = {
-                'nodename': f'{nodename}',
-                'check_mode': True
-            }
-            extra_vars  = f'--extra_vars \"{extra_vars}\"'
-            cmdexec = f"awx job_templates launch {launch_template_name} {credential} {inventory} {extra_vars}"
-            f_log(f'cmdexec',f'{cmdexec}',debug)
-            # result,RC = f_cmdexec(cmdexec,debug)
-            # jobid = result['id']
-            # f_log(f'jobid',f'{jobid}',debug)
-        if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
-        if isRunningLocally:
-            f_dump_and_write(result,stepName,debug)
-    except Exception as e:
-        if debug: logging.error(e)
-        RC = 12
+# if CONTINUE and LAUNCH_TEMPLATE:
+#     try:
+#         stepName = f'{exectype}_template_syntax_check'
+#         f_log(f'{stepName}','',debug)
+#         f_log(f'credentials_ids',f'{credentials_ids}',debug)
+#         if useRestAPI:
+#             payload = {
+#                 "inventory": inventory_id,
+#                 "credentials": credentials_ids,
+#                 "extra_vars": {
+#                     "nodename": nodename,
+#                     "check_mode": True
+#                 }
+#             }
+#             f_log(f'payload',f'{payload}',debug)
+#             request = f'job_templates/{template_id}/launch/'
+#             result,RC = f_requests(request,twusr,twpwd,payload,debug)
+#             f_log(f'result',f'{result}',debug)
+#             # jobid = result['id']
+#             # f_log(f'jobid',f'{jobid}',debug)
+#         else:
+#             job_template    = f'--name {launch_template_name} '
+#             credential      = f'--credentials {credentials_ids} '
+#             inventory       = f'--inventory {inventory_id} '
+#             extra_vars = {
+#                 'nodename': nodename,
+#                 'check_mode': True
+#             }
+#             extra_vars  = f'--extra_vars \"{extra_vars}\"'
+#             f_log(f'extra_vars',f'{extra_vars}',debug)
+#             cmdexec = f"awx job_templates launch {launch_template_name} {credential} {inventory} {extra_vars}"
+#             f_log(f'cmdexec',f'{cmdexec}',debug)
+#             result,RC = f_cmdexec(cmdexec,debug)
+#             f_log(f'result',f'{result}',debug)
+#             # jobid = result['id']
+#             # f_log(f'jobid',f'{jobid}',debug)
+#         if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
+#         if isRunningLocally:
+#             f_dump_and_write(result,stepName,debug)
+#     except Exception as e:
+#         if debug: logging.error(e)
+#         RC = 12
 #endregion
 #region launch_job_template
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -777,16 +790,28 @@ if CONTINUE and LAUNCH_TEMPLATE:
         f_log(f'{stepName}','',debug)
         f_log(f'credentials_ids',f'{credentials_ids}',debug)
         if useRestAPI:
+            # payload = {
+            #     "inventory": inventory_id,
+            #     "credentials": credentials_ids,
+            #     "extra_vars": {
+            #         "nodename": nodename
+            #     }
+            # }
+            # payload = payload.replace('\'','\"').strip()
+            # f_log(f'payload replaced with \"\"',f'{payload}',debug)
             payload = {
-                "inventory": inventory_id,
-                "credentials": credentials_ids,
-                "extra_vars": {
-                    "nodename": f"{nodename}"
+                'inventory': inventory_id,
+                'credentials': credentials_ids,
+                'extra_vars': {
+                    'nodename': nodename
                 }
             }
+            payload_json = json.dumps(payload, ensure_ascii=False)
+
+            f_log(f'payload_json',f'{payload_json}',debug)
             request = f'job_templates/{template_id}/launch/'
-            result,RC = f_requests(request,twusr,twpwd,payload,debug)
-            # f_log(f'result',f'{result}',debug)
+            result,RC = f_requests(request,twusr,twpwd,payload_json,debug)
+            f_log(f'result',f'{result}',debug)
             # jobid = result['id']
             # f_log(f'jobid',f'{jobid}',debug)
         else:
@@ -794,12 +819,13 @@ if CONTINUE and LAUNCH_TEMPLATE:
             credential      = f'--credentials {credentials_ids} '
             inventory       = f'--inventory {inventory_id} '
             extra_vars = {
-                'nodename': f'{nodename}',
+                "nodename": f"{nodename}",
             }
+            extra_vars  = json.dumps(extra_vars, ensure_ascii=False)
             extra_vars  = f'--extra_vars \"{extra_vars}\"'
             cmdexec = f"awx job_templates launch {launch_template_name} {credential} {inventory} {extra_vars}"
             f_log(f'cmdexec',f'{cmdexec}',debug)
-            # result,RC = f_cmdexec(cmdexec,debug)
+            result,RC = f_cmdexec(cmdexec,debug)
             # jobid = result['id']
             # f_log(f'jobid',f'{jobid}',debug)
         if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
