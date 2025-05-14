@@ -181,70 +181,100 @@ def f_load_data(string):
 # f_requests
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_requests(request,twusr,twpwd,payload,debug):
+    result = None
+    RC = 0
     try:
         tower_url               = f'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local/api/v2/'
         url                     = f'{tower_url}{request}'
-        RC                      = 0
         f_log(f'url',f'{url}',debug)
-        if isinstance(payload, dict) and payload:
-            payload = json.dumps(payload, ensure_ascii=False)
-            f_log(f'payload',f'{payload}',debug)
-            response = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False, timeout=1440)
+
+        if payload and isinstance(payload, (dict, list)):
+            payload_json = json.dumps(payload, ensure_ascii=False)
+            f_log(f'payload_json',f'{payload_json}',debug)
+            response = requests.post(url,
+                auth=(twusr, twpwd),
+                headers={'Content-Type': 'application/json'},
+                data=payload_json,
+                verify=False,
+                timeout=1440
+            )
         else:
             response = requests.get(url, auth=(twusr, twpwd), verify=False, timeout=1440)
-        response.raise_for_status()
-        if response.status_code == 200 or response.status_code == 201:
-            result_decoded      = response.content.decode('utf-8')
-            result_loaded       = f_load_data(result_decoded)
-            result_dumps        = json.dumps(result_loaded, indent=5)
-            result              = json.loads(result_dumps)
-        elif response.status_code == 400:
-            f_log(f'error',f'Bad Request: {request}',debug)
-        elif response.status_code == 404:
-            f_log(f'error',f'Not Found: {request}',debug)
-        elif response.status_code == 500:
-            f_log(f'error',f'Internal Server Error: {request}',debug)
+
+        # Handle response
+        content = response.content.decode('utf-8')
+
+        if response.status_code in [200, 201]:
+            result_loaded = f_load_data(content)
+            result = result_loaded
+        else:
+            # Log the error response content for debugging
+            f_log(f'request', request, debug)
+            f_log(f'response status', f'{response.status_code} {response.reason}', debug)
+            f_log(f'response content', content, debug)
+            RC = response.status_code
+            try:
+                result = json.loads(content)
+            except:
+                result = {'error': content}
+
     except Exception as e:
-        if debug:
-            f_log(f'request',f'{request}',debug)
-            f_log(f'error',f'{e}',debug)
-            f_log(f'RC',f'{RC}',debug)
-            f_log(f'result exectype',f'{exectype(result)}',debug)
-            f_log(f'result',f'{result}',debug)
-            RC = 12
-    finally:
-        return result, RC
+        f_log(f'request', request, debug)
+        f_log(f'error', str(e), debug)
+        RC = 12
+
+    return result, RC
 #endregion
 #region f_requestsUpdate
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_requestsUpdate
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_requestsUpdate(update_request,twusr,twpwd,payload,debug):
+    result = None
+    RC = 0
     try:
         tower_url               = f'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local/api/v2/'
         url                     = f'{tower_url}{update_request}'
-        RC                      = 0
         f_log(f'url',f'{url}',debug)
-        if isinstance(payload, dict) and payload:
-            payload = json.dumps(payload, ensure_ascii=False)
-            f_log(f'payload',f'{payload}',debug)
-        response = requests.post(url, auth=(twusr, twpwd), json=payload, verify=False, timeout=1440)
-        response.raise_for_status()
-        if response.status_code == 200 or response.status_code == 201:
-            result_decoded      = response.content.decode('utf-8')
-            result_loaded       = f_load_data(result_decoded)
-            result_dumps        = json.dumps(result_loaded, indent=5)
-            result              = json.loads(result_dumps)
+
+        if payload and isinstance(payload, (dict, list)):
+            payload_json = json.dumps(payload, ensure_ascii=False)
+            f_log(f'payload_json',f'{payload_json}',debug)
+            response = requests.patch(url,
+                auth=(twusr, twpwd),
+                headers={'Content-Type': 'application/json'},
+                data=payload_json,
+                verify=False,
+                timeout=1440
+            )
+        else:
+            f_log(f'error', 'Payload is required for update operations', debug)
+            RC = 400
+            return result, RC
+
+        # Handle response
+        content = response.content.decode('utf-8')
+
+        if response.status_code in [200, 201]:
+            result_loaded = f_load_data(content)
+            result = result_loaded
+        else:
+            # Log the error response content for debugging
+            f_log(f'request', update_request, debug)
+            f_log(f'response status', f'{response.status_code} {response.reason}', debug)
+            f_log(f'response content', content, debug)
+            RC = response.status_code
+            try:
+                result = json.loads(content)
+            except:
+                result = {'error': content}
+
     except Exception as e:
-        if debug:
-            f_log(f'request',f'{request}',debug)
-            f_log(f'error',f'{e}',debug)
-            f_log(f'RC',f'{RC}',debug)
-            f_log(f'result exectype',f'{exectype(result)}',debug)
-            f_log(f'result',f'{result}',debug)
-            RC = 12
-    finally:
-        return result, RC
+        f_log(f'request', update_request, debug)
+        f_log(f'error', str(e), debug)
+        RC = 12
+
+    return result, RC
 #endregion
 #region f_cmdexec
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -792,9 +822,7 @@ if CONTINUE and LAUNCH_TEMPLATE:
             payload = {
                 "inventory": inventory_id,
                 "credentials": credentials_ids,
-                "extra_vars": {
-                    "nodename": nodename
-                }
+                "extra_vars": { "nodename": f"{nodename}" }
             }
             request = f'job_templates/{template_id}/launch/'
             result,RC = f_requests(request,twusr,twpwd,payload,debug)
