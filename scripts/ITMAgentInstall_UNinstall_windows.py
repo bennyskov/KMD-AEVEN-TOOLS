@@ -9,6 +9,8 @@ import shutil
 import random
 import platform
 import socket
+import logging
+import logging.config
 from pathlib import Path
 from datetime import datetime, timedelta
 from subprocess import Popen, PIPE, CalledProcessError
@@ -23,14 +25,8 @@ import wmi
 import dns
 from dns import resolver
 import zipfile36 as zipfile
-import subprocess
-from subprocess import Popen, PIPE, CalledProcessError
-from datetime import datetime
-from datetime import timedelta
-from sys import exit
-from pathlib import Path
-from pprint import pprint
 import urllib3
+import warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import warnings
 # Suppress all SyntaxWarnings for invalid escape sequences in the dns module
