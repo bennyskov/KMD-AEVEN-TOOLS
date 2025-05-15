@@ -1,34 +1,48 @@
 # -*- coding: utf-8 -*-
-# Standard library imports first
+###############################################################################
+# Standard library imports first (base Python modules)
+###############################################################################
 import json
 import os
 import sys
 import re
-from time import time, sleep
 import shutil
 import random
 import platform
 import socket
-import logging
-import logging.config
+import warnings
 from pathlib import Path
 from datetime import datetime, timedelta
 from subprocess import Popen, PIPE, CalledProcessError
 import subprocess
 from pprint import pprint
 
+###############################################################################
+# Initialize logging before third party modules that might use it
+###############################################################################
+import logging
+import logging.config
+
+###############################################################################
+# Import time module explicitly to avoid shadowing
+###############################################################################
+import time as system_time  # Renamed to avoid any potential shadowing
+
+###############################################################################
 # Third party imports
+###############################################################################
 import pandas as pd
 import psutil
 import ipaddress
 import wmi
-import dns
-from dns import resolver
+import dns.resolver  # Import resolver directly from dns package
 import zipfile36 as zipfile
 import urllib3
-import warnings
+
+###############################################################################
+# Configure urllib3 and warnings
+###############################################################################
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-import warnings
 # Suppress all SyntaxWarnings for invalid escape sequences in the dns module
 warnings.filterwarnings('ignore', r'invalid escape sequence.*', SyntaxWarning, 'dns.ipv6')
 warnings.filterwarnings('ignore', r'invalid escape sequence.*', SyntaxWarning, 'dns.rdata')
@@ -78,7 +92,7 @@ version     = "version KMD V1.2"
 debug       = bool
 debug       = True
 RC          = 0
-start       = time()
+start       = system_time.time()
 now         = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 scriptName  = sys.argv[0]
 scriptName  = scriptName.replace('\\','/').strip()
@@ -264,208 +278,471 @@ def f_write_pings(Hash_rtemsCi,pingfile,debug):
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_get_network_info
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_get_network_info(ip_address,debug):
+def f_get_network_info(ip_address, debug):
+    """Get network information for a given IP address.
+
+    Returns:
+        tuple: (dict of network info, return code)
+    """
     try:
+        network_info = {
+            'subnet_mask': None,
+            'network_address': None,
+            'broadcast_address': None,
+            'dns_servers': [],
+            'default_gateway': None
+        }
+
         # Get the network details
-        network = ipaddress.ip_network(ip_address, strict=False)
-        subnet_mask = network.netmask
-        network_address = network.network_address
-        broadcast_address = network.broadcast_address
+        try:
+            network = ipaddress.ip_network(ip_address, strict=False)
+            network_info['subnet_mask'] = str(network.netmask)
+            network_info['network_address'] = str(network.network_address)
+            network_info['broadcast_address'] = str(network.broadcast_address)
+        except ValueError as e:
+            if debug:
+                logging.error(f"Invalid IP address format: {e}")
+            return network_info, 1
 
         # Get default gateway (assuming it's reachable)
-        gateway_ip = str(network.network_address + 1)  # Change if default gateway IP is different
-        gateway_reachable = f_check_port(gateway_ip, 80,debug)  # Assuming HTTP port for gateway check
-
-        if gateway_reachable:
-            default_gateway = gateway_ip
-        else:
-            default_gateway = "Unknown (not reachable)"
+        try:
+            gateway_ip = str(network.network_address + 1)
+            gateway_reachable = f_check_port(gateway_ip, 80, debug)
+            network_info['default_gateway'] = gateway_ip if gateway_reachable else "Unknown (not reachable)"
+        except Exception as e:
+            if debug:
+                logging.error(f"Error checking gateway: {e}")
+            network_info['default_gateway'] = "Unknown (error)"
 
         # Get DNS servers
-        result = dns.resolver.Resolver(ip_address, 'PTR')
-        dns_servers = str(result.nameservers)
+        try:
+            resolver = dns.resolver.Resolver()
+            network_info['dns_servers'] = resolver.nameservers
+        except Exception as e:
+            if debug:
+                logging.error(f"Error getting DNS servers: {e}")
+            network_info['dns_servers'] = ["Unknown (error)"]
 
-        return {
-            "ip_address": ip_address,
-            "subnet_mask": str(subnet_mask),
-            "network_address": str(network_address),
-            "broadcast_address": str(broadcast_address),
-            "default_gateway": default_gateway,
-            "dns_servers": dns_servers
-        }
+        return network_info, 0
+
     except Exception as e:
-        return {"Error": str(e)}
+        if debug:
+            logging.error(f"General error in network info gathering: {e}")
+        return {
+            'subnet_mask': None,
+            'network_address': None,
+            'broadcast_address': None,
+            'dns_servers': [],
+            'default_gateway': None
+        }, 1
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_zip_archive
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_zip_archive(zip_path, archive_path,debug):
+def f_zip_archive(zip_path, archive_path, debug):
+    """Archive a directory into a zip file.
+
+    Args:
+        zip_path: Path to create the zip file
+        archive_path: Directory to archive
+        debug: Whether to print debug information
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
     try:
+        # Remove existing zip file if it exists
         if os.path.isfile(zip_path):
-            os.remove(zip_path)
-        if os.path.isdir(archive_path):
+            try:
+                os.remove(zip_path)
+                if debug:
+                    logging.info(f"Removed existing zip file: {zip_path}")
+            except Exception as e:
+                if debug:
+                    logging.error(f"Failed to remove existing zip file: {str(e)}")
+                return False
+
+        # Check if source directory exists
+        if not os.path.isdir(archive_path):
+            if debug:
+                logging.info(f"No files to archive - directory does not exist: {archive_path}")
+            return True  # Not an error condition, just nothing to do
+
+        # Create the zip file
+        try:
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                    for root, dirs, files in os.walk(archive_path):
-                        for file in files:
-                            zipf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), archive_path))
+                files_added = False
+                for root, dirs, files in os.walk(archive_path):
+                    for file in files:
+                        src_path = os.path.join(root, file)
+                        rel_path = os.path.relpath(src_path, archive_path)
+                        zipf.write(src_path, rel_path)
+                        files_added = True
+
+                if debug:
+                    if files_added:
+                        logging.info(f"Successfully archived files from {archive_path} to {zip_path}")
+                    else:
+                        logging.info(f"No files found to archive in {archive_path}")
+
+            return True
+
+        except Exception as e:
             if debug:
-                logging.info(f"The earlier GSMA files in {archive_path} has been zipped to {zip_path}, to be restored after reinstall")
-        else:
-            if debug:
-                logging.info(f"There were no earlier GSMA files in {archive_path} ")
-        return False
+                logging.error(f"Failed to create zip file: {str(e)}")
+            return False
+
     except Exception as e:
         if debug:
-            logging.info(f"Error\t={e}")
+            logging.error(f"Archive operation failed: {str(e)}")
         return False
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_zip_extract
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_zip_extract(zip_path, extract_path,debug):
+def f_zip_extract(zip_path, extract_path, debug):
+    """Extract files from a zip archive.
+
+    Args:
+        zip_path: Path to the zip file to extract
+        extract_path: Directory to extract files to
+        debug: Whether to print debug information
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
     try:
+        # Check if zip file exists
+        if not os.path.isfile(zip_path):
+            if debug:
+                logging.error(f"Zip file not found: {zip_path}")
+            return False
+
+        # Create extract directory if it doesn't exist
+        os.makedirs(extract_path, exist_ok=True)
+
+        # Extract files
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            for entry in zip_ref.infolist():
-                target_path = os.path.join(extract_path, entry.filename)
-                if os.path.exists(target_path):
-                    os.remove(target_path)  # Remove existing file
-                zip_ref.extract(entry, path=extract_path)
+            # Get list of files to extract
+            files_to_extract = zip_ref.infolist()
+
+            if debug:
+                logging.info(f"Extracting {len(files_to_extract)} files from {zip_path} to {extract_path}")
+
+            # Extract each file
+            for entry in files_to_extract:
+                try:
+                    target_path = os.path.join(extract_path, entry.filename)
+
+                    # Remove existing file if it exists
+                    if os.path.exists(target_path):
+                        try:
+                            os.remove(target_path)
+                        except Exception as e:
+                            if debug:
+                                logging.warning(f"Failed to remove existing file {target_path}: {str(e)}")
+                            continue
+
+                    # Extract the file
+                    zip_ref.extract(entry, path=extract_path)
+
+                except Exception as e:
+                    if debug:
+                        logging.warning(f"Failed to extract {entry.filename}: {str(e)}")
+                    continue
+
+            if debug:
+                logging.info(f"Successfully extracted files from {zip_path} to {extract_path}")
+
+        return True
+
+    except zipfile.BadZipFile:
         if debug:
-            logging.info(f"# ========> GSMA files in {zip_path} has been restored/extracted to {extract_path}")
+            logging.error(f"Invalid or corrupted zip file: {zip_path}")
+        return False
+
     except Exception as e:
         if debug:
-            logging.info(f"Error\t={e}")
+            logging.error(f"Extraction failed: {str(e)}")
         return False
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_cmdexec
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_cmdexec(cmdexec,debug):
-    # cmdexec = f"{cmdexec} 2>&1"
-    if debug: logging.info(f"cmdexec='{cmdexec}'")
-    try:
-        p = subprocess.Popen(cmdexec, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="ISO-8859-1")
-        result=p.stdout.readlines()
-        rc = p.returncode
-        # if debug:
-        #     logging.info(f"f_cmdexec result: {result}")
-        #     logging.info(f"f_cmdexec rc: {RC}")
+    """Execute a command and return its output and return code.
 
-    except subprocess.CalledProcessError:
+    Args:
+        cmdexec: Command to execute
+        debug: Whether to print debug information
+
+    Returns:
+        tuple: (result, rc) where result is list of output lines and rc is return code
+    """
+    result = []
+    rc = 0
+
+    if debug:
+        logging.info(f"Executing command: {cmdexec}")
+
+    try:
+        # Run the command and capture output
+        p = subprocess.run(
+            cmdexec,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            encoding="ISO-8859-1",
+            text=True,
+            check=False  # Don't raise CalledProcessError
+        )
+
+        # Get output lines, handling empty output
+        result = p.stdout.splitlines() if p.stdout else []
+
+        # Get return code
+        rc = p.returncode if p.returncode is not None else 0
+
         if debug:
-            logging.warning(f"Error starting service '{service}'.")
-            logging.info(f"f_cmdexec result: {result}")
-            logging.info(f"f_cmdexec rc: {RC}")
+            if result:
+                logging.info("Command output:")
+                for line in result:
+                    logging.info(f"  {line}")
+            logging.info(f"Command completed with return code: {rc}")
+
+    except subprocess.SubprocessError as e:
+        rc = 1
+        result = []
+        if debug:
+            logging.warning(f"Error executing command: {str(e)}")
 
     except UnicodeDecodeError:
+        rc = 1
+        result = []
         if debug:
-            logging.info(f"\n*Output has invalid (non utf-8) characters! Invalid output\n")
-            logging.info(f"f_cmdexec result: {result}")
-            logging.info(f"f_cmdexec rc: {RC}")
+            logging.warning("Command output had invalid characters (UnicodeDecodeError)")
 
-    return result, RC
+    except Exception as e:
+        rc = 1
+        result = []
+        if debug:
+            logging.warning(f"Unexpected error executing command: {str(e)}")
+
+    return result, rc
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # stop agents if any is active
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_stopItmServices(DisableAllServices,debug):
+    """Stop ITM services and optionally disable them.
+
+    Args:
+        DisableAllServices: Whether to disable services after stopping
+        debug: Whether to print debug information
+
+    Returns:
+        tuple: (result, rc) where result is operation output and rc is return code
+    """
     RC = 0
     result = ""
-    c = wmi.WMI()
-    query = f"SELECT * FROM Win32_Service where DisplayName like '%Monitoring Agent for%'"
-    services = c.query(query)
-    # if debug: logging.info("{:30s} - {}".format("services",f"{services}"))
+    overall_success = True
 
-    if len(services) == 0:
-        result = "no ITM services found. There is no ITM agent installed"
-        if debug: logging.info(result)
-        RC = 12
-    else:
+    try:
+        c = wmi.WMI()
+        query = f"SELECT * FROM Win32_Service where DisplayName like '%Monitoring Agent for%'"
+        services = c.query(query)
+
+        if debug:
+            logging.info(f"Found {len(services)} ITM services")
+
+        if len(services) == 0:
+            result = "no ITM services found. There is no ITM agent installed"
+            if debug:
+                logging.info(result)
+            return result, 12
+
+        # First disable services if requested
         if DisableAllServices:
+            if debug:
+                logging.info("Disabling all ITM services...")
+
             for service in services:
                 serviceName = service.Name
-                serviceState = service.State
-                serviceType = service.StartMode
                 cmdexec = f"{pwsh} \"Set-Service -Name {serviceName} -StartupType Disabled\""
-                result, RC = f_cmdexec(cmdexec,debug)
-                if debug: logging.info("{:30s} - {}".format("result",f"{result}"))
+                cmd_result, cmd_rc = f_cmdexec(cmdexec, debug)
+
+                if cmd_rc != 0:
+                    overall_success = False
+                    if debug:
+                        logging.warning(f"Failed to disable service {serviceName}")
+
+        # Now stop all services
+        if debug:
+            logging.info("Stopping all ITM services...")
 
         for service in services:
             serviceName = service.Name
             serviceState = service.State
             serviceType = service.StartMode
-            if debug: logging.info("{:30s} - {}".format("serviceName",serviceName))
-            if debug: logging.info("{:30s} - {}".format("serviceState",serviceState))
-            if debug: logging.info("{:30s} - {}".format("serviceType",serviceType))
+
+            if debug:
+                logging.info(f"Stopping service: {serviceName} (Current state: {serviceState}, Type: {serviceType})")
+
             cmdexec = f"{pwsh} \"Stop-Service -Name {serviceName} -Force -ErrorAction SilentlyContinue\""
-            result, RC = f_cmdexec(cmdexec,debug)
-            if debug: logging.info("{:30s} - {}".format("result",f"{result}"))
+            cmd_result, cmd_rc = f_cmdexec(cmdexec, debug)
+
+            if cmd_rc != 0:
+                overall_success = False
+                if debug:
+                    logging.warning(f"Failed to stop service {serviceName}")
+
+            result = cmd_result  # Keep the last command result
+
+        RC = 0 if overall_success else 1
+
+    except Exception as e:
+        RC = 1
+        result = str(e)
+        if debug:
+            logging.error(f"Error stopping ITM services: {str(e)}")
 
     return result, RC
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # start agents
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_startItmServices(debug):
+    """Start ITM services and configure their startup types.
+
+    Args:
+        debug: Whether to print debug information
+
+    Returns:
+        tuple: (result, rc) where result is operation output and rc is return code
+    """
     RC = 0
     result = ""
+    overall_success = True
+
     if debug:
-        logging.info(f"# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------  ")
-        logging.info(f"#  start agents")
-        logging.info(f"# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------  ")
+        logging.info("Starting ITM services...")
 
-    c = wmi.WMI()
-    query = f"SELECT * FROM Win32_Service where DisplayName like '%Monitoring Agent for%'"
-    services = c.query(query)
-    # if debug: logging.info("{:30s} - {}".format("services",f"{services}"))
+    try:
+        c = wmi.WMI()
+        query = f"SELECT * FROM Win32_Service where DisplayName like '%Monitoring Agent for%'"
+        services = c.query(query)
 
-    if len(services) == 0:
-        result = "no ITM services found. There is no ITM agent installed"
-        if debug: logging.info(result)
-        RC = 12
-    else:
+        if debug:
+            logging.info(f"Found {len(services)} ITM services")
+
+        if len(services) == 0:
+            result = "no ITM services found. There is no ITM agent installed"
+            if debug:
+                logging.warning(result)
+            return result, 12
+
         for service in services:
             serviceName = service.Name
             serviceState = service.State
             serviceType = service.StartMode
-            if debug: logging.info("{:30s} - {}".format("serviceName",serviceName))
-            if debug: logging.info("{:30s} - {}".format("serviceState",serviceState))
-            if debug: logging.info("{:30s} - {}".format("serviceType",serviceType))
-            if re.search(f"KNTCMA_Primary", serviceName, re.IGNORECASE):
-                cmdexec = f"{pwsh} \"Set-Service -Name {serviceName} -StartupType Automatic\""
-            else:
-                cmdexec = f"{pwsh} \"Set-Service -Name {serviceName} -StartupType Manual\""
-            result, RC = f_cmdexec(cmdexec,debug)
 
-            cmdexec = f"{pwsh} \"Start-Service -Name {serviceName} -ErrorAction SilentlyContinue\""
-            result, RC = f_cmdexec(cmdexec,debug)
-            if debug: logging.info("{:30s} - {}".format("result",f"{result}"))
+            if debug:
+                logging.info(f"Configuring service: {serviceName} (Current state: {serviceState}, Type: {serviceType})")
+
+            # Set service startup type
+            try:
+                if re.search(f"KNTCMA_Primary", serviceName, re.IGNORECASE):
+                    cmdexec = f"{pwsh} \"Set-Service -Name {serviceName} -StartupType Automatic\""
+                else:
+                    cmdexec = f"{pwsh} \"Set-Service -Name {serviceName} -StartupType Manual\""
+
+                cmd_result, cmd_rc = f_cmdexec(cmdexec, debug)
+                if cmd_rc != 0:
+                    overall_success = False
+                    if debug:
+                        logging.warning(f"Failed to set startup type for {serviceName}")
+
+                # Start the service
+                cmdexec = f"{pwsh} \"Start-Service -Name {serviceName} -ErrorAction SilentlyContinue\""
+                cmd_result, cmd_rc = f_cmdexec(cmdexec, debug)
+
+                if cmd_rc != 0:
+                    overall_success = False
+                    if debug:
+                        logging.warning(f"Failed to start service {serviceName}")
+
+                result = cmd_result  # Keep the last command result
+
+            except Exception as e:
+                overall_success = False
+                if debug:
+                    logging.error(f"Error processing service {serviceName}: {str(e)}")
+
+        RC = 0 if overall_success else 1
+
+    except Exception as e:
+        RC = 1
+        result = str(e)
+        if debug:
+            logging.error(f"Error starting ITM services: {str(e)}")
+
+    if debug:
+        if overall_success:
+            logging.info("All ITM services processed successfully")
+        else:
+            logging.warning("Some ITM services failed to start or configure")
+
     return result, RC
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_check_process_running
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_check_process_running(process_name,debug):
+def f_check_process_running(process_name, debug):
+    """Check if a process is running.
+
+    Args:
+        process_name: Name of the process to check
+        debug: Whether to print debug information
+
+    Returns:
+        bool: True if running, False otherwise
+    """
     try:
-        # Check if the process is running
-        result = subprocess.run(["tasklist", "/FI", f"IMAGENAME eq {process_name}"], capture_output=True, text=True)
+        result = subprocess.run(
+            ["tasklist", "/FI", f"IMAGENAME eq {process_name}"],
+            capture_output=True,
+            text=True,
+            check=False
+        )
         if debug:
-            logging.info(f"result={result}")
-        if process_name in result.stdout:
-            return True
-        else:
-            return False
+            logging.info(f"Process check result: {result.stdout}")
+        return process_name.lower() in result.stdout.lower()
+
     except Exception as e:
-        text = f"Error checking process: {e}"
         if debug:
-            logging.info(f"{text}")
+            logging.warning(f"Error checking process {process_name}: {e}")
         return False
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_wait_for_process_completion
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_wait_for_process_completion(process_name,timeout,debug):
-    start_time = time()
-    while f_check_process_running(process_name,debug):
-        if time() - start_time > timeout:
-            text = f"Process {process_name} did not complete within {timeout} seconds."
+def f_wait_for_process_completion(process_name, timeout, debug):
+    """Wait for a process to complete.
+
+    Args:
+        process_name: Name of the process to wait for
+        timeout: Maximum time to wait in seconds
+        debug: Whether to print debug information
+
+    Returns:
+        bool: True if process completed, False if timed out
+    """
+    start_time = system_time.time()
+
+    while f_check_process_running(process_name, debug):
+        if system_time.time() - start_time > timeout:
+            msg = f"Process {process_name} did not complete within {timeout} seconds"
             if debug:
-                logging.info(f"{text}")
+                logging.warning(msg)
             return False
-        sleep(1)
+
+        system_time.sleep(1)
+
+    if debug:
+        logging.info(f"Process {process_name} completed successfully")
     return True
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_close_locked_handle
@@ -482,44 +759,106 @@ def f_close_locked_handle(path=None,blockedFilePath=None,depth=0,debug=True):
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_check_if_process_hangs
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_kill_if_process_hangs(process_name,debug):
-    try:
-        # Check if the process is running
-        result = subprocess.run(["tasklist", "/FI", f"IMAGENAME eq {process_name}"], capture_output=True, text=True)
-        if debug:
-            logging.info(f"result={result}")
-        if process_name in result.stdout:
-            result = subprocess.run([f"{workdir}/bin/psKill", "-t", f"{process_name}","-accepteula","-nobanner"], capture_output=True, text=True)
+def f_kill_if_process_hangs(process_name, debug):
+    """Force kill a process if it's running.
 
-            result = subprocess.run(["tasklist", "/FI", f"IMAGENAME eq {process_name}"], capture_output=True, text=True)
+    Args:
+        process_name: Name of the process to kill
+        debug: Whether to print debug information
+
+    Returns:
+        bool: True if process was killed or not running, False if kill failed
+    """
+    if not f_check_process_running(process_name, debug):
+        return True
+
+    try:
+        subprocess.run(
+            [f"{workdir}/bin/psKill", "-t", process_name, "-accepteula", "-nobanner"],
+            capture_output=True,
+            text=True,
+            check=False
+        )
+
+        # Verify process was killed
+        if f_check_process_running(process_name, debug):
             if debug:
-                logging.info(f"result={result}")
-            if process_name in result.stdout:
-                if debug:
-                    logging.warning(f"result={result}")
-                return False
-            else:
-                return True
+                logging.error(f"Failed to kill process {process_name}")
+            return False
+
+        if debug:
+            logging.info(f"Successfully killed process {process_name}")
+        return True
 
     except Exception as e:
-        text = f"Error checking process: {e}"
         if debug:
-            logging.info(f"{text}")
+            logging.error(f"Error killing process {process_name}: {e}")
         return False
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_end
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_end(RC, debug):
-    if RC is None: RC = 0
-    end = time()
-    hours, rem = divmod(end-start, 3600)
-    minutes, seconds = divmod(rem, 60)
-    endPrint = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    text = "End of {:65s} - {} - {:0>2}:{:0>2}:{:05.2f} - exit with RC={}".format(scriptName,endPrint,int(hours),int(minutes),seconds, RC)
+def f_end(RC, debug, start_time=None):
+    """Clean up and exit the script with the given return code.
+
+    Args:
+        RC: Return code to exit with
+        debug: Whether to print debug information
+        start_time: Optional start time for duration calculation
+    """
+    if start_time is None:
+        start_time = start  # Use global start time if none provided
+
+    # Ensure RC is a valid integer
+    if RC is None or not isinstance(RC, int):
+        if debug:
+            logging.warning(f"Invalid RC value: {RC}, defaulting to 0")
+        RC = 0
+
+    try:
+        # Calculate execution time
+        end_time = system_time.time()
+        duration = end_time - start_time
+
+        hours = int(duration // 3600)
+        minutes = int((duration % 3600) // 60)
+        seconds = duration % 60
+
+        endPrint = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        # Format the end message with duration
+        text = "End of {:65s} - {} - {:0>2}:{:0>2}:{:05.2f} - exit with RC={}".format(
+            scriptName,
+            endPrint,
+            hours,
+            minutes,
+            seconds,
+            RC
+        )
+    except Exception as e:
+        # If timing calculation fails, use a simpler message
+        endPrint = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        text = "End of {:65s} - {} - exit with RC={}".format(
+            scriptName,
+            endPrint,
+            RC
+        )
+        if debug:
+            logging.warning(f"Error calculating duration: {str(e)}")
+
+    # Log the end message
     if debug:
-        logging.info(f"{text}")
-    print(f"{text}")
-    exit(RC)
+        logging.info(text)
+    print(text)
+
+    try:
+        # Final cleanup operations can go here
+        logging.shutdown()
+    except Exception as e:
+        if debug:
+            print(f"Warning: Error during cleanup: {str(e)}")
+
+    # Exit with final RC
+    sys.exit(RC)
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 #
 #
@@ -827,7 +1166,8 @@ if Pingonly:
     Hash_rtemsCi = f_read_csv_and_ping(frtems,rtemsPreselected,primary,secondary,rtemsFiltered,envir,shore,debug)
     f_write_pings(Hash_rtemsCi,pingfile,debug)
     RC = 0
-    f_end(RC, debug) #NOTE
+    f_end(RC, debug, start)
+
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # Ping & port check
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -883,7 +1223,7 @@ else:
             print(f"#  There is no ports opened for any of the RTEMS.")
             print(f"# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------  ")
 
-        f_end(RC, debug) #NOTE
+        f_end(RC, debug, start)
 
     # ----------------------------------------------------------------------------------------------------------------------------------------------------------
     # match the found in pairs
@@ -965,7 +1305,7 @@ else:
         else:
             text= f"force ForceUninstall is set to {ForceUninstall}, so we are exiting. To force a reinstall you have to set -f as argument";logging.error(text);print(f"{text}")
             RC = 12
-            f_end(RC, debug) #NOTE
+            f_end(RC, debug, start) #NOTE
     else:
         text= f"there are running {services_cnt} ITM agents as expected for only OS & GSMA";logging.info(text)
 
@@ -1016,7 +1356,7 @@ if Uninstall or ForceUninstall:
         # ----------------------------------------------------------------------------------------------------------------------------------------------------------
         # loop to wait before it is done
         # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-        time.sleep(30)
+        system_time.sleep(30)
         process_name = "ITMRmvAll.exe"
         timeout=600
         if f_check_process_running(process_name,debug):
@@ -1073,7 +1413,7 @@ if Install:
         if debug:
             text = f"zipfile {zipSource} missing";logging.error(text)
         RC = 12
-        f_end(RC, debug) #NOTE
+        f_end(RC, debug, start)
 
     if debug:
         logging.info(f"# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------  ")
@@ -1098,7 +1438,7 @@ if Install:
         if debug:
             logging.error(f"No ITM Agent found after install!")
         RC = 0
-        f_end(RC, debug) #NOTE
+        f_end(RC, debug, start)
     # ----------------------------------------------------------------------------------------------------------------------------------------------------------
     # restore smitoolConfigZIP.zip & smitoolScriptZIP, after reinstall.
     # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1187,7 +1527,8 @@ if cleaupTemp:
     #     if debug:
     #         p = p.strip()
     #         if len(p) > 0: logging.info(p)
+
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # THE END
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-f_end(RC, debug)
+f_end(RC, debug, start)
