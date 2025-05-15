@@ -303,25 +303,24 @@
       register: cleanup_result
 
     - name: "Display cleanup results"
+      ignore_errors: true
       debug:
         msg: "Removed directory: {{ item.path }}"
       loop: "{{ cleanup_result.results }}"
       when:
         - script_run is success
-        - not item.failed
 
     - name: "List whats left on {{ nodename }}"
       run_once: true
-      win_shell: Get-ChildItem -Recurse -Path "{{ tmpdir }}"
       ignore_errors: yes
+      win_shell: Get-ChildItem -Recurse -Path "{{ tmpdir }}"
       register: script_leftovers
       when:
         - script_run is success
-        - not item.failed
         -
     - name: Output list script_leftovers
+      ignore_errors: yes
       debug:
         var: script_leftovers.stdout_lines
       when:
         - script_run is success
-        - not item.failed
