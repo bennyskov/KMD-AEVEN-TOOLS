@@ -307,20 +307,14 @@
       debug:
         msg: "Removed directory: {{ item.path }}"
       loop: "{{ cleanup_result.results }}"
-      when:
-        - script_run is success
 
     - name: "List whats left on {{ nodename }}"
       run_once: true
       ignore_errors: yes
       win_shell: Get-ChildItem -Recurse -Path "C:/Windows/Temp"
       register: script_leftovers
-      when:
-        - script_run is success
 
     - name: Output list script_leftovers
       ignore_errors: yes
       debug:
         var: script_leftovers.stdout_lines
-      when:
-        - script_run is success
