@@ -151,12 +151,16 @@ def f_set_debug_logging(debug):
                     "class": "logging.Formatter",
                     "format": "%(asctime)s\t%(levelname)s\t%(filename)s\t%(message)s",
                     "datefmt": "%Y %b %d %H:%M:%S"
+                },
+                "simple": {
+                    "class": "logging.Formatter",
+                    "format": "%(message)s"  # Simple format for console output
                 }
             },
             "handlers": {
                 "console": {
                     "class": "logging.StreamHandler",
-                    "formatter": "standard",
+                    "formatter": "simple",
                     "level": "INFO",
                     "stream": "ext://sys.stdout"
                 },
@@ -167,20 +171,16 @@ def f_set_debug_logging(debug):
                     "filename": logfile,
                     "mode": "a",
                     "encoding": "utf-8",
-                    # "maxBytes": 500000,
-                    # "backupCount": 4
+                    "maxBytes": 5000000,  # 5MB
+                    "backupCount": 5  # Keep 5 backup files
                 }
             },
-            "loggers" : {
-                "__main__": {  # if __name__ == "__main__"
+            "loggers": {
+                "": {  # Root logger
                     "handlers": ["console", "file"],
                     "level": "INFO",
-                    "propagate": False
+                    "propagate": True
                 }
-            },
-            "root" : {
-                "level": "INFO",
-                "handlers": ["file"]
             }
         }
         logging.config.dictConfig(logging_schema)
