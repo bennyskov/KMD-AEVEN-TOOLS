@@ -1,35 +1,30 @@
 # -*- coding: utf-8 -*-
+# Standard library imports first
 import json
-import pandas as pd
-import sys, os
+import os
+import sys
 import re
-import time
-import logging
-import logging.config
 import shutil
-import psutil
 import random
 import platform
-import ipaddress
 import socket
-import wmi
-import dns
-from dns import resolver
-import zipfile36 as zipfile
-import subprocess
-from subprocess import Popen, PIPE, CalledProcessError
-from datetime import datetime
-from datetime import timedelta
-from sys import exit
-from pathlib import Path
-from pprint import pprint
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import warnings
-warnings.filterwarnings('ignore', category=SyntaxWarning)
-# Specifically ignore dns module escape sequence warnings
-warnings.filterwarnings('ignore', r'.*SyntaxWarning.*invalid escape sequence.*')
-warnings.filterwarnings('ignore', r'.*token.is_identifier.*')
+from pathlib import Path
+from datetime import datetime, timedelta
+from subprocess import Popen, PIPE, CalledProcessError
+import subprocess
+from pprint import pprint
+
+# Initialize logging before third party modules that might use it
+import logging
+import logging.config
+
+# Import our safe time utilities
+from time_utils import time, sleep
+
+# Third party imports
+import psutil
+
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # INIT logging
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -214,14 +209,14 @@ def f_check_process_running(process_name,debug):
 # f_wait_for_process_completion
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_wait_for_process_completion(process_name,timeout,debug):
-    start_time = time.time()
+    start_time = time()  # Using our safe time_utils.time()
     while f_check_process_running(process_name,debug):
-        if time.time() - start_time > timeout:
+        if time() - start_time > timeout:  # Using our safe time_utils.time()
             text = f"Process {process_name} did not complete within {timeout} seconds."
             if debug:
                 logging.info(f"{text}")
             return False
-        time.sleep(1)
+        sleep(1)  # Using our safe time_utils.sleep()
     return True
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_close_locked_handle
@@ -266,14 +261,19 @@ def f_kill_if_process_hangs(process_name,debug):
 # f_end
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_end(RC, debug):
-    end = time.time()
-    hours, rem = divmod(end-start, 3600)
-    minutes, seconds = divmod(rem, 60)
-    endPrint = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    text = "End of {:65s} - {} - {:0>2}:{:0>2}:{:05.2f}".format(scriptName,endPrint,int(hours),int(minutes),seconds)
-    if debug:
-        logging.info(f"{text}")
-    print(f"{text}")
+    if RC is None: RC = 0
+    try:
+        end = time()  # Using our safe time_utils.time()
+        hours, rem = divmod(end-start, 3600)
+        minutes, seconds = divmod(rem, 60)
+        endPrint = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        text = "End of {:65s} - {} - {:0>2}:{:0>2}:{:05.2f}".format(scriptName,endPrint,int(hours),int(minutes),seconds)
+        if debug:
+            logging.info(f"{text}")
+        print(f"{text}")
+    except Exception as e:
+        logging.error(f"Error during script cleanup: {e}")
+        RC = 1
     exit(RC)
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 #

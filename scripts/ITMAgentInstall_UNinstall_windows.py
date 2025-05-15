@@ -4,18 +4,23 @@ import json
 import os
 import sys
 import re
-import time
 import shutil
 import random
 import platform
 import socket
-import logging
-import logging.config
+import warnings
 from pathlib import Path
 from datetime import datetime, timedelta
 from subprocess import Popen, PIPE, CalledProcessError
 import subprocess
 from pprint import pprint
+
+# Initialize logging before third party modules that might use it
+import logging
+import logging.config
+
+# Import our safe time utilities
+from time_utils import time, sleep
 
 # Third party imports
 import pandas as pd
@@ -27,8 +32,9 @@ from dns import resolver
 import zipfile36 as zipfile
 import urllib3
 import warnings
+
+# Configure urllib3 and warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-import warnings
 # Suppress all SyntaxWarnings for invalid escape sequences in the dns module
 warnings.filterwarnings('ignore', r'invalid escape sequence.*', SyntaxWarning, 'dns.ipv6')
 warnings.filterwarnings('ignore', r'invalid escape sequence.*', SyntaxWarning, 'dns.rdata')
@@ -78,7 +84,7 @@ version     = "version KMD V1.2"
 debug       = bool
 debug       = True
 RC          = 0
-start       = time()
+start       = time()  # Using our safe time_utils.time()
 now         = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 scriptName  = sys.argv[0]
 scriptName  = scriptName.replace('\\','/').strip()
@@ -286,12 +292,12 @@ def f_get_network_info(ip_address,debug):
         dns_servers = str(result.nameservers)
 
         return {
-            "ip_address": ip_address,
+            "ip_address": str(ip_address),
             "subnet_mask": str(subnet_mask),
             "network_address": str(network_address),
             "broadcast_address": str(broadcast_address),
-            "default_gateway": default_gateway,
-            "dns_servers": dns_servers
+            "default_gateway": str(default_gateway),
+            "dns_servers": str(dns_servers)
         }
     except Exception as e:
         return {"Error": str(e)}
@@ -510,11 +516,14 @@ def f_kill_if_process_hangs(process_name,debug):
 # f_end
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_end(RC, debug):
+    """Clean up and exit the script with the given return code."""
     if RC is None: RC = 0
-    end = time()
-    hours, rem = divmod(end-start, 3600)
-    minutes, seconds = divmod(rem, 60)
-    endPrint = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    try:
+        end = time()  # Using our safe time_utils.time()
+        duration = end - start
+        hours, rem = divmod(duration, 3600)
+        minutes, seconds = divmod(rem, 60)
+        endPrint = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     text = "End of {:65s} - {} - {:0>2}:{:0>2}:{:05.2f} - exit with RC={}".format(scriptName,endPrint,int(hours),int(minutes),seconds, RC)
     if debug:
         logging.info(f"{text}")
@@ -1016,7 +1025,7 @@ if Uninstall or ForceUninstall:
         # ----------------------------------------------------------------------------------------------------------------------------------------------------------
         # loop to wait before it is done
         # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-        time.sleep(30)
+        sleep(30)
         process_name = "ITMRmvAll.exe"
         timeout=600
         if f_check_process_running(process_name,debug):
@@ -1187,6 +1196,7 @@ if cleaupTemp:
     #     if debug:
     #         p = p.strip()
     #         if len(p) > 0: logging.info(p)
+
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # THE END
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
