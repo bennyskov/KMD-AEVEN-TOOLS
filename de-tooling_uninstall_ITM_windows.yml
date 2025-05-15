@@ -60,7 +60,7 @@
 # Install or UNinstallation playbook of a ITM agent on Windows server
 #
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: "# Install or UNinstallation playbook of a ITM agent on Windows server {{ nodename }}"
+- name: "Install or UNinstallation playbook of a ITM agent on Windows server {{ nodename }}"
   hosts: "{{ nodename }}"
   become: true
   gather_facts: true
