@@ -208,12 +208,20 @@ def f_set_priority():
 def f_check_port(host,port,debug):
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(1)  # Adjust timeout as needed
+            s.settimeout(3)  # 3 second timeout
             s.connect((host, port))
-        return True
+            return True
+    except socket.timeout:
+        if debug:
+            logging.info(f"Connection timed out checking {host}:{port}")
+        return False
+    except socket.gaierror:
+        if debug:
+            logging.info(f"DNS resolution failed for {host}")
+        return False
     except Exception as e:
-        # if debug:
-        #     logging.info(f"Error\t={e}")
+        if debug:
+            logging.info(f"Error checking {host}:{port} - {str(e)}")
         return False
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_read_csv_and_ping
@@ -518,17 +526,17 @@ def f_kill_if_process_hangs(process_name,debug):
 def f_end(RC, debug):
     """Clean up and exit the script with the given return code."""
     if RC is None: RC = 0
-    try:
-        end = time()  # Using our safe time_utils.time()
-        duration = end - start
-        hours, rem = divmod(duration, 3600)
-        minutes, seconds = divmod(rem, 60)
-        endPrint = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    end = time()  # Using our safe time_utils.time()
+    duration = end - start
+    hours, rem = divmod(duration, 3600)
+    minutes, seconds = divmod(rem, 60)
+    endPrint = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     text = "End of {:65s} - {} - {:0>2}:{:0>2}:{:05.2f} - exit with RC={}".format(scriptName,endPrint,int(hours),int(minutes),seconds, RC)
     if debug:
         logging.info(f"{text}")
     print(f"{text}")
     exit(RC)
+
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 #
 #
