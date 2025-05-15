@@ -296,9 +296,9 @@
         - "C:/ProgramData/BigFix"
         - "C:/ProgramData/ansible"
         - "C:/ProgramData/ilmt"
-        - "C:/Program Files/BigFix"
-        - "C:/Program Files/ansible"
-        - "C:/Program Files/ilmt"
+        - "C:/PROGRA~1/BigFix"
+        - "C:/PROGRA~1/ansible"
+        - "C:/PROGRA~1/ilmt"
         - "C:/Windows/Temp/KMD-AEVEN-TOOLS"
       register: cleanup_result
 
