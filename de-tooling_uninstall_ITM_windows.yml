@@ -309,6 +309,7 @@
       loop: "{{ cleanup_result.results }}"
 
     - name: "List whats left on {{ nodename }}"
+      become: true
       run_once: true
       ignore_errors: yes
       win_shell: Get-ChildItem -Recurse -Path "C:/ansible_workdir"
