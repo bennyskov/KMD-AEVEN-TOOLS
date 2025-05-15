@@ -364,28 +364,28 @@
       debug:
         var: script_leftovers.stdout_lines
 
-    - name: "Remove ansible, bigfix, ilmt directories from server"
-      ignore_errors: true
-      run_once: true
-      when: script_run is success
-      win_file:
-        path: "{{ item }}"
-        state: absent
-      loop:
-        - "C:/ansible_workdir"
-        - "C:/ProgramData/BigFix"
-        - "C:/ProgramData/ansible"
-        - "C:/ProgramData/ilmt"
-        - "C:/Program Files/BigFix"
-        - "C:/Program Files/ansible"
-        - "C:/Program Files/ilmt"
-        - "C:/Windows/Temp/KMD-AEVEN-TOOLS"
-      register: cleanup_result
+    # - name: "Remove ansible, bigfix, ilmt directories from server"
+    #   ignore_errors: true
+    #   run_once: true
+    #   when: script_run is success
+    #   win_file:
+    #     path: "{{ item }}"
+    #     state: absent
+    #   loop:
+    #     - "C:/ansible_workdir"
+    #     - "C:/ProgramData/BigFix"
+    #     - "C:/ProgramData/ansible"
+    #     - "C:/ProgramData/ilmt"
+    #     - "C:/Program Files/BigFix"
+    #     - "C:/Program Files/ansible"
+    #     - "C:/Program Files/ilmt"
+    #     - "C:/Windows/Temp/KMD-AEVEN-TOOLS"
+    #   register: cleanup_result
 
-    - name: "Display cleanup results"
-      debug:
-        msg: "Removed directory: {{ item.path }}"
-      loop: "{{ cleanup_result.results }}"
-      when:
-        - script_run is success
-        - not item.failed
+    # - name: "Display cleanup results"
+    #   debug:
+    #     msg: "Removed directory: {{ item.path }}"
+    #   loop: "{{ cleanup_result.results }}"
+    #   when:
+    #     - script_run is success
+    #     - not item.failed
