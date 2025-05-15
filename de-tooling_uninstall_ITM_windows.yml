@@ -337,14 +337,14 @@
     - name: "List whats left of BigFix"
       run_once: true
       ignore_errors: yes
-      win_shell: Get-ChildItem -Recurse -Path "C:/Program Files/BigFix"
+      win_shell: Get-ChildItem -Recurse -Path "C:/PROGRA~1/BigFix"
 
     - name: "List whats left of ansible"
       run_once: true
       ignore_errors: yes
-      win_shell: Get-ChildItem -Recurse -Path "C:/Program Files/ansible"
+      win_shell: Get-ChildItem -Recurse -Path "C:/PROGRA~1/ansible"
 
     - name: "List whats left of ilmt"
       run_once: true
       ignore_errors: yes
-      win_shell: Get-ChildItem -Recurse -Path "C:/Program Files/ilmt"
+      win_shell: Get-ChildItem -Recurse -Path "C:/PROGRA~1/ilmt"
