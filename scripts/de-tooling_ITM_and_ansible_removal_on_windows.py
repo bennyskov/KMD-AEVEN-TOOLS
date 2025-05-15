@@ -1,30 +1,35 @@
 # -*- coding: utf-8 -*-
-# Standard library imports first
 import json
-import os
-import sys
+import pandas as pd
+import sys, os
 import re
-import shutil
-import random
-import platform
-import socket
-import warnings
-from pathlib import Path
-from datetime import datetime, timedelta
-from subprocess import Popen, PIPE, CalledProcessError
-import subprocess
-from pprint import pprint
-
-# Initialize logging before third party modules that might use it
+import time
 import logging
 import logging.config
-
-# Import our safe time utilities
-from time_utils import time, sleep
-
-# Third party imports
+import shutil
 import psutil
-
+import random
+import platform
+import ipaddress
+import socket
+import wmi
+import dns
+from dns import resolver
+import zipfile36 as zipfile
+import subprocess
+from subprocess import Popen, PIPE, CalledProcessError
+from datetime import datetime
+from datetime import timedelta
+from sys import exit
+from pathlib import Path
+from pprint import pprint
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+import warnings
+warnings.filterwarnings('ignore', category=SyntaxWarning)
+# Specifically ignore dns module escape sequence warnings
+warnings.filterwarnings('ignore', r'.*SyntaxWarning.*invalid escape sequence.*')
+warnings.filterwarnings('ignore', r'.*token.is_identifier.*')
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # INIT logging
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -135,58 +140,28 @@ def f_write_pings(leftover_List,leftover,debug):
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_cmdexec(cmdexec,debug):
     cmdexec = f"{cmdexec} 2>&1"
-    result = []
-    rc = 0  # Initialize rc to 0
-
-    if debug:
-        logging.info(f"Executing command: {cmdexec}")
-
+    if debug: logging.info(f"cmdexec='{cmdexec}'")
     try:
-        # Use subprocess.run instead of Popen for simpler handling
-        proc_result = subprocess.run(
-            cmdexec,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            encoding="ISO-8859-1",
-            text=True
-        )
+        p = subprocess.Popen(cmdexec, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="ISO-8859-1")
+        result=p.stdout.readlines()
+        rc = p.returncode
+        # if debug:
+        #     logging.info(f"f_cmdexec result: {result}")
+        #     logging.info(f"f_cmdexec rc: {RC}")
 
-        # Split output into lines
-        result = proc_result.stdout.splitlines() if proc_result.stdout else []
-
-        # Get return code
-        rc = proc_result.returncode
-        if rc is None:
-            rc = 0  # Ensure we have a valid return code
-
-        # Log output if in debug mode
+    except subprocess.CalledProcessError:
         if debug:
-            for line in result:
-                logging.info(f"Output: {line}")
-
-    except subprocess.CalledProcessError as e:
-        if debug:
-            logging.warning(f"Command execution failed: {str(e)}")
-        result = []
-        rc = e.returncode if e.returncode is not None else 1
+            logging.warning(f"Error starting service '{service}'.")
+            logging.info(f"f_cmdexec result: {result}")
+            logging.info(f"f_cmdexec rc: {RC}")
 
     except UnicodeDecodeError:
         if debug:
-            logging.warning("Output has invalid characters (UnicodeDecodeError)")
-        result = []
-        rc = 1
+            logging.info(f"\n*Output has invalid (non utf-8) characters! Invalid output\n")
+            logging.info(f"f_cmdexec result: {result}")
+            logging.info(f"f_cmdexec rc: {RC}")
 
-    except Exception as e:
-        if debug:
-            logging.warning(f"Unexpected error during command execution: {str(e)}")
-        result = []
-        rc = 1
-
-    if debug:
-        logging.info(f"Command completed with return code: {rc}")
-
-    return result, rc
+    return result, RC
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_check_process_running
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -209,14 +184,14 @@ def f_check_process_running(process_name,debug):
 # f_wait_for_process_completion
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_wait_for_process_completion(process_name,timeout,debug):
-    start_time = time()  # Using our safe time_utils.time()
+    start_time = time.time()
     while f_check_process_running(process_name,debug):
-        if time() - start_time > timeout:  # Using our safe time_utils.time()
+        if time.time() - start_time > timeout:
             text = f"Process {process_name} did not complete within {timeout} seconds."
             if debug:
                 logging.info(f"{text}")
             return False
-        sleep(1)  # Using our safe time_utils.sleep()
+        time.sleep(1)
     return True
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_close_locked_handle
@@ -261,19 +236,14 @@ def f_kill_if_process_hangs(process_name,debug):
 # f_end
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_end(RC, debug):
-    if RC is None: RC = 0
-    try:
-        end = time()  # Using our safe time_utils.time()
-        hours, rem = divmod(end-start, 3600)
-        minutes, seconds = divmod(rem, 60)
-        endPrint = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        text = "End of {:65s} - {} - {:0>2}:{:0>2}:{:05.2f}".format(scriptName,endPrint,int(hours),int(minutes),seconds)
-        if debug:
-            logging.info(f"{text}")
-        print(f"{text}")
-    except Exception as e:
-        logging.error(f"Error during script cleanup: {e}")
-        RC = 1
+    end = time.time()
+    hours, rem = divmod(end-start, 3600)
+    minutes, seconds = divmod(rem, 60)
+    endPrint = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    text = "End of {:65s} - {} - {:0>2}:{:0>2}:{:05.2f}".format(scriptName,endPrint,int(hours),int(minutes),seconds)
+    if debug:
+        logging.info(f"{text}")
+    print(f"{text}")
     exit(RC)
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 #
@@ -374,28 +344,13 @@ if debug:
 logging.info(f"# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------  ")
 logging.info(f"#  START Uninstall & cleanup  ")
 logging.info(f"# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------  ")
-
-# Run Ansible uninstall
-result, cmd_rc = f_cmdexec(UninstAnsible, debug)
-
-# Only set RC to cmd_rc if cmd_rc indicates an error
-if cmd_rc != 0:
-    RC = cmd_rc
-    if debug:
-        logging.warning(f"Ansible uninstall failed with return code: {cmd_rc}")
-else:
-    if debug:
-        logging.info("Ansible uninstall completed successfully")
-
-# Log detailed results in debug mode
+result, RC = f_cmdexec(UninstAnsible,debug)
 if debug:
-    if result:
-        logging.info("Command output:")
-        for line in result:
-            line = line.strip()
-            logging.info(f"  {line}")
-    else:
-        logging.info("Command produced no output")
+    logging.info(f"f_cmdexec rc: {RC}")
+    logging.info(f"f_cmdexec result: {result}")
+    for line in result:
+        line = line.strip()
+        logging.info(line)
 
 # cmdexec = f"{pwsh} \"Stop-Service -Name {serviceName} -Force -ErrorAction SilentlyContinue\""
 # result, RC = f_cmdexec(cmdexec,debug)
@@ -404,137 +359,50 @@ if debug:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # cleanup dir
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-RC = 0  # Reset RC before cleanup
 try:
-    import glob
-    cleanup_success = True  # Track overall success of cleanup operations
+    removeFiles = (
+    "C:/Windows/Temp/IBM.*Tivoli.*Monitoring.*",
+    "C:/Windows/Temp/instTEMA_nt.*",
+    "C:/Windows/Temp/ITM6.*",
+    "C:/Windows/Temp/k06_reconfig.*",
+    "C:/Windows/Temp/knt_reconfig.*",
+    "C:/Windows/Temp/kinconfg_.*",
+    "C:/Windows/Temp/silconfig.*",
+    "C:/Windows/Temp/silent.txt.*",
+    "C:/Temp/scanner_logs.*",
+    "C:/Temp/exclude_config.txt",
+    "C:/Temp/Get-Win-Disks-and-Partitions.ps1",
+    "C:/Temp/log4j2-scanner-2.6.5.jar"
+    )
+    removeDirs = (
+    "C:/ansible_workdir/",
+    "C:/ProgramData/BigFix/",
+    "C:/ProgramData/ansible/",
+    "C:/ProgramData/ilmt/",
+    "C:/PROGRA~1/BigFix/",
+    "C:/PROGRA~1/ansible/",
+    "C:/PROGRA~1/ilmt/",
+    "C:/Windows/Temp/KMD-AEVEN-TOOLS/",
+    "C:/Temp/jre/",
+    "C:/Temp/report/",
+    )
 
-    if debug:
-        logging.info("Starting cleanup of files and directories...")
-
-    for path in removeList:
-        try:
-            if os.path.exists(path):
-                if os.path.isdir(path):
-                    shutil.rmtree(path)
-                    if debug:
-                        logging.info(f"Directory removed successfully: {path}")
-                else:
-                    # Handle file or file pattern
-                    if '*' in path or '?' in path:
-                        # It's a pattern, use glob
-                        for matched_file in glob.glob(path):
-                            if os.path.isfile(matched_file):
-                                os.remove(matched_file)
-                                if debug:
-                                    logging.info(f"File removed successfully: {matched_file}")
-                    else:
-                        # It's a specific file
-                        if os.path.isfile(path):
-                            os.remove(path)
-                            if debug:
-                                logging.info(f"File removed successfully: {path}")
-            else:
-                if debug:
-                    logging.info(f"Path not found (skipping): {path}")
-
-        except Exception as e:
-            cleanup_success = False
+    for directory in removeDirs:
+        if os.path.isdir(directory):
+            shutil.rmtree(directory)
             if debug:
-                logging.warning(f"Failed to remove {path}: {str(e)}")
+                logging.info("{:30s} - {}".format("dir is removed", directory))
 
-    # Set final RC based on cleanup success
-    if not cleanup_success:
-        RC = 1
-        if debug:
-            logging.warning("Cleanup completed with some errors")
-    else:
-        if debug:
-            logging.info("Cleanup completed successfully")
+    for filename in removeFiles:
+        if os.path.isfile(filename):
+            os.remove(filename)
+            if debug:
+                logging.info("{:30s} - {}".format("file is removed", filename))
 
 except Exception as e:
-    RC = 1
     if debug:
-        logging.error(f"Major error during cleanup: {str(e)}")
+        text = f'file/dir is NOT removed. Error: {str(e)}';logging.warning(text)
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # THE END
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 f_end(RC, debug)
-
-
-
-
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-#  frwk_toolsview_init
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-from frwk_toolsview import *
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# default SET LOGGING, activityID, f_set_cmdexec
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-parsearg = f_set_logging(debug,workdir,nodename,scriptname)
-logfile         = parsearg['logfile']
-stdout_file     = parsearg['stdout_file']
-nodename        = parsearg['nodename']
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# BEGIN script
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# grepdir           = 'D:/scripts/tview/build/logs/debugfile/*'
-grepdir             = 'D:/scripts/tview/build/logs/activities/stdout/*'
-# grepdir             = 'D:/scripts/tview/build/logs/activities/stdout/tool_find_file_on_host_20240613_164301_290966_eboksapp2209_stdout.log'
-grep_after          = "(log4j-1|log4j-2.1|ConfigMergeTool)"
-grep_in_files_named = "tool_find_file_on_host"
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-fname = f'D:/scripts/tview/build/logs/temp/{scriptname}_log4j.txt'
-if os.path.isfile(fname):
-    os.remove(fname)
-Path(fname).touch()
-count = 0
-for file in glob.iglob(grepdir, recursive=True):
-    file = file.strip()
-    if bool(re.search(f"archive*", file, re.IGNORECASE)): continue
-    if os.path.isfile(file):
-        if bool(re.search(f".zip", file, re.IGNORECASE)): continue
-        if bool(re.search(f"{grep_in_files_named}", file, re.IGNORECASE)):
-            filesplit = file.split(f'{grep_in_files_named}')[-1]
-            nodename = filesplit.split('_')[4]
-            text = f"nodename={nodename}"
-            logging.warning(text)
-            with open(f"{file}", "r",encoding='utf-8') as infile:
-                DirectoryIsOnNextLine = False
-                for line in infile:
-                    if re.search('(soap|LastWriteTime|^Begin|^End) ', line, re.IGNORECASE): continue
-                    line = re.sub(r'\s\s+', ' ',line)
-                    line = re.sub(r"-a----","",line)
-                    line = re.sub(r"-a---","",line)
-                    line = re.sub(r"\n","",line)
-                    line = re.sub(r"\r","",line)
-                    if DirectoryIsOnNextLine:
-                        line = re.sub(r"^\s+","",line)
-                        line = re.sub(r"\s+$","",line)
-                        directory = f"{line}"
-                        DirectoryIsOnNextLine = False
-                    if re.search('Directory', line, re.IGNORECASE):
-                        line = re.sub("Directory:","",line)
-                        line = re.sub(r"^\s+","",line)
-                        line = re.sub(r"\s+$","",line)
-                        print(f">{line}<")
-                        if len(line) == 0:
-                            DirectoryIsOnNextLine = True
-                        else:
-                            directory = f"{line}"
-                        continue
-                    if re.search(f"{grep_after}", line, re.IGNORECASE):
-                        line = re.sub(r"^\s+","",line)
-                        grep_after_found = f"{line}"
-                        # text = f"{nodename};{directory};{grep_after_found};{file}"
-                        text = f"{nodename};{directory};{grep_after_found}"
-                        with open(fname, 'a') as outfile:
-                            outfile.write(f"{text}\n")
-
-                count += 1
-                print(f"count={count}")
-outfile.close()
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# THE END
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-f_end(con,debug)
