@@ -311,10 +311,41 @@
     - name: "List whats left on {{ nodename }}"
       run_once: true
       ignore_errors: yes
-      win_shell: Get-ChildItem -Recurse -Path "C:/Windows/Temp"
+      win_shell: Get-ChildItem -Recurse -Path "C:/ansible_workdir"
       register: script_leftovers
 
-    - name: Output list script_leftovers
+    - name: "List whats left of ansible_workdir"
+      run_once: true
       ignore_errors: yes
-      debug:
-        var: script_leftovers.stdout_lines
+      win_shell: Get-ChildItem -Recurse -Path "C:/ProgramData/BigFix"
+
+    - name: "List whats left of BigFix"
+      run_once: true
+      ignore_errors: yes
+      win_shell: Get-ChildItem -Recurse -Path "C:/ProgramData/BigFix"
+
+    - name: "List whats left of ansible"
+      run_once: true
+      ignore_errors: yes
+      win_shell: Get-ChildItem -Recurse -Path "C:/ProgramData/ansible"
+
+    - name: "List whats left of ilmt"
+      run_once: true
+      ignore_errors: yes
+      win_shell: Get-ChildItem -Recurse -Path "C:/ProgramData/ilmt"
+
+
+    - name: "List whats left of BigFix"
+      run_once: true
+      ignore_errors: yes
+      win_shell: Get-ChildItem -Recurse -Path "C:/Program Files/BigFix"
+
+    - name: "List whats left of ansible"
+      run_once: true
+      ignore_errors: yes
+      win_shell: Get-ChildItem -Recurse -Path "C:/Program Files/ansible"
+
+    - name: "List whats left of ilmt"
+      run_once: true
+      ignore_errors: yes
+      win_shell: Get-ChildItem -Recurse -Path "C:/Program Files/ilmt"
