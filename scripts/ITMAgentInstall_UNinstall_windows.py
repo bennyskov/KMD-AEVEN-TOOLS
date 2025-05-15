@@ -876,12 +876,12 @@ ip_address  = socket.gethostbyname(nodename)
 network_info= f_get_network_info(ip_address,debug)
 # for key, value in network_info.items():
 #     print(f"{key}: {value}")
-ip_address          = str(network_info["ip_address"])
-subnet_mask         = str(network_info["subnet_mask"])
-network_address     = str(network_info["network_address"])
-broadcast_address   = str(network_info["broadcast_address"])
-default_gateway     = str(network_info["default_gateway"])
-dns_servers         = str(network_info["dns_servers"])
+ip_address          = network_info["ip_address"]
+subnet_mask         = network_info["subnet_mask"]
+network_address     = network_info["network_address"]
+broadcast_address   = network_info["broadcast_address"]
+default_gateway     = network_info["default_gateway"]
+dns_servers         = network_info["dns_servers"]
 Install             = False
 ForceUninstall      = False
 Pingonly            = False
