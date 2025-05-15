@@ -313,7 +313,6 @@
       run_once: true
       ignore_errors: yes
       win_shell: Get-ChildItem -Recurse -Path "C:/ansible_workdir"
-      register: script_leftovers
 
     - name: "List whats left of ansible_workdir"
       run_once: true
