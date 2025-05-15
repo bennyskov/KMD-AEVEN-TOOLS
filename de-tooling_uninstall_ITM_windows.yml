@@ -313,11 +313,11 @@
     - name: "List whats left on {{ nodename }}"
       run_once: true
       ignore_errors: yes
-      win_shell: Get-ChildItem -Recurse -Path "{{ tmpdir }}"
+      win_shell: Get-ChildItem -Recurse -Path "C:/Windows/Temp"
       register: script_leftovers
       when:
         - script_run is success
-        -
+
     - name: Output list script_leftovers
       ignore_errors: yes
       debug:
