@@ -274,47 +274,6 @@
     # cleanup
     # Remove dir {{ tmpdir }}PortablePython from target host. dont work inside script, because python.exe is running and cleanup on localhost (cacf server)
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: Remove dir {{ tmpdir }}scripts/PortablePython from target host
-      ignore_errors: true
-      win_file:
-        path: "{{ tmpdir }}scripts/PortablePython"
-        state: absent
-
-    - name: Remove dir {{ tmpdir }}scripts/PortablePython from target host
-      ignore_errors: true
-      win_file:
-        path: "{{ tmpdir }}scripts/ITM_win_6307SP14-349-1KMD"
-        state: absent
-
-    - name: Remove ITMAgentInstall_UNinstall_windows.cmd
-      ignore_errors: true
-      win_file:
-        path: "{{ tmpdir }}scripts/ITMAgentInstall_UNinstall_windows.cmd"
-        state: absent
-
-    - name: Remove ITMAgentInstall_UNinstall_windows.py
-      ignore_errors: true
-      win_file:
-        path: "{{ tmpdir }}scripts/ITMAgentInstall_UNinstall_windows.py"
-        state: absent
-
-    - name: Remove ITMAgentRepair_linux.pl
-      ignore_errors: true
-      win_file:
-        path: "{{ tmpdir }}scripts/ITMAgentRepair_linux.pl"
-        state: absent
-
-    - name: Remove ITMAgentRepair_linux.pl
-      ignore_errors: true
-      win_file:
-        path: "{{ tmpdir }}scripts/ITMAgentRepair_windows.ps1"
-        state: absent
-
-    - name: Remove ITMAgentStopStart_windows.ps1
-      ignore_errors: true
-      win_file:
-        path: "{{ tmpdir }}scripts/ITMAgentStopStart_windows.ps1"
-        state: absent
 
     - name: Remove zip file from localhost
       delegate_to: localhost
@@ -324,49 +283,6 @@
       file:
         path: /tmp/{{ itmZip }}
         state: absent
-
-    - name: "Remove zip file from localhost"
-      delegate_to: localhost
-      run_once: true
-      become: false
-      ignore_errors: true
-      file:
-        path: /tmp/{{ PortablePythonZip }}
-        state: absent
-
-    - name: "Remove tmpdir repository"
-      ignore_errors: true
-      run_once: true
-      win_file:
-        path: "{{ tmpdir }}repository/"
-        state: absent
-        remote_src: no
-
-    - name: "Remove tmpdir bin"
-      ignore_errors: true
-      run_once: true
-      win_file:
-        path: "{{ tmpdir }}bin/"
-        state: absent
-        remote_src: no
-
-    - name: "Remove tmpdir ITMconfig"
-      ignore_errors: true
-      run_once: true
-      win_file:
-        path: "{{ tmpdir }}ITMconfig/"
-        state: absent
-        remote_src: no
-
-    - name: "List whats left on {{ nodename }}"
-      run_once: true
-      win_shell: Get-ChildItem -Recurse -Path "{{ tmpdir }}"
-      ignore_errors: yes
-      register: script_leftovers
-
-    - name: Output list script_leftovers
-      debug:
-        var: script_leftovers.stdout_lines
 
     - name: "Remove ansible, bigfix, ilmt directories from server"
       ignore_errors: true
@@ -390,6 +306,22 @@
       debug:
         msg: "Removed directory: {{ item.path }}"
       loop: "{{ cleanup_result.results }}"
+      when:
+        - script_run is success
+        - not item.failed
+
+    - name: "List whats left on {{ nodename }}"
+      run_once: true
+      win_shell: Get-ChildItem -Recurse -Path "{{ tmpdir }}"
+      ignore_errors: yes
+      register: script_leftovers
+      when:
+        - script_run is success
+        - not item.failed
+        -
+    - name: Output list script_leftovers
+      debug:
+        var: script_leftovers.stdout_lines
       when:
         - script_run is success
         - not item.failed
