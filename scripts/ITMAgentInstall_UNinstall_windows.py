@@ -972,6 +972,7 @@ if Uninstall or ForceUninstall:
     if (re.search("no ITM services found", str(result), re.IGNORECASE)):
         if debug:
             logging.warning(f"No ITM Agent to uninstall, continues to next step")
+        print(f"No ITM Agents in services. Nothing to uninstall. continues to cleanup")
     else:
         logging.info(f"# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------  ")
         logging.info(f"#  START Uninstall & cleanup  ")
