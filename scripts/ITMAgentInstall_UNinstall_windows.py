@@ -510,11 +510,12 @@ def f_kill_if_process_hangs(process_name,debug):
 # f_end
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_end(RC, debug):
+    if RC is None: RC = 0
     end = time()
     hours, rem = divmod(end-start, 3600)
     minutes, seconds = divmod(rem, 60)
     endPrint = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    text = "End of {:65s} - {} - {:0>2}:{:0>2}:{:05.2f}".format(scriptName,endPrint,int(hours),int(minutes),seconds)
+    text = "End of {:65s} - {} - {:0>2}:{:0>2}:{:05.2f} - exit with RC={}".format(scriptName,endPrint,int(hours),int(minutes),seconds, RC)
     if debug:
         logging.info(f"{text}")
     print(f"{text}")
@@ -1186,7 +1187,6 @@ if cleaupTemp:
     #     if debug:
     #         p = p.strip()
     #         if len(p) > 0: logging.info(p)
-
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # THE END
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
