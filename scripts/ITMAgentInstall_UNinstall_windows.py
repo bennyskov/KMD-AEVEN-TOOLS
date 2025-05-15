@@ -389,7 +389,7 @@ def f_stopItmServices(DisableAllServices,debug):
     if len(services) == 0:
         result = "no ITM services found. There is no ITM agent installed"
         if debug: logging.info(result)
-        RC = 12
+        RC = 0
     else:
         if DisableAllServices:
             for service in services:
@@ -587,52 +587,6 @@ CommandLine         = '^C:\\IBM.ITM\\.*\\K*'
 UninstPath          = f"{workdir}/bin/{UninstName}"
 UninstCmdexec       = ("start", "/WAIT", "/MIN", f"{UninstPath}", "-batchrmvall", "-removegskit")
 step                = 0
-RegistryKeys = (
-    'HKLM:/SOFTWARE/Candle'
-    'HKLM:/SOFTWARE/Wow6432Node/Candle',
-    'HKLM:/SYSTEM/CurrentControlSet/Services/Candle',
-    'HKLM:/SYSTEM/CurrentControlSet/Services/IBM/ITM'
-)
-# RemoveDirs = (
-#     "C:/Windows/Temp",
-#     "C:/Temp/scanner_logs",
-#     "C:/Temp/jre",
-#     "C:/Temp/report",
-#     "C:/Temp/exclude_config.txt",
-#     "C:/Temp/Get-Win-Disks-and-Partitions.ps1",infrastructure
-#     "C:/Temp/log4j2-scanner-2.6.5.jar",
-#     "C:/salt",
-#     "${scriptBin}"
-# )
-RemoveDirs = (
-    "C:/Temp"
-)
-# ----------------------------------------------------------------------------------------------------------------------------
-# display vars
-# ----------------------------------------------------------------------------------------------------------------------------
-# $text = "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"; Logline -logstring $text -step $step
-# text = f'begin:             {now}' if debug: logging.info(f'{now}')
-# $text = "psvers:            " + $psvers; Logline -logstring $text -stexttep $step
-# $text = "hostname:          " + $hostname; Logline -logstring $text -step $step
-# $text = "hostIp:            " + $hostIp; Logline -logstring $text -step $step
-# $text = "scriptName:        " + $scriptName; Logline -logstring $text -step $step
-# $text = "scriptPath:        " + $scriptPath; Logline -logstring $text -step $step
-# $text = "scriptDir:         " + $scriptDir; Logline -logstring $text -step $step
-# $text = "logfile:           " + $logfile; Logline -logstring $text -step $step
-# $text = "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"; Logline -logstring $text -step $step
-# $text = "UninstName:        " + $UninstName; Logline -logstring $text -step $step
-# $text = "DisplayName:       " + $DisplayName; Logline -logstring $text -step $step
-# $text = "ServiceName:       " + $ServiceName; Logline -logstring $text -step $step
-# $text = "CommandLine:       " + $CommandLine; Logline -logstring $text -step $step
-# $text = "UninstPath:        " + $UninstPath; Logline -logstring $text -step $step
-# $text = "UninstCmdexec:     " + $UninstCmdexec; Logline -logstring $text -step $step
-# $text = "DisableAllServices:    " + $DisableAllServices; Logline -logstring $text -step $step
-# foreach ( $key in $RegistryKeys ) {
-#     $text = "registry key to be removed: " + $key; Logline -logstring $text -step $step
-# }
-# foreach ( $dir in $RemoveDirs ) {
-#     $text = "directory to be removed: " + $dir; Logline -logstring $text -step $step
-# }
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 print("Begin  {:65s} - {}".format(scriptName,now))
 if debug:
