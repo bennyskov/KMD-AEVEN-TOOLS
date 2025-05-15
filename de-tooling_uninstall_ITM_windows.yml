@@ -334,7 +334,6 @@
       ignore_errors: yes
       win_shell: Get-ChildItem -Recurse -Path "C:/ProgramData/ilmt"
 
-
     - name: "List whats left of BigFix"
       run_once: true
       ignore_errors: yes
