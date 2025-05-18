@@ -19,7 +19,8 @@
         name: ansible-role-event-socks-tunnel
         apply:
           check_mode: false
-              delegate_to: localhost
+          run_once: true
+          delegate_to: localhost
 
     - set_fact:
         ansible_become_method: runas
