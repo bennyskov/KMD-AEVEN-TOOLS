@@ -77,4 +77,4 @@
 
     - name: "test if SA-Agent OPSWARE has been installed"
       ignore_errors: yes
-      win_shell: (Test-Path "/opt/opsware/agent/bin/") -and ((Get-ChildItem -Path "/opt/opsware/agent/bin/" -Recurse -File | Measure-Object).Count -gt 0)
+      win_shell: (Test-Path "C:/Program Files/Opsware/agent/bin") -and ((Get-ChildItem -Path "C:/Program Files/Opsware/agent/bin" -Recurse -File | Measure-Object).Count -gt 0)
