@@ -28,6 +28,11 @@
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     # Delete & create new KMD-AEVEN-TOOLS directory
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+- name: "Install or UNinstallation playbook of a ITM agent on Windows server {{ nodename }}"
+  hosts: "{{ nodename }}"
+  become: true
+  gather_facts: false
+  tasks:
     - name: "Get-Processes on ITM"
       run_once: true
       win_shell: Get-Process -Name "*ITM*"
