@@ -1,0 +1,85 @@
+- name: Create OS groups
+  hosts: localhost
+  become: false
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: Create OS group
+      group_by:
+        key: "machine_{{ ostype }}"
+      changed_when: false
+      when: ostype is defined
+      delegate_to: localhost
+
+- name: Socks tunnel setup
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - include_role:
+        name: ansible-role-event-socks-tunnel
+        apply:
+          check_mode: false
+          run_once: true
+          delegate_to: localhost
+
+    - set_fact:
+        ansible_become_method: runas
+        ansible_become_user: system
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Delete & create new KMD-AEVEN-TOOLS directory
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: "Get-Processes on {{ nodename }}"
+      run_once: true
+      win_shell: Get-Process -Name "*ITM*"
+      ignore_errors: yes
+      register: script_getprocess_itm
+
+    - name: "List whats left on {{ nodename }}"
+      run_once: true
+      ignore_errors: yes
+      win_shell: Get-ChildItem -Recurse -Path "C:/ansible_workdir"
+
+    - name: "test if ansible has been cleared"
+      run_once: true
+      ignore_errors: yes
+      win_shell: if (Test-Path "C:/ansible_workdir") { Get-ChildItem -Recurse -Path "C:/ansible_workdir" }
+
+    - name: "test if ansible has been cleared"
+      run_once: true
+      ignore_errors: yes
+      win_shell: if (Test-Path "C:/ProgramData/ansible") { Get-ChildItem -Recurse -Path "C:/ProgramData/ansible" }
+
+    - name: "test if BigFix has been cleared"
+      run_once: true
+      ignore_errors: yes
+      win_shell: if (Test-Path "C:/ProgramData/BigFix") { Get-ChildItem -Recurse -Path "C:/ProgramData/BigFix" }
+
+    - name: "test if ilmt has been cleared"
+      run_once: true
+      ignore_errors: yes
+      win_shell: if (Test-Path "C:/ProgramData/ilmt") { Get-ChildItem -Recurse -Path "C:/ProgramData/ilmt" }
+
+    - name: "test if ansible has been cleared"
+      run_once: true
+      ignore_errors: yes
+      win_shell: if (Test-Path "C:/PROGRA~1/ansible") { Get-ChildItem -Recurse -Path "C:/PROGRA~1/ansible" }
+
+    - name: "test if BigFix has been cleared"
+      run_once: true
+      ignore_errors: yes
+      win_shell: if (Test-Path "C:/PROGRA~1/BigFix") { Get-ChildItem -Recurse -Path "C:/PROGRA~1/BigFix" }
+
+    - name: "test if ilmt has been cleared"
+      run_once: true
+      ignore_errors: yes
+      win_shell: if (Test-Path "C:/PROGRA~1/ilmt") { Get-ChildItem -Recurse -Path "C:/PROGRA~1/ilmt" }
+
+    - name: "test if lTM has been cleared"
+      run_once: true
+      ignore_errors: yes
+      win_shell: if (Test-Path "C:/IBM/ITM/bin") { Get-ChildItem -Recurse -Path "C:/IBM/ITM" }
+
+    - name: "test if SA-Agent OPSWARE has been installed"
+      run_once: true
+      ignore_errors: yes
+      win_shell: if (Test-Path "/opt/opsware/agent/bin/") { Get-ChildItem -Recurse -Path "/opt/opsware/agent/bin/" }
