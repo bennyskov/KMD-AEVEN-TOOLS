@@ -19,8 +19,7 @@
         name: ansible-role-event-socks-tunnel
         apply:
           check_mode: false
-          run_once: true
-          delegate_to: localhost
+              delegate_to: localhost
 
     - set_fact:
         ansible_become_method: runas
@@ -34,58 +33,47 @@
   gather_facts: false
   tasks:
     - name: "Get-Processes on ITM"
-      run_once: true
       win_shell: Get-Process -Name "*ITM*"
       ignore_errors: yes
       register: script_getprocess_itm
 
-    - name: "test if ansible has been cleared"
-      run_once: true
-      ignore_errors: yes
-      win_shell: if (Test-Path "C:/ansible_workdir") { Get-ChildItem -Recurse -Path "C:/ansible_workdir" }
-
-    - name: "test if ansible has been cleared"
-      run_once: true
-      ignore_errors: yes
-      win_shell: if (Test-Path "C:/ProgramData/ansible") { Get-ChildItem -Recurse -Path "C:/ProgramData/ansible" }
-
-    - name: "test if BigFix has been cleared"
-      run_once: true
-      ignore_errors: yes
-      win_shell: if (Test-Path "C:/ProgramData/BigFix") { Get-ChildItem -Recurse -Path "C:/ProgramData/BigFix" }
-
-    - name: "test if ilmt has been cleared"
-      run_once: true
-      ignore_errors: yes
-      win_shell: if (Test-Path "C:/ProgramData/ilmt") { Get-ChildItem -Recurse -Path "C:/ProgramData/ilmt" }
-
-    - name: "test if ansible has been cleared"
-      run_once: true
-      ignore_errors: yes
-      win_shell: if (Test-Path "C:/PROGRA~1/ansible") { Get-ChildItem -Recurse -Path "C:/PROGRA~1/ansible" }
-
-    - name: "test if BigFix has been cleared"
-      run_once: true
-      ignore_errors: yes
-      win_shell: if (Test-Path "C:/PROGRA~1/BigFix") { Get-ChildItem -Recurse -Path "C:/PROGRA~1/BigFix" }
-
-    - name: "test if ilmt has been cleared"
-      run_once: true
-      ignore_errors: yes
-      win_shell: if (Test-Path "C:/PROGRA~1/ilmt") { Get-ChildItem -Recurse -Path "C:/PROGRA~1/ilmt" }
-
-    - name: "test if lTM has been cleared"
-      run_once: true
-      ignore_errors: yes
-      win_shell: if (Test-Path "C:/IBM/ITM/bin") { Get-ChildItem -Recurse -Path "C:/IBM/ITM" }
-
     - name: "Get-Processes OPSWARE"
-      run_once: true
       win_shell: Get-Process -Name "*OPSWARE*"
       ignore_errors: yes
       register: script_getprocess_itm
 
-    - name: "test if SA-Agent OPSWARE has been installed"
-      run_once: true
+    - name: "test if ansible has been cleared"
       ignore_errors: yes
-      win_shell: if (Test-Path "/opt/opsware/agent/bin/") { Get-ChildItem -Recurse -Path "/opt/opsware/agent/bin/" }
+      win_shell: (Test-Path "C:/ansible_workdir") -and ((Get-ChildItem -Path "C:/ansible_workdir" -Recurse -File | Measure-Object).Count -gt 0)
+
+    - name: "test if ansible has been cleared"
+      ignore_errors: yes
+      win_shell: (Test-Path "C:/ProgramData/ansible") -and ((Get-ChildItem -Path "C:/ProgramData/ansible" -Recurse -File | Measure-Object).Count -gt 0)
+
+    - name: "test if BigFix has been cleared"
+      ignore_errors: yes
+      win_shell: (Test-Path "C:/ProgramData/BigFix") -and ((Get-ChildItem -Path "C:/ProgramData/BigFix" -Recurse -File | Measure-Object).Count -gt 0)
+
+    - name: "test if ilmt has been cleared"
+      ignore_errors: yes
+      win_shell: (Test-Path "C:/ProgramData/ilmt") -and ((Get-ChildItem -Path "C:/ProgramData/ilmt" -Recurse -File | Measure-Object).Count -gt 0)
+
+    - name: "test if ansible has been cleared"
+      ignore_errors: yes
+      win_shell: (Test-Path "C:/PROGRA~1/ansible") -and ((Get-ChildItem -Path "C:/PROGRA~1/ansible" -Recurse -File | Measure-Object).Count -gt 0)
+
+    - name: "test if BigFix has been cleared"
+      ignore_errors: yes
+      win_shell: (Test-Path "C:/PROGRA~1/BigFix") -and ((Get-ChildItem -Path "C:/PROGRA~1/BigFix" -Recurse -File | Measure-Object).Count -gt 0)
+
+    - name: "test if ilmt has been cleared"
+      ignore_errors: yes
+      win_shell: (Test-Path "C:/PROGRA~1/ilmt") -and ((Get-ChildItem -Path "C:/PROGRA~1/ilmt" -Recurse -File | Measure-Object).Count -gt 0)
+
+    - name: "test if lTM has been cleared"
+      ignore_errors: yes
+      win_shell: (Test-Path "C:/IBM/ITM/bin") -and ((Get-ChildItem -Path "C:/IBM/ITM" -Recurse -File | Measure-Object).Count -gt 0)
+
+    - name: "test if SA-Agent OPSWARE has been installed"
+      ignore_errors: yes
+      win_shell: (Test-Path "/opt/opsware/agent/bin/") -and ((Get-ChildItem -Path "/opt/opsware/agent/bin/" -Recurse -File | Measure-Object).Count -gt 0)
