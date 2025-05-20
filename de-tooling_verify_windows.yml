@@ -33,16 +33,13 @@
   become: true
   gather_facts: false
   tasks:
-    - name: "Get-Service on ITM"
-      win_shell: "[bool](Get-Service *ITM*)"
+    - name: "Get-Service on KNT*, K06*"
+      win_shell: "[bool](Get-Service KNT*, K06*)"
       ignore_errors: yes
       register: get_service
-    - name: print_output
-      debug:
-        var: get_service.stdout
     - name: print_verify
       debug:
-        msg: 'print_verify ==>|{{ get_service.stdout }}'
+        msg: 'is_ITM_service:{{ get_service.stdout }}'
 
     - name: "Get-Service OPSWARE"
       win_shell:  "[bool](Get-Service opsware*)"
