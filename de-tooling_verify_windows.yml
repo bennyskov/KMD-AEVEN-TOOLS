@@ -21,33 +21,46 @@
           check_mode: false
           run_once: true
           delegate_to: localhost
-
-    - set_fact:
-        ansible_become_method: runas
-        ansible_become_user: system
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    # Delete & create new KMD-AEVEN-TOOLS directory
-    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: "Verify if ITM and Ansible has been uninstalled on Windows server {{ nodename }}"
-  hosts: "{{ nodename }}"
+- name: "Verify if ITM and Ansible has been uninstalled on Windows servers"
+  hosts: "{{ nodename | default('all') }}"
   become: true
-  gather_facts: false
+  gather_facts: true
   tasks:
-    - name: "Get-get_service_itm"
+    - name: Verify nodename pattern
+      debug:
+        msg: "Running against host: {{ inventory_hostname }}"
+      when: (nodename is not defined) or
+            (inventory_hostname == nodename) or
+            (inventory_hostname in nodename.split(',') if ',' in nodename else False) or
+            (inventory_hostname is match(nodename) if '^' in nodename else False)
+      run_once: true
+
+    - name: Skip if not matching nodename pattern
+      meta: end_host
+      when: nodename is defined and
+            inventory_hostname != nodename and
+            inventory_hostname not in (nodename.split(',') if ',' in nodename else []) and
+            not (inventory_hostname is match(nodename) if '^' in nodename else False)
+
+    - name: Skip if not Windows
+      meta: end_host
+      when: ansible_facts['os_family'] is not defined or ansible_facts['os_family'] != 'Windows'
+    - name: "Check ITM services"
       win_shell: "[bool](Get-Service KNT*, K06*)"
       ignore_errors: yes
       register: get_service_itm
-    - name: print_verify
+    - name: print_verify_itm_service
       debug:
-        msg: 'is_ITM_service_on:{{ get_service_itm.stdout }}'
+        msg: "is_ITM_service_running:{{ get_service_itm.stdout }}"
 
-    - name: "get_service_SA"
-      win_shell:  "[bool](Get-Service opsware*)"
+    - name: "Check Opsware services"
+      win_shell: "[bool](Get-Service opsware*)"
       ignore_errors: yes
       register: get_service_SA
-    - name: print_verify
+    - name: print_verify_opsware_service
       debug:
-        msg: 'is_SA_service_on:{{ get_service.stdout }}'
+        msg: "is_opsware_service_running:{{ get_service_SA.stdout }}"
 
     #  ----------------------------------------------------------------------------------------------------------------
     #  verify if directories exists
