@@ -33,51 +33,94 @@
   become: true
   gather_facts: false
   tasks:
-    - name: "Get-Service on KNT*, K06*"
+    - name: "Get-get_service_itm"
       win_shell: "[bool](Get-Service KNT*, K06*)"
       ignore_errors: yes
-      register: get_service
+      register: get_service_itm
     - name: print_verify
       debug:
-        msg: 'is_ITM_service:{{ get_service.stdout }}'
+        msg: 'is_ITM_service_on:{{ get_service_itm.stdout }}'
 
-    - name: "Get-Service OPSWARE"
+    - name: "get_service_SA"
       win_shell:  "[bool](Get-Service opsware*)"
       ignore_errors: yes
-      register: script_getprocess_itm
+      register: get_service_SA
+    - name: print_verify
+      debug:
+        msg: 'is_SA_service_on:{{ get_service.stdout }}'
 
-    - name: "test if ansible has been cleared"
+    #  ----------------------------------------------------------------------------------------------------------------
+    #  verify if directories exists
+    #  ----------------------------------------------------------------------------------------------------------------
+
+    - name: "test if ansible workdir has been cleared"
       ignore_errors: yes
       win_shell: (Test-Path "C:/ansible_workdir") -and ((Get-ChildItem -Path "C:/ansible_workdir" -Recurse -File | Measure-Object).Count -gt 0)
+      register: check_ansible_workdir
+    - name: print_verify
+      debug:
+        msg: 'exist_ansible_workdir:{{ check_ansible_workdir.stdout }}'
 
-    - name: "test if ansible has been cleared"
+    - name: "test if ansible ProgramData has been cleared"
       ignore_errors: yes
       win_shell: (Test-Path "C:/ProgramData/ansible") -and ((Get-ChildItem -Path "C:/ProgramData/ansible" -Recurse -File | Measure-Object).Count -gt 0)
+      register: check_ansible_programdata
+    - name: print_verify
+      debug:
+        msg: 'exist_ansible_programdata:{{ check_ansible_programdata.stdout }}'
 
-    - name: "test if BigFix has been cleared"
+    - name: "test if BigFix ProgramData has been cleared"
       ignore_errors: yes
       win_shell: (Test-Path "C:/ProgramData/BigFix") -and ((Get-ChildItem -Path "C:/ProgramData/BigFix" -Recurse -File | Measure-Object).Count -gt 0)
+      register: check_bigfix_programdata
+    - name: print_verify
+      debug:
+        msg: 'exist_bigfix_programdata:{{ check_bigfix_programdata.stdout }}'
 
-    - name: "test if ilmt has been cleared"
+    - name: "test if ilmt ProgramData has been cleared"
       ignore_errors: yes
       win_shell: (Test-Path "C:/ProgramData/ilmt") -and ((Get-ChildItem -Path "C:/ProgramData/ilmt" -Recurse -File | Measure-Object).Count -gt 0)
+      register: check_ilmt_programdata
+    - name: print_verify
+      debug:
+        msg: 'exist_ilmt_programdata:{{ check_ilmt_programdata.stdout }}'
 
-    - name: "test if ansible has been cleared"
+    - name: "test if ansible Program Files has been cleared"
       ignore_errors: yes
       win_shell: (Test-Path "C:/PROGRA~1/ansible") -and ((Get-ChildItem -Path "C:/PROGRA~1/ansible" -Recurse -File | Measure-Object).Count -gt 0)
+      register: check_ansible_progfiles
+    - name: print_verify
+      debug:
+        msg: 'exist_ansible_progfiles:{{ check_ansible_progfiles.stdout }}'
 
-    - name: "test if BigFix has been cleared"
+    - name: "test if BigFix Program Files has been cleared"
       ignore_errors: yes
       win_shell: (Test-Path "C:/PROGRA~1/BigFix") -and ((Get-ChildItem -Path "C:/PROGRA~1/BigFix" -Recurse -File | Measure-Object).Count -gt 0)
+      register: check_bigfix_progfiles
+    - name: print_verify
+      debug:
+        msg: 'exist_bigfix_progfiles:{{ check_bigfix_progfiles.stdout }}'
 
-    - name: "test if ilmt has been cleared"
+    - name: "test if ilmt Program Files has been cleared"
       ignore_errors: yes
       win_shell: (Test-Path "C:/PROGRA~1/ilmt") -and ((Get-ChildItem -Path "C:/PROGRA~1/ilmt" -Recurse -File | Measure-Object).Count -gt 0)
+      register: check_ilmt_progfiles
+    - name: print_verify
+      debug:
+        msg: 'exist_ilmt_progfiles:{{ check_ilmt_progfiles.stdout }}'
 
-    - name: "test if lTM has been cleared"
+    - name: "test if ITM has been cleared"
       ignore_errors: yes
       win_shell: (Test-Path "C:/IBM/ITM/bin") -and ((Get-ChildItem -Path "C:/IBM/ITM" -Recurse -File | Measure-Object).Count -gt 0)
+      register: check_itm
+    - name: print_verify
+      debug:
+        msg: 'exist_itm:{{ check_itm.stdout }}'
 
     - name: "test if SA-Agent OPSWARE has been installed"
       ignore_errors: yes
       win_shell: (Test-Path "C:/Program Files/Opsware/agent/bin") -and ((Get-ChildItem -Path "C:/Program Files/Opsware/agent/bin" -Recurse -File | Measure-Object).Count -gt 0)
+      register: check_opsware
+    - name: print_verify
+      debug:
+        msg: 'exist_opsware:{{ check_opsware.stdout }}'
