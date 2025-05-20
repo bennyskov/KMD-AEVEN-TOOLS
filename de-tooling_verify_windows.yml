@@ -33,13 +33,20 @@
   become: true
   gather_facts: false
   tasks:
-    - name: "Get-Processes on ITM"
-      win_shell: Get-Process -Name "*ITM*"
+    - name: "Get-Service on ITM"
+      win_shell: "[bool](Get-Service *ITM*)"
       ignore_errors: yes
-      register: script_getprocess_itm
+      register: print_service
+    - name: print_output
+      debug:
+        var: print_service.output
 
-    - name: "Get-Processes OPSWARE"
-      win_shell: Get-Process -Name "*OPSWARE*"
+    - name: print_verify
+      debug:
+        msg: 'print_verify ==>|{{ print_service.output }}'
+
+    - name: "Get-Service OPSWARE"
+      win_shell:  "[bool](Get-Service opsware*)"
       ignore_errors: yes
       register: script_getprocess_itm
 
