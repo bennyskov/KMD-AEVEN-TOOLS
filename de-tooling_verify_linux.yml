@@ -93,7 +93,7 @@
       ignore_errors: yes
     - name: print_verify_bigfix
       debug:
-        msg: "exists_bigfix_dir_{{ item.stat.path | basename }}:{{ item.stat.exists }}"
+        msg: "exists_bigfix_dir_{{ item.item | basename }}:{{ item.stat.exists | default(false) }}"
       with_items: "{{ bigfix_dirs.results }}"
 
     - name: "Check if ILMT directories exist"
@@ -106,7 +106,7 @@
       ignore_errors: yes
     - name: print_verify_ilmt
       debug:
-        msg: "exists_ilmt_dir_{{ item.stat.path | basename }}:{{ item.stat.exists }}"
+        msg: "exists_ilmt_dir_{{ item.item | basename }}:{{ item.stat.exists | default(false) }}"
       with_items: "{{ ilmt_dirs.results }}"
 
     - name: "Check for BESClient temporary files"
@@ -127,7 +127,7 @@
       ignore_errors: yes
     - name: print_verify_itm
       debug:
-        msg: "exists_itm_dir_{{ item.stat.path | basename }}:{{ item.stat.exists }}"
+        msg: "exists_itm_dir_{{ item.item | basename }}:{{ item.stat.exists | default(false) }}"
       with_items: "{{ itm_dirs.results }}"
 
     - name: "Check if Opsware agent directory and mid file exist"
@@ -140,5 +140,5 @@
       ignore_errors: yes
     - name: print_verify_opsware
       debug:
-        msg: "exists_{{ item.stat.path | basename | replace('/', '_') }}:{{ item.stat.exists }}"
+        msg: "exists_{{ item.item | basename | replace('/', '_') }}:{{ item.stat.exists | default(false) }}"
       with_items: "{{ opsware_paths.results }}"
