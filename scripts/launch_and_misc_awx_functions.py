@@ -338,7 +338,7 @@ else:
     exectype = 'AWX'
 if re.search(r".*kmdwinitm001.*", awx_hostname, re.IGNORECASE): isRunningLocally = True
 if re.search(r"^automation-job.*", awx_hostname, re.IGNORECASE): isRunningLocally = False
-if isRunningLocally:
+if isRunningLocally and len(sys.argv) <= 3:  # Only use hardcoded values if not provided via command line
     nodename            = 'dfkapp3019'
     change              = "CHG000000"
     twusr               = 'functional_id_001'
@@ -385,6 +385,10 @@ global project, checkCaps
 global logfile, scriptname, payload
 global now, Logdate_long, jsondir, logdir
 global cred_names, credentials_ids, credential_names, template_id, CONTINUE, RC
+
+# Debug for control flow
+f_log(f'DELETE_FAILED_JOBS', f'{DELETE_FAILED_JOBS}', debug)
+f_log(f'template_name', f'{template_name}', debug)
 # nodenames           = ['udv19bfs01, udv19db2aws01, udv19avs01, udv19elk02, udv19cis01, udv19tdm03, udv19bfs02, udv19tdm02, udv19tdg01, udv19elk01, udv19tools, udv19gws01, udv19app01, udv19elk03, kmddbs2136']
 # nodenames           = ['kmdlnxrls001']
 # nodenames           = ['kmdlnxprx001']
@@ -417,12 +421,17 @@ f_log(f'{stepName}','',debug)
 f_log(f'sys_argv',f'{sys_argv}',debug)
 f_log(f'DECOMMISION_HOSTNAME',f'{DECOMMISION_HOSTNAME}',debug)
 f_log(f'LAUNCH_TEMPLATE',f'{LAUNCH_TEMPLATE}',debug)
+f_log(f'DELETE_FAILED_JOBS',f'{DELETE_FAILED_JOBS}',debug)
+f_log(f'template_name',f'{template_name}',debug)
 f_log(f'isRunningLocally',f'{isRunningLocally}',debug)
 f_log(f'useRestAPI',f'{useRestAPI}',debug)
 f_log(f'{exectype}_hostname',f'{awx_hostname}',debug)
-f_log(f'nodename',f'{nodename}',debug)
-f_log(f'change',f'{change}',debug)
-f_log(f'launch_template_name',f'{launch_template_name}',debug)
+if 'nodename' in globals():
+    f_log(f'nodename',f'{nodename}',debug)
+if 'change' in globals():
+    f_log(f'change',f'{change}',debug)
+if 'launch_template_name' in globals():
+    f_log(f'launch_template_name',f'{launch_template_name}',debug)
 f_log(f'twusr',f'{twusr}',debug)
 f_log(f'tower_host',f'{tower_host}',debug)
 f_log(f'tower_url',f'{tower_url}',debug)
@@ -502,7 +511,7 @@ if CONTINUE:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_hostname. To be used for all functions
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if CONTINUE:
+if CONTINUE and not DELETE_FAILED_JOBS:  # Skip hostname check when deleting failed jobs
     try:
         inv_name = None
         stepName = f'{exectype}_hostname'
@@ -627,6 +636,7 @@ if CONTINUE and DECOMMISION_HOSTNAME:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_ansible_facts
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
+f_log(f'Before get_ansible_facts - LAUNCH_TEMPLATE', f'{LAUNCH_TEMPLATE}', debug)
 if CONTINUE and LAUNCH_TEMPLATE:
     try:
         inv_name = None
