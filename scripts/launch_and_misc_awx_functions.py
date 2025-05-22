@@ -310,6 +310,7 @@ def f_cmdexec(cmdexec='',debug=False):
 def f_help_error():
     if debug: logging.info('use: python get_cred_for_host.py -t {{ launch_template_name }} -n {{ nodename }} -s {{ change }} -u {{ twusr }} -p {{ twpwd }}')
     if debug: logging.info('use: python get_cred_for_host.py -n {{ nodename }} --disable ')
+    if debug: logging.info('use: python get_cred_for_host.py --delete-failed {{ template_name }} -u {{ twusr }} -p {{ twpwd }}')
     exit(12)
 #endregion
 #region read_input_sys_argv
@@ -325,6 +326,10 @@ global  DECOMMISION_HOSTNAME
 DECOMMISION_HOSTNAME    = False
 global  LAUNCH_TEMPLATE
 LAUNCH_TEMPLATE     = False
+global  template_name
+template_name       = ''
+global  DELETE_FAILED_JOBS
+DELETE_FAILED_JOBS  = False
 isRunningLocally    = True
 useRestAPI          = True
 if useRestAPI:
@@ -368,6 +373,7 @@ if len(sys_argv) > 2:
             if re.search(r'-u$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; twusr = sys_argv[argnum]
             if re.search(r'-p$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; twpwd = sys_argv[argnum]
             if re.search(r'--disable$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; DECOMMISION_HOSTNAME = True; LAUNCH_TEMPLATE = False
+            if re.search(r'--delete-failed$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; DELETE_FAILED_JOBS = True; LAUNCH_TEMPLATE = False; template_name = sys_argv[argnum]
 else:
     f_help_error()
 #endregion
@@ -840,8 +846,7 @@ if CONTINUE and LAUNCH_TEMPLATE:
             extra_vars  = f'--extra_vars \"{extra_vars}\"'
             cmdexec = f"awx job_templates launch {launch_template_name} {credential} {inventory} {extra_vars}"
             f_log(f'cmdexec',f'{cmdexec}',debug)
-            result,RC = f_cmdexec(cmdexec,debug)
-            # jobid = result['id']
+            result,RC = f_cmdexec(cmdexec,debug)            # jobid = result['id']
             # f_log(f'jobid',f'{jobid}',debug)
         if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
         if isRunningLocally:
@@ -849,5 +854,88 @@ if CONTINUE and LAUNCH_TEMPLATE:
     except Exception as e:
         if debug: logging.error(e)
         RC = 12
-f_end(RC)
+        f_end(RC)
+#endregion
+#region DELETE_FAILED_JOBS
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+# DELETE_FAILED_JOBS
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+if CONTINUE and DELETE_FAILED_JOBS:
+    try:
+        stepName = f'{exectype}_delete_failed_jobs'
+        f_log(f'{stepName}','',debug)
+        f_log(f'template_name',f'{template_name}',debug)
+
+        # First, get the template ID
+        if useRestAPI:
+            request = f'job_templates/?name={template_name}'
+            result,RC = f_requests(request,twusr,twpwd,payload,debug)
+        else:
+            cmdexec = ['awx', 'job_templates', 'list', '--name', f'{template_name}']
+            result,RC = f_cmdexec(cmdexec,debug)
+
+        if RC > 0: raise Exception(f'step {stepName} failed - could not find template'); f_end(RC)
+
+        if isRunningLocally: f_dump_and_write(result,stepName + "_template",debug)
+
+        template_count = result['count']
+        if template_count < 1:
+            raise Exception(f'step {stepName} failed - Template {template_name} not found')
+
+        template_id = result['results'][0]['id']
+        f_log(f'template_id',f'{template_id}',debug)
+
+        # Now, get all failed jobs for this template
+        if useRestAPI:
+            # API call to get failed jobs for this template
+            request = f'jobs/?job_template={template_id}&status=failed&page_size=200'
+            result,RC = f_requests(request,twusr,twpwd,payload,debug)
+        else:
+            cmdexec = ['awx', 'jobs', 'list', '--job-template', f'{template_id}', '--status', 'failed', '--all-pages']
+            result,RC = f_cmdexec(cmdexec,debug)
+
+        if RC > 0: raise Exception(f'step {stepName} failed - could not list failed jobs'); f_end(RC)
+
+        if isRunningLocally: f_dump_and_write(result,stepName + "_jobs",debug)
+
+        failed_jobs = result['results']
+        failed_job_count = len(failed_jobs)
+
+        f_log(f'failed_job_count',f'{failed_job_count}',debug)
+
+        if failed_job_count == 0:
+            f_log(f'Jobs', f'No failed jobs found for template {template_name}', debug)
+        else:
+            deleted_count = 0
+            for job in failed_jobs:
+                job_id = job['id']
+                f_log(f'Deleting job',f'{job_id}',debug)
+
+                if useRestAPI:
+                    request = f'jobs/{job_id}/'
+                    # Using DELETE HTTP method
+                    url = f'{tower_url}{request}'
+                    response = requests.delete(url, auth=(twusr, twpwd), verify=False)
+
+                    if response.status_code in [202, 204]:  # Accepted or No Content
+                        deleted_count += 1
+                        f_log(f'Deleted job', f'{job_id}', debug)
+                    else:
+                        f_log(f'Failed to delete job', f'{job_id}: {response.status_code} {response.reason}', debug)
+                else:
+                    cmdexec = ['awx', 'jobs', 'delete', f'{job_id}', '--confirm']
+                    try:
+                        result,RC = f_cmdexec(cmdexec,debug)
+                        if RC == 0:
+                            deleted_count += 1
+                            f_log(f'Deleted job', f'{job_id}', debug)
+                    except Exception as e:
+                        f_log(f'Failed to delete job', f'{job_id}: {str(e)}', debug)
+
+            f_log(f'Summary', f'Successfully deleted {deleted_count} out of {failed_job_count} failed jobs', debug)
+
+    except Exception as e:
+        if debug: logging.error(e)
+        RC = 12
+        f_end(RC)
 #endregion
