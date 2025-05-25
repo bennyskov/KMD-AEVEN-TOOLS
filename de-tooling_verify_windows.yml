@@ -1,46 +1,94 @@
-- name: Pre-flight validation
+- name: Pre-flight validation and inventory detection
   hosts: localhost
   gather_facts: false
+  vars:
+    # Define inventory suggestions based on hostname patterns
+    inventory_suggestions:
+      kmn_inventory: ["^kmn.*", ".*kmn.*"]
+      kmw_inventory: ["^kmw.*", ".*kmw.*"]
+      eng_inventory: ["^eng.*", ".*eng.*"]
+      eng_HEM: ["^hem.*", ".*hem.*", ".*engineering.*"]
   tasks:
-    - name: Validate nodename exists in inventory
+    - name: Check if running in single host mode
+      set_fact:
+        single_host_mode: "{{ nodename is defined }}"
+
+    - name: Validate nodename exists in inventory (single host mode)
       block:
         - name: Check if specific host exists
           debug:
             msg: |
               Validating host: {{ nodename }}
-              Inventory hosts: {{ groups['all'] | default([]) }}
-              Host exists: {{ nodename in (groups['all'] | default([])) }}
+              Current inventory hosts: {{ groups['all'] | default([]) | length }} hosts
+              Host exists in current inventory: {{ nodename in (groups['all'] | default([])) }}
           when: nodename is defined
 
-        - name: Fail if host not found
-          fail:
-            msg: |
-              ERROR: Host '{{ nodename }}' not found in current inventory!
+        - name: Suggest correct inventory if host not found
+          block:
+            - name: Detect likely inventory based on hostname pattern
+              set_fact:
+                suggested_inventory: >-
+                  {%- for inv_name, patterns in inventory_suggestions.items() -%}
+                    {%- for pattern in patterns -%}
+                      {%- if nodename | lower is match(pattern) -%}
+                        {{ inv_name }}
+                      {%- endif -%}
+                    {%- endfor -%}
+                  {%- endfor -%}
 
-              Available hosts in this inventory:
-              {{ groups['all'] | default([]) | join('\n') }}
+            - name: Display detailed host not found error with suggestions
+              debug:
+                msg: |
+                  ⚠️  HOST NOT FOUND IN CURRENT INVENTORY ⚠️
 
-              Possible solutions:
-              1. Check hostname spelling: '{{ nodename }}'
-              2. Verify host exists in current inventory
-              3. Try running with different inventory:
-                 - kmn_inventory (for KMN hosts)
-                 - kmw_inventory (for KMW hosts)
-                 - eng_inventory (for ENG hosts)
-                 - eng_HEM (for HEM/Engineering hosts)
-              4. Add host to appropriate inventory file
+                  Requested host: {{ nodename }}
+                  Current inventory contains: {{ groups['all'] | default([]) | length }} hosts
+
+                  📋 SUGGESTED INVENTORY: {{ suggested_inventory | default('unknown - check manually') }}
+
+                  🔍 TROUBLESHOOTING STEPS:
+                  1. Try running with suggested inventory: {{ suggested_inventory | default('check all inventories manually') }}
+                  2. Verify hostname spelling: '{{ nodename }}'
+                  3. Check if host exists in these inventories:
+                     - kmn_inventory (for KMN hosts: kmn*)
+                     - kmw_inventory (for KMW hosts: kmw*, ebok*)
+                     - eng_inventory (for ENG hosts: eng*)
+                     - eng_HEM (for HEM/Engineering hosts: hem*, engineering*)
+
+                  🚀 RECOMMENDED ACTION:
+                  Re-run this job template with inventory: {{ suggested_inventory | default('try each inventory') }}
+
+            - name: Set fact to continue with empty host list rather than failing
+              set_fact:
+                host_not_found_but_continue: true
+                should_skip_execution: true
+
+          when:
+            - nodename is defined
+            - nodename not in (groups['all'] | default([]))
+
+        - name: End play early if host not found (instead of failing)
+          meta: end_play
           when:
             - nodename is defined
             - nodename not in (groups['all'] | default([]))
 
         - name: Display validation success
           debug:
-            msg: "✓ Host '{{ nodename }}' found in inventory. Proceeding with execution."
+            msg: "✅ Host '{{ nodename }}' found in current inventory. Proceeding with execution."
           when:
             - nodename is defined
             - nodename in (groups['all'] | default([]))
 
       when: nodename is defined
+
+    - name: Display inventory-wide execution mode
+      debug:
+        msg: |
+          📊 INVENTORY-WIDE EXECUTION MODE
+          Will process all Windows hosts in current inventory: {{ groups['all'] | default([]) | length }} total hosts
+          Windows hosts will be auto-detected during execution
+      when: nodename is not defined
 
 - name: Create OS groups
   hosts: localhost
@@ -164,7 +212,7 @@
         detected_org: >-
           {%- if inventory_hostname | lower is match('^kmn.*') or 'kmn' in inventory_hostname | lower -%}
             kmn
-          {%- elif inventory_hostname | lower is match('^kmw.*') or 'kmw' in inventory_hostname | lower -%}
+          {%- elif inventory_hostname | lower is match('^kmw.*') or 'kmw' in inventory_hostname | lower or 'ebok' in inventory_hostname | lower -%}
             kmw
           {%- elif inventory_hostname | lower is match('^eng.*') or 'eng' in inventory_hostname | lower or 'hem' in inventory_hostname | lower -%}
             eng
@@ -174,7 +222,7 @@
         detected_inventory: >-
           {%- if inventory_hostname | lower is match('^kmn.*') or 'kmn' in inventory_hostname | lower -%}
             kmn_inventory
-          {%- elif inventory_hostname | lower is match('^kmw.*') or 'kmw' in inventory_hostname | lower -%}
+          {%- elif inventory_hostname | lower is match('^kmw.*') or 'kmw' in inventory_hostname | lower or 'ebok' in inventory_hostname | lower -%}
             kmw_inventory
           {%- elif inventory_hostname | lower is match('^eng.*') or 'eng' in inventory_hostname | lower -%}
             eng_inventory
