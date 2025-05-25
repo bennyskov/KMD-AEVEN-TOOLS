@@ -23,8 +23,8 @@
           delegate_to: localhost
 
 - name: Debug CyberArk credentials
-  hosts: all
-  gather_facts: false
+  hosts: "{{ nodename | default('all') }}"
+  gather_facts: true
   vars:
     # Define standard organizational credentials
     standard_credentials:
@@ -38,6 +38,59 @@
         tower_creds: ["eng_cred_ansible_tower", "eng_cred_tower_and_sfs_no_token"]
         description: "Engineering Tower credentials"
   tasks:
+    - name: Display execution mode
+      debug:
+        msg: |
+          Execution Mode: {{ 'Single Host' if nodename is defined else 'Inventory Wide' }}
+          Target: {{ nodename | default('All hosts in inventory') }}
+          Host: {{ inventory_hostname }}
+      run_once: false
+
+    - name: Gather facts to determine OS
+      setup:
+      ignore_errors: yes
+
+    - name: Skip non-Windows hosts when running inventory-wide
+      block:
+        - name: Check if this is a Windows machine
+          debug:
+            msg: "Host {{ inventory_hostname }} is {{ ansible_facts['os_family'] | default('Unknown') }}"
+
+        - name: Skip if not Windows (inventory-wide mode)
+          meta: end_host
+          when:
+            - nodename is not defined  # Only skip in inventory-wide mode
+            - ansible_facts['os_family'] is not defined or ansible_facts['os_family'] != 'Windows'
+
+        - name: Display Windows host confirmation
+          debug:
+            msg: "Processing Windows host: {{ inventory_hostname }}"
+          when: ansible_facts['os_family'] is defined and ansible_facts['os_family'] == 'Windows'
+
+    - name: Verify nodename pattern (single host mode)
+      block:
+        - name: Check nodename match
+          debug:
+            msg: "Checking if {{ inventory_hostname }} matches pattern: {{ nodename }}"
+          when: nodename is defined
+
+        - name: Skip if not matching nodename pattern
+          meta: end_host
+          when:
+            - nodename is defined
+            - inventory_hostname != nodename
+            - inventory_hostname not in (nodename.split(',') if ',' in nodename else [])
+            - not (inventory_hostname is match(nodename) if '^' in nodename else False)
+
+        - name: Confirm nodename match
+          debug:
+            msg: "Host {{ inventory_hostname }} matches nodename pattern: {{ nodename }}"
+          when:
+            - nodename is defined
+            - (inventory_hostname == nodename or
+               inventory_hostname in (nodename.split(',') if ',' in nodename else []) or
+               (inventory_hostname is match(nodename) if '^' in nodename else False))
+
     - name: Auto-detect inventory based on hostname
       set_fact:
         detected_org: >-
@@ -72,6 +125,7 @@
       debug:
         msg: |
           Host: {{ inventory_hostname }}
+          OS Family: {{ ansible_facts['os_family'] | default('Unknown') }}
           Detected Organization: {{ detected_org }}
           Detected Inventory: {{ detected_inventory }}
           Standard Tower Credentials: {{ org_config.tower_creds | default([]) }}
@@ -126,6 +180,29 @@
   become: true
   gather_facts: true
   tasks:
+    - name: Display execution context
+      debug:
+        msg: |
+          === VERIFICATION EXECUTION CONTEXT ===
+          Mode: {{ 'Single Host' if nodename is defined else 'Inventory Wide (Windows only)' }}
+          Target: {{ nodename | default('All Windows hosts in inventory') }}
+          Current Host: {{ inventory_hostname }}
+          OS Family: {{ ansible_facts['os_family'] | default('Unknown') }}
+
+    - name: Skip non-Windows hosts in inventory-wide mode
+      meta: end_host
+      when:
+        - nodename is not defined  # Inventory-wide mode
+        - ansible_facts['os_family'] is not defined or ansible_facts['os_family'] != 'Windows'
+
+    - name: Skip if not matching nodename pattern (single host mode)
+      meta: end_host
+      when:
+        - nodename is defined  # Single host mode
+        - inventory_hostname != nodename
+        - inventory_hostname not in (nodename.split(',') if ',' in nodename else [])
+        - not (inventory_hostname is match(nodename) if '^' in nodename else False)
+
     - name: Verify host has credentials assigned
       debug:
         msg: |
@@ -152,33 +229,14 @@
       meta: end_host
       when: connection_test is failed
 
-    - name: Verify nodename pattern
-      debug:
-        msg: "Running against host: {{ inventory_hostname }} using {{ detected_inventory }}"
-      when: (nodename is not defined) or
-            (inventory_hostname == nodename) or
-            (inventory_hostname in nodename.split(',') if ',' in nodename else False) or
-            (inventory_hostname is match(nodename) if '^' in nodename else False)
-
-    - name: Skip if not matching nodename pattern
-      meta: end_host
-      when: nodename is defined and
-            inventory_hostname != nodename and
-            inventory_hostname not in (nodename.split(',') if ',' in nodename else []) and
-            not (inventory_hostname is match(nodename) if '^' in nodename else False)
-
-    - name: Skip if not Windows
-      meta: end_host
-      when: ansible_facts['os_family'] is not defined or ansible_facts['os_family'] != 'Windows'
-
     # Primary verification - Directory/File checks (Most Reliable)
     - name: "Verify ITM installation directories cleared"
-      win_shell: (Test-Path "C:/IBM/ITM/bin") -and ((Get-ChildItem -Path "C:/IBM/ITM" -Recurse -File | Measure-Object).Count -gt 0)
+      win_shell: (Test-Path "C:/IBM/ITM/bin") -and ((Get-ChildItem -Path "C:/IBM/ITM" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
       ignore_errors: yes
       register: check_itm_files
 
     - name: "Verify Opsware installation directories cleared"
-      win_shell: (Test-Path "C:/Program Files/Opsware/agent/bin") -and ((Get-ChildItem -Path "C:/Program Files/Opsware/agent/bin" -Recurse -File | Measure-Object).Count -gt 0)
+      win_shell: (Test-Path "C:/Program Files/Opsware/agent/bin") -and ((Get-ChildItem -Path "C:/Program Files/Opsware/agent/bin" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
       ignore_errors: yes
       register: check_opsware_files
 
@@ -199,67 +257,38 @@
 
     - name: "test if ansible workdir has been cleared"
       ignore_errors: yes
-      win_shell: (Test-Path "C:/ansible_workdir") -and ((Get-ChildItem -Path "C:/ansible_workdir" -Recurse -File | Measure-Object).Count -gt 0)
+      win_shell: (Test-Path "C:/ansible_workdir") -and ((Get-ChildItem -Path "C:/ansible_workdir" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
       register: check_ansible_workdir
 
     - name: "test if ansible ProgramData has been cleared"
       ignore_errors: yes
-      win_shell: (Test-Path "C:/ProgramData/ansible") -and ((Get-ChildItem -Path "C:/ProgramData/ansible" -Recurse -File | Measure-Object).Count -gt 0)
+      win_shell: (Test-Path "C:/ProgramData/ansible") -and ((Get-ChildItem -Path "C:/ProgramData/ansible" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
       register: check_ansible_programdata
 
     - name: "test if BigFix ProgramData has been cleared"
       ignore_errors: yes
-      win_shell: (Test-Path "C:/ProgramData/BigFix") -and ((Get-ChildItem -Path "C:/ProgramData/BigFix" -Recurse -File | Measure-Object).Count -gt 0)
+      win_shell: (Test-Path "C:/ProgramData/BigFix") -and ((Get-ChildItem -Path "C:/ProgramData/BigFix" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
       register: check_bigfix_programdata
 
     - name: "test if ilmt ProgramData has been cleared"
       ignore_errors: yes
-      win_shell: (Test-Path "C:/ProgramData/ilmt") -and ((Get-ChildItem -Path "C:/ProgramData/ilmt" -Recurse -File | Measure-Object).Count -gt 0)
+      win_shell: (Test-Path "C:/ProgramData/ilmt") -and ((Get-ChildItem -Path "C:/ProgramData/ilmt" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
       register: check_ilmt_programdata
 
     - name: "test if ansible Program Files has been cleared"
       ignore_errors: yes
-      win_shell: (Test-Path "C:/PROGRA~1/ansible") -and ((Get-ChildItem -Path "C:/PROGRA~1/ansible" -Recurse -File | Measure-Object).Count -gt 0)
+      win_shell: (Test-Path "C:/PROGRA~1/ansible") -and ((Get-ChildItem -Path "C:/PROGRA~1/ansible" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
       register: check_ansible_progfiles
 
     - name: "test if BigFix Program Files has been cleared"
       ignore_errors: yes
-      win_shell: (Test-Path "C:/PROGRA~1/BigFix") -and ((Get-ChildItem -Path "C:/PROGRA~1/BigFix" -Recurse -File | Measure-Object).Count -gt 0)
+      win_shell: (Test-Path "C:/PROGRA~1/BigFix") -and ((Get-ChildItem -Path "C:/PROGRA~1/BigFix" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
       register: check_bigfix_progfiles
 
     - name: "test if ilmt Program Files has been cleared"
       ignore_errors: yes
-      win_shell: (Test-Path "C:/PROGRA~1/ilmt") -and ((Get-ChildItem -Path "C:/PROGRA~1/ilmt" -Recurse -File | Measure-Object).Count -gt 0)
+      win_shell: (Test-Path "C:/PROGRA~1/ilmt") -and ((Get-ChildItem -Path "C:/PROGRA~1/ilmt" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
       register: check_ilmt_progfiles
-
-    # Comprehensive verification results
-    - name: "Display ITM verification results"
-      debug:
-        msg: |
-          ITM Verification for {{ inventory_hostname }}:
-          - Files Present: {{ check_itm_files.stdout | default('Unknown') }}
-          - Services Running: {{ get_service_itm.stdout | default('Unknown') }}
-          - Status: {{ 'NEEDS CLEANUP' if check_itm_files.stdout == 'True' else 'CLEANED' }}
-
-    - name: "Display Opsware verification results"
-      debug:
-        msg: |
-          Opsware Verification for {{ inventory_hostname }}:
-          - Files Present: {{ check_opsware_files.stdout | default('Unknown') }}
-          - Services Running: {{ get_service_SA.stdout | default('Unknown') }}
-          - Status: {{ 'NEEDS CLEANUP' if check_opsware_files.stdout == 'True' else 'CLEANED' }}
-
-    - name: "Display individual directory verification results"
-      debug:
-        msg: |
-          Directory Cleanup Verification for {{ inventory_hostname }}:
-          - ansible_workdir: {{ 'EXISTS' if check_ansible_workdir.stdout == 'True' else 'CLEARED' }}
-          - ansible_programdata: {{ 'EXISTS' if check_ansible_programdata.stdout == 'True' else 'CLEARED' }}
-          - bigfix_programdata: {{ 'EXISTS' if check_bigfix_programdata.stdout == 'True' else 'CLEARED' }}
-          - ilmt_programdata: {{ 'EXISTS' if check_ilmt_programdata.stdout == 'True' else 'CLEARED' }}
-          - ansible_progfiles: {{ 'EXISTS' if check_ansible_progfiles.stdout == 'True' else 'CLEARED' }}
-          - bigfix_progfiles: {{ 'EXISTS' if check_bigfix_progfiles.stdout == 'True' else 'CLEARED' }}
-          - ilmt_progfiles: {{ 'EXISTS' if check_ilmt_progfiles.stdout == 'True' else 'CLEARED' }}
 
     # Final determination based on file presence (most reliable)
     - name: "Set cleanup status"
@@ -274,8 +303,10 @@
       debug:
         msg: |
           === CLEANUP VERIFICATION SUMMARY for {{ inventory_hostname }} ===
+          Execution Mode: {{ 'Single Host' if nodename is defined else 'Inventory Wide (Windows only)' }}
           Using credentials: {{ credential_source | default('none') }}
           Inventory: {{ detected_inventory }}
+          OS Family: {{ ansible_facts['os_family'] | default('Unknown') }}
 
           Cleanup Status:
           - ITM Cleanup Required: {{ itm_cleanup_needed | default('Unknown') }}
