@@ -7,7 +7,7 @@
       kmn_inventory: ["^kmn.*", ".*kmn.*"]
       kmw_inventory: ["^kmw.*", ".*kmw.*"]
       eng_inventory: ["^eng.*", ".*eng.*"]
-      eng_HEM: ["^hem.*", ".*hem.*", ".*engineering.*"]
+      eng_HEM: ["^hem.*", ".*hem.*", ".*energinet.*"]
   tasks:
     - name: Check if running in single host mode
       set_fact:
@@ -52,8 +52,8 @@
                   3. Check if host exists in these inventories:
                      - kmn_inventory (for KMN hosts: kmn*)
                      - kmw_inventory (for KMW hosts: kmw*, ebok*)
-                     - eng_inventory (for ENG hosts: eng*)
-                     - eng_HEM (for HEM/Engineering hosts: hem*, engineering*)
+                     - eng_inventory (for Energinet hosts: eng*)
+                     - eng_HEM (for HEM/Energinet hosts: hem*, energinet*)
 
                   🚀 RECOMMENDED ACTION:
                   Re-run this job template with inventory: {{ suggested_inventory | default('try each inventory') }}
@@ -67,8 +67,11 @@
             - nodename is defined
             - nodename not in (groups['all'] | default([]))
 
-        - name: End play early if host not found (instead of failing)
-          meta: end_play
+        - name: Display warning but continue execution if host not found
+          debug:
+            msg: |
+              ⚠️  WARNING: Continuing execution with suggested inventory guidance above.
+              The verification tasks will handle host filtering appropriately.
           when:
             - nodename is defined
             - nodename not in (groups['all'] | default([]))
@@ -130,7 +133,7 @@
         description: "KMW Tower and SFS credentials"
       eng:
         tower_creds: ["eng_cred_ansible_tower", "eng_cred_tower_and_sfs_no_token"]
-        description: "Engineering Tower credentials"
+        description: "Energinet Tower credentials"
   tasks:
     - name: Check if host exists in inventory
       debug:
@@ -214,7 +217,7 @@
             kmn
           {%- elif inventory_hostname | lower is match('^kmw.*') or 'kmw' in inventory_hostname | lower or 'ebok' in inventory_hostname | lower -%}
             kmw
-          {%- elif inventory_hostname | lower is match('^eng.*') or 'eng' in inventory_hostname | lower or 'hem' in inventory_hostname | lower -%}
+          {%- elif inventory_hostname | lower is match('^eng.*') or 'eng' in inventory_hostname | lower or 'hem' in inventory_hostname | lower or 'energinet' in inventory_hostname | lower -%}
             eng
           {%- else -%}
             unknown
@@ -226,7 +229,7 @@
             kmw_inventory
           {%- elif inventory_hostname | lower is match('^eng.*') or 'eng' in inventory_hostname | lower -%}
             eng_inventory
-          {%- elif inventory_hostname | lower is match('^hem.*') or 'hem' in inventory_hostname | lower -%}
+          {%- elif inventory_hostname | lower is match('^hem.*') or 'hem' in inventory_hostname | lower or 'energinet' in inventory_hostname | lower -%}
             eng_HEM
           {%- else -%}
             unknown_inventory
@@ -296,6 +299,30 @@
   become: true
   gather_facts: true
   tasks:
+    - name: Check if host exists in current inventory (single host mode)
+      block:
+        - name: Display inventory mismatch warning
+          debug:
+            msg: |
+              ⚠️  HOST NOT IN CURRENT INVENTORY WARNING ⚠️
+
+              Requested host: {{ nodename }}
+              Current host being processed: {{ inventory_hostname }}
+
+              This host is not in the current inventory but the playbook is continuing
+              for demonstration purposes. For actual verification, please use the
+              correct inventory as suggested in the pre-flight validation.
+          when:
+            - nodename is defined
+            - nodename != inventory_hostname
+
+        - name: Skip execution for host not in inventory
+          meta: end_host
+          when:
+            - nodename is defined
+            - nodename != inventory_hostname
+      when: nodename is defined
+
     - name: Display execution context
       debug:
         msg: |
