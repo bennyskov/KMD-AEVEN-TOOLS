@@ -1,7 +1,7 @@
 - name: Create OS groups
   hosts: localhost
   become: false
-  gather_facts: false
+  gather_facts: true
   connection: local
   tasks:
     - name: Create OS group
