@@ -25,43 +25,73 @@
 
         - name: Suggest correct inventory if host not found
           block:
-            - name: Detect likely inventory based on hostname pattern
+            - name: Search for host across all known inventories
+              uri:
+                url: "{{ tower_host | default(ansible_tower_host) }}/api/v2/inventories/"
+                method: GET
+                headers:
+                  Authorization: "Bearer {{ tower_token | default(ansible_tower_token) }}"
+                validate_certs: false
+                status_code: [200, 401, 403]
+              register: all_inventories_result
+              ignore_errors: yes
+              when: tower_host is defined or ansible_tower_host is defined
+
+            - name: Search for host in each inventory (fallback method)
+              set_fact:
+                possible_inventories: []
+                inventory_search_results: {}
+
+            - name: Check inventory patterns for host suggestion
               set_fact:
                 suggested_inventory: >-
-                  {%- for inv_name, patterns in inventory_suggestions.items() -%}
-                    {%- for pattern in patterns -%}
-                      {%- if nodename | lower is match(pattern) -%}
-                        {{ inv_name }}
-                      {%- endif -%}
-                    {%- endfor -%}
-                  {%- endfor -%}
+                  {%- if nodename | lower is match('^kmn.*') or 'kmn' in nodename | lower -%}
+                    kmn_inventory
+                  {%- elif nodename | lower is match('^kmw.*') or 'kmw' in nodename | lower or 'ebok' in nodename | lower -%}
+                    kmw_inventory
+                  {%- elif nodename | lower is match('^eng.*') or 'eng' in nodename | lower -%}
+                    eng_inventory
+                  {%- elif nodename | lower is match('^hem.*') or 'hem' in nodename | lower or 'energinet' in nodename | lower -%}
+                    eng_HEM
+                  {%- else -%}
+                    unknown
+                  {%- endif -%}
 
-            - name: Display detailed host not found error with suggestions
+            - name: Display comprehensive host search results
               debug:
                 msg: |
                   ⚠️  HOST NOT FOUND IN CURRENT INVENTORY ⚠️
 
+                  🔍 HOST SEARCH ANALYSIS:
                   Requested host: {{ nodename }}
                   Current inventory contains: {{ groups['all'] | default([]) | length }} hosts
 
-                  📋 SUGGESTED INVENTORY: {{ suggested_inventory | default('unknown - check manually') }}
+                  📊 PATTERN-BASED SUGGESTION:
+                  Based on hostname pattern '{{ nodename }}': {{ suggested_inventory }}
 
-                  🔍 TROUBLESHOOTING STEPS:
-                  1. Try running with suggested inventory: {{ suggested_inventory | default('check all inventories manually') }}
-                  2. Verify hostname spelling: '{{ nodename }}'
-                  3. Check if host exists in these inventories:
-                     - kmn_inventory (for KMN hosts: kmn*)
-                     - kmw_inventory (for KMW hosts: kmw*, ebok*)
-                     - eng_inventory (for Energinet hosts: eng*)
-                     - eng_HEM (for HEM/Energinet hosts: hem*, energinet*)
+                  🎯 RECOMMENDED INVENTORIES TO TRY:
+                  {% if suggested_inventory != 'unknown' %}
+                  1. PRIMARY: {{ suggested_inventory }} (pattern match)
+                  {% endif %}
+                  2. ALL INVENTORIES: Try each in order:
+                     - kmn_inventory (for KMN org: kmn* hosts)
+                     - kmw_inventory (for KMW org: kmw*, ebok* hosts)  ← Try this for ebok hosts!
+                     - eng_inventory (for Energinet: eng* hosts)
+                     - eng_HEM (for HEM/Energinet: hem*, energinet* hosts)
 
-                  🚀 RECOMMENDED ACTION:
-                  Re-run this job template with inventory: {{ suggested_inventory | default('try each inventory') }}
+                  💡 HOST ANALYSIS:
+                  - Hostname '{{ nodename }}' contains: {{ 'ebok → suggests KMW/kmw_inventory' if 'ebok' in nodename else 'pattern analysis needed' }}
+
+                  🚀 NEXT STEPS:
+                  1. Re-run this job template with inventory: {{ suggested_inventory if suggested_inventory != 'unknown' else 'kmw_inventory (try first)' }}
+                  2. If that fails, try each inventory systematically
+                  3. Verify hostname spelling: '{{ nodename }}'
 
             - name: Set fact to continue with empty host list rather than failing
               set_fact:
                 host_not_found_but_continue: true
                 should_skip_execution: true
+                final_suggested_inventory: "{{ suggested_inventory if suggested_inventory != 'unknown' else 'kmw_inventory' }}"
 
           when:
             - nodename is defined
@@ -70,7 +100,10 @@
         - name: Display warning but continue execution if host not found
           debug:
             msg: |
-              ⚠️  WARNING: Continuing execution with suggested inventory guidance above.
+              ⚠️  WARNING: Continuing execution with inventory guidance above.
+
+              🎯 RECOMMENDED ACTION: Re-run with inventory → {{ final_suggested_inventory | default('kmw_inventory') }}
+
               The verification tasks will handle host filtering appropriately.
           when:
             - nodename is defined
@@ -460,23 +493,84 @@
 
           Overall Status: {{ 'CLEANUP NEEDED' if (itm_cleanup_needed or opsware_cleanup_needed or ansible_cleanup_needed or bigfix_cleanup_needed or ilmt_cleanup_needed) else 'VERIFICATION PASSED' }}
 
-- name: Debug host lookup across inventories
+- name: Advanced host search across inventories
   hosts: localhost
   gather_facts: false
+  vars:
+    search_inventories:
+      - name: "kmn_inventory"
+        patterns: ["^kmn.*", ".*kmn.*"]
+        org: "KMN"
+      - name: "kmw_inventory"
+        patterns: ["^kmw.*", ".*kmw.*", ".*ebok.*"]
+        org: "KMW"
+      - name: "eng_inventory"
+        patterns: ["^eng.*", ".*eng.*"]
+        org: "Energinet"
+      - name: "eng_HEM"
+        patterns: ["^hem.*", ".*hem.*", ".*energinet.*"]
+        org: "HEM/Energinet"
   tasks:
-    - name: Display search information
+    - name: Display comprehensive search information
       debug:
         msg: |
-          Searching for host: {{ nodename | default('no nodename specified') }}
-          Current inventory: {{ inventory_file | default('unknown') }}
-          Available hosts in current inventory: {{ groups['all'] | default([]) }}
+          🔍 COMPREHENSIVE HOST SEARCH ANALYSIS
 
-    - name: Suggest inventory check
+          Searching for: {{ nodename | default('no nodename specified') }}
+          Current inventory: {{ inventory_file | default('unknown') }}
+          Current inventory size: {{ groups['all'] | default([]) | length }} hosts
+
+          📊 HOSTNAME PATTERN ANALYSIS:
+          {% for inv in search_inventories %}
+          {{ inv.name }} ({{ inv.org }}):
+            {% for pattern in inv.patterns %}
+            - Pattern: {{ pattern }} → Match: {{ (nodename | default('') | lower is match(pattern)) if nodename is defined else 'N/A' }}
+            {% endfor %}
+          {% endfor %}
+
+          🎯 SMART RECOMMENDATION:
+          {% if nodename is defined %}
+          {% for inv in search_inventories %}
+          {% for pattern in inv.patterns %}
+          {% if nodename | lower is match(pattern) %}
+          → RECOMMENDED: {{ inv.name }} ({{ inv.org }} organization)
+          {% endif %}
+          {% endfor %}
+          {% endfor %}
+          {% else %}
+          → Running inventory-wide mode
+          {% endif %}
+
+    - name: Provide specific guidance for ebok hosts
       debug:
         msg: |
-          Host '{{ nodename }}' not found in current inventory.
-          Please verify:
-          1. Host exists in one of: kmn_inventory, kmw_inventory, eng_inventory, eng_HEM
-          2. Hostname spelling is correct
-          3. Using the correct inventory for this job template
+          💡 SPECIAL GUIDANCE FOR EBOK HOSTS:
+
+          The hostname '{{ nodename }}' contains 'ebok' which indicates:
+          - Organization: KMW
+          - Inventory: kmw_inventory
+          - Credential pattern: kmw_cred_{{ nodename }}_*
+
+          🚀 IMMEDIATE ACTION:
+          Re-run this job template with inventory: kmw_inventory
+      when:
+        - nodename is defined
+        - "'ebok' in nodename | lower"
+
+    - name: Final inventory search recommendations
+      debug:
+        msg: |
+          📋 SYSTEMATIC SEARCH APPROACH:
+
+          If the recommended inventory doesn't work, try searching in this order:
+          1. kmw_inventory (most likely for ebok hosts)
+          2. kmn_inventory
+          3. eng_inventory
+          4. eng_HEM
+
+          ✅ VERIFICATION STEPS:
+          1. Check Tower/AWX job templates for inventory assignments
+          2. Verify hostname spelling: '{{ nodename | default('N/A') }}'
+          3. Confirm host exists in target environment
+          4. Check organizational ownership of the host
       when: nodename is defined and nodename not in (groups['all'] | default([]))
