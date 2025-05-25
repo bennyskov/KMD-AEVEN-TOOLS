@@ -280,25 +280,29 @@
       ignore_errors: true
       run_once: true
       when: script_run is success
-      win_file:
-        path: "{{ item }}"
-        state: absent
-      loop:
-        - "C:/ansible_workdir"
-        - "C:/ProgramData/BigFix"
-        - "C:/ProgramData/ansible"
-        - "C:/ProgramData/ilmt"
-        - "C:/PROGRA~1/BigFix"
-        - "C:/PROGRA~1/ansible"
-        - "C:/PROGRA~1/ilmt"
-        - "C:/Windows/Temp/KMD-AEVEN-TOOLS"
-      register: cleanup_result
+      block:
+        - name: "Delete each directory individually"
+          win_file:
+            path: "{{ item }}"
+            state: absent
+          loop:
+            - "C:/ansible_workdir"
+            - "C:/ProgramData/BigFix"
+            - "C:/ProgramData/ansible"
+            - "C:/ProgramData/ilmt"
+            - "C:/PROGRA~1/BigFix"
+            - "C:/PROGRA~1/ansible"
+            - "C:/PROGRA~1/ilmt"
+            - "C:/Windows/Temp/KMD-AEVEN-TOOLS"
+          register: cleanup_result
 
     - name: "Display cleanup results"
       ignore_errors: true
       debug:
-        msg: "Removed directory: {{ item.item }}"
-      loop: "{{ cleanup_result.results }}"
+        var: item
+      with_items: "{{ cleanup_result.results | default([]) }}"
+      loop_control:
+        label: "Path: {{ item.item | default('Unknown') }}"
 
     #  ----------------------------------------------------------------------------------------------------------------
     #  verify if directories exists

@@ -21,6 +21,17 @@
           check_mode: false
           run_once: true
           delegate_to: localhost
+
+    - name: Debug CyberArk credentials
+      hosts: all
+      gather_facts: false
+      tasks:
+        - name: Display credential lookup
+          debug:
+            msg: "Looking up credentials for {{ inventory_hostname }}"
+          register: cyberark_debug
+          ignore_errors: yes
+
     # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 - name: "Verify if ITM and Ansible has been uninstalled on Windows servers"
   hosts: "{{ nodename | default('all') }}"
