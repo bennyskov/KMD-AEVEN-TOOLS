@@ -296,6 +296,7 @@ def f_cmdexec(cmdexec='',debug=False):
             f_log(f'cmdexec',f'{cmdexec}',debug)
             f_log(f'error',f'{e}',debug)
             f_log(f'RC',f'{RC}',debug)
+            f_log(f'cmdexec_result',f'{cmdexec_result}',debug)
             f_log(f'result exectype',f'{exectype(cmdexec_result.stdout)}',debug)
             f_log(f'result stdout',f'{cmdexec_result.stdout}',debug)
             f_log(f'result stderr',f'{cmdexec_result.stderr}',debug)
@@ -331,7 +332,7 @@ template_name       = ''
 global  DELETE_FAILED_JOBS
 DELETE_FAILED_JOBS  = False
 isRunningLocally    = True
-useRestAPI          = True
+useRestAPI          = False
 if useRestAPI:
     exectype = "REST"
 else:
@@ -506,6 +507,31 @@ if CONTINUE:
             else:
                 f_log('Login failed', f'RC: {RC}, Result: {result}', debug)
                 raise Exception("Failed to authenticate with AWX"); f_end(RC)
+#endregion
+#region get_hostname
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+# delete workflow job
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------
+if CONTINUE and not DELETE_FAILED_JOBS:  # Skip hostname check when deleting failed jobs
+    try:
+        id = 2469476
+        stepName = f'{exectype}_workflow_job'
+        f_log(f'{stepName}','',debug)
+        if useRestAPI:
+            request = f'workflow_jobs/{id}/'
+            result,RC = f_requests(request,twusr,twpwd,payload,debug)
+        else:
+            cmdexec = ['awx', 'workflow_jobs', 'delete', f'{id}']
+            result,RC = f_cmdexec(cmdexec,debug)
+
+        if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
+        f_log('result', f'RC: {RC}, Result: {result}', debug)
+
+    except Exception as e:
+        if debug: logging.error(e)
+        RC = 12
+        f_end(RC)
+exit(0)
 #endregion
 #region get_hostname
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
