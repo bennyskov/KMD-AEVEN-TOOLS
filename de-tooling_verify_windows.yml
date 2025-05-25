@@ -1,3 +1,47 @@
+- name: Pre-flight validation
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Validate nodename exists in inventory
+      block:
+        - name: Check if specific host exists
+          debug:
+            msg: |
+              Validating host: {{ nodename }}
+              Inventory hosts: {{ groups['all'] | default([]) }}
+              Host exists: {{ nodename in (groups['all'] | default([])) }}
+          when: nodename is defined
+
+        - name: Fail if host not found
+          fail:
+            msg: |
+              ERROR: Host '{{ nodename }}' not found in current inventory!
+
+              Available hosts in this inventory:
+              {{ groups['all'] | default([]) | join('\n') }}
+
+              Possible solutions:
+              1. Check hostname spelling: '{{ nodename }}'
+              2. Verify host exists in current inventory
+              3. Try running with different inventory:
+                 - kmn_inventory (for KMN hosts)
+                 - kmw_inventory (for KMW hosts)
+                 - eng_inventory (for ENG hosts)
+                 - eng_HEM (for HEM/Engineering hosts)
+              4. Add host to appropriate inventory file
+          when:
+            - nodename is defined
+            - nodename not in (groups['all'] | default([]))
+
+        - name: Display validation success
+          debug:
+            msg: "✓ Host '{{ nodename }}' found in inventory. Proceeding with execution."
+          when:
+            - nodename is defined
+            - nodename in (groups['all'] | default([]))
+
+      when: nodename is defined
+
 - name: Create OS groups
   hosts: localhost
   become: false
@@ -25,6 +69,8 @@
 - name: Debug CyberArk credentials
   hosts: "{{ nodename | default('all') }}"
   gather_facts: true
+  ignore_unreachable: true
+  ignore_errors: true
   vars:
     # Define standard organizational credentials
     standard_credentials:
@@ -38,6 +84,28 @@
         tower_creds: ["eng_cred_ansible_tower", "eng_cred_tower_and_sfs_no_token"]
         description: "Engineering Tower credentials"
   tasks:
+    - name: Check if host exists in inventory
+      debug:
+        msg: |
+          Host check for: {{ inventory_hostname }}
+          Available hosts: {{ groups['all'] | default([]) | join(', ') }}
+          Host found: {{ inventory_hostname in (groups['all'] | default([])) }}
+      when: nodename is defined
+
+    - name: Fail gracefully if host not found
+      fail:
+        msg: |
+          Host '{{ nodename }}' not found in current inventory.
+          Available hosts: {{ groups['all'] | default([]) | join(', ') }}
+          Please check:
+          1. Hostname spelling: {{ nodename }}
+          2. Current inventory contains this host
+          3. Try different inventory (kmn_inventory, kmw_inventory, eng_inventory, eng_HEM)
+      when:
+        - nodename is defined
+        - groups['all'] | default([]) | length > 0
+        - nodename not in (groups['all'] | default([]))
+
     - name: Display execution mode
       debug:
         msg: |
@@ -316,3 +384,24 @@
           - ILMT Cleanup Required: {{ ilmt_cleanup_needed | default('Unknown') }}
 
           Overall Status: {{ 'CLEANUP NEEDED' if (itm_cleanup_needed or opsware_cleanup_needed or ansible_cleanup_needed or bigfix_cleanup_needed or ilmt_cleanup_needed) else 'VERIFICATION PASSED' }}
+
+- name: Debug host lookup across inventories
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Display search information
+      debug:
+        msg: |
+          Searching for host: {{ nodename | default('no nodename specified') }}
+          Current inventory: {{ inventory_file | default('unknown') }}
+          Available hosts in current inventory: {{ groups['all'] | default([]) }}
+
+    - name: Suggest inventory check
+      debug:
+        msg: |
+          Host '{{ nodename }}' not found in current inventory.
+          Please verify:
+          1. Host exists in one of: kmn_inventory, kmw_inventory, eng_inventory, eng_HEM
+          2. Hostname spelling is correct
+          3. Using the correct inventory for this job template
+      when: nodename is defined and nodename not in (groups['all'] | default([]))
