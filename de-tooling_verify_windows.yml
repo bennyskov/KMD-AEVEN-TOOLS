@@ -7,7 +7,7 @@
       kmn_inventory: ["^kmn.*", ".*kmn.*"]
       kmw_inventory: ["^kmw.*", ".*kmw.*"]
       eng_inventory: ["^eng.*", ".*eng.*"]
-      eng_HEM: ["^hem.*", ".*hem.*", ".*energinet.*"]
+      eng_HEM: ["^hem.*", ".*hem.*"]
   tasks:
     - name: Check if running in single host mode
       set_fact:
