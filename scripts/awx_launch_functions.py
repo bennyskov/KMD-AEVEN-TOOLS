@@ -499,7 +499,7 @@ if CONTINUE:
             credential_names.append('kmn_cred_tower_and_sfs')
 
         elif re.search(r"^kmw_.*", inv_name, re.IGNORECASE):
-            kmn_cred_tower_and_sfs = 33
+            kmw_cred_tower_and_sfs = 23
             credential_names.append('kmw_cred_tower_and_sfs')
 
         elif re.search(r"^eng_.*", inv_name, re.IGNORECASE):
