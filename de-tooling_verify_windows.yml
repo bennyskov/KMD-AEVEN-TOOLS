@@ -1,143 +1,150 @@
+# Enhanced Windows verification playbook with automatic inventory detection and host-specific credentials
+# Supports both single host and inventory-wide execution with intelligent inventory suggestions
+# Uses Tower/AWX API to search across all 4 customer inventories when host not found locally
+
 - name: Pre-flight validation and inventory detection
   hosts: localhost
   gather_facts: false
   vars:
-    # Define inventory suggestions based on hostname patterns
-    inventory_suggestions:
-      kmn_inventory: ["^kmn.*", ".*kmn.*"]
-      kmw_inventory: ["^kmw.*", ".*kmw.*"]
-      eng_inventory: ["^eng.*", ".*eng.*"]
-      eng_HEM: ["^hem.*", ".*hem.*"]
+    # Define the 4 customer inventories to search
+    customer_inventories:
+      - name: "kmn_inventory"
+        org: "kmn"
+        description: "KMN customers"
+      - name: "kmw_inventory"
+        org: "kmw"
+        description: "KMW customers (includes ebok hosts)"
+      - name: "eng_inventory"
+        org: "eng"
+        description: "Energinet customers"
+      - name: "eng_HEM"
+        org: "eng"
+        description: "HEM/Energinet customers"
   tasks:
-    - name: Check if running in single host mode
+    - name: Determine execution mode
       set_fact:
         single_host_mode: "{{ nodename is defined }}"
+        execution_mode: "{{ 'Single Host' if nodename is defined else 'Inventory Wide' }}"
 
-    - name: Validate nodename exists in inventory (single host mode)
+    - name: Display execution mode and context
+      debug:
+        msg: |
+          🎯 EXECUTION MODE: {{ execution_mode }}
+          Target: {{ nodename | default('All Windows hosts in current inventory') }}
+          Current inventory size: {{ groups['all'] | default([]) | length }} hosts
+          Playbook will automatically detect organization and assign appropriate credentials
+
+    - name: Validate single host execution
       block:
-        - name: Check if specific host exists
+        - name: Check if host exists in current inventory
+          set_fact:
+            host_in_current_inventory: "{{ nodename in (groups['all'] | default([])) }}"
+
+        - name: Display host validation status
           debug:
             msg: |
-              Validating host: {{ nodename }}
-              Current inventory hosts: {{ groups['all'] | default([]) | length }} hosts
-              Host exists in current inventory: {{ nodename in (groups['all'] | default([])) }}
-          when: nodename is defined
+              🔍 HOST VALIDATION:
+              Requested host: {{ nodename }}
+              Host exists in current inventory: {{ host_in_current_inventory }}
+              {% if not host_in_current_inventory %}
 
-        - name: Suggest correct inventory if host not found
+              ⚠️  Will search across all customer inventories using Tower/AWX API...
+              {% endif %}
+
+        - name: Search across all customer inventories if host not found locally
           block:
-            - name: Search for host across all known inventories
+            - name: Initialize search variables
+              set_fact:
+                found_inventories: []
+                search_results: []
+
+            - name: Search for host in each customer inventory via Tower/AWX API
               uri:
-                url: "{{ tower_host | default(ansible_tower_host) }}/api/v2/inventories/"
+                url: "{{ tower_host | default(ansible_tower_host) }}/api/v2/inventories/{{ item.name }}/hosts/?search={{ nodename }}"
                 method: GET
                 headers:
                   Authorization: "Bearer {{ tower_token | default(ansible_tower_token) }}"
                 validate_certs: false
-                status_code: [200, 401, 403]
-              register: all_inventories_result
+                status_code: [200, 401, 403, 404]
+              register: inventory_search_result
               ignore_errors: yes
-              when: tower_host is defined or ansible_tower_host is defined
+              loop: "{{ customer_inventories }}"
+              when:
+                - tower_host is defined or ansible_tower_host is defined
+                - tower_token is defined or ansible_tower_token is defined
 
-            - name: Search for host in each inventory (fallback method)
+            - name: Process search results to identify matching inventories
               set_fact:
-                possible_inventories: []
-                inventory_search_results: {}
+                found_inventories: "{{ found_inventories + [{'inventory': item.item.name, 'org': item.item.org, 'description': item.item.description}] }}"
+              loop: "{{ inventory_search_result.results | default([]) }}"
+              when:
+                - item.status is defined
+                - item.status == 200
+                - item.json is defined
+                - item.json.count is defined
+                - item.json.count > 0
 
-            - name: Check inventory patterns for host suggestion
+            - name: Set primary organization from search results
               set_fact:
-                suggested_inventory: >-
-                  {%- if nodename | lower is match('^kmn.*') or 'kmn' in nodename | lower -%}
-                    kmn_inventory
-                  {%- elif nodename | lower is match('^kmw.*') or 'kmw' in nodename | lower or 'ebok' in nodename | lower -%}
-                    kmw_inventory
-                  {%- elif nodename | lower is match('^eng.*') or 'eng' in nodename | lower -%}
-                    eng_inventory
-                  {%- elif nodename | lower is match('^hem.*') or 'hem' in nodename | lower or 'energinet' in nodename | lower -%}
-                    eng_HEM
-                  {%- else -%}
-                    unknown
-                  {%- endif -%}
+                detected_org: "{{ found_inventories[0].org }}"
+                recommended_inventory: "{{ found_inventories[0].inventory }}"
+              when: found_inventories | length > 0
 
-            - name: Display comprehensive host search results
+            - name: Display comprehensive search results
               debug:
                 msg: |
-                  ⚠️  HOST NOT FOUND IN CURRENT INVENTORY ⚠️
+                  📊 INVENTORY SEARCH RESULTS for '{{ nodename }}':
 
-                  🔍 HOST SEARCH ANALYSIS:
-                  Requested host: {{ nodename }}
-                  Current inventory contains: {{ groups['all'] | default([]) | length }} hosts
+                  {% if found_inventories | length > 0 %}
+                  ✅ HOST FOUND IN: {{ found_inventories | map(attribute='inventory') | join(', ') }}
 
-                  📊 PATTERN-BASED SUGGESTION:
-                  Based on hostname pattern '{{ nodename }}': {{ suggested_inventory }}
+                  🎯 RECOMMENDED ACTION:
+                  Re-run this job template with inventory: {{ recommended_inventory }}
+                  Organization: {{ detected_org | upper }}
 
-                  🎯 RECOMMENDED INVENTORIES TO TRY:
-                  {% if suggested_inventory != 'unknown' %}
-                  1. PRIMARY: {{ suggested_inventory }} (pattern match)
+                  💡 Additional matches: {{ found_inventories[1:] | map(attribute='inventory') | join(', ') if found_inventories | length > 1 else 'none' }}
+                  {% else %}
+                  ❌ HOST NOT FOUND in any customer inventory:
+                     {% for inv in customer_inventories %}
+                     - {{ inv.name }} ({{ inv.description }})
+                     {% endfor %}
+
+                  🔍 POSSIBLE CAUSES:
+                  1. Hostname spelling error: '{{ nodename }}'
+                  2. Host not yet added to Tower/AWX
+                  3. Host exists in a different (non-customer) inventory
+                  4. API authentication issues
+
+                  🚀 TROUBLESHOOTING STEPS:
+                  1. Verify hostname spelling: '{{ nodename }}'
+                  2. Check Tower/AWX web interface manually
+                  3. Verify host exists in target environment
+                  4. Try each inventory manually: {{ customer_inventories | map(attribute='name') | join(', ') }}
                   {% endif %}
-                  2. ALL INVENTORIES: Try each in order:
-                     - kmn_inventory (for KMN org: kmn* hosts)
-                     - kmw_inventory (for KMW org: kmw*, ebok* hosts)  ← Try this for ebok hosts!
-                     - eng_inventory (for Energinet: eng* hosts)
-                     - eng_HEM (for HEM/Energinet: hem*, energinet* hosts)
 
-                  💡 HOST ANALYSIS:
-                  - Hostname '{{ nodename }}' contains: {{ 'ebok → suggests KMW/kmw_inventory' if 'ebok' in nodename else 'pattern analysis needed' }}
-
-                  🚀 NEXT STEPS:
-                  1. Re-run this job template with inventory: {{ suggested_inventory if suggested_inventory != 'unknown' else 'kmw_inventory (try first)' }}
-                  2. If that fails, try each inventory systematically
-                  3. Verify hostname spelling: '{{ nodename }}'
-
-            - name: Set fact to continue with empty host list rather than failing
+            - name: Set execution guidance
               set_fact:
-                host_not_found_but_continue: true
-                should_skip_execution: true
-                final_suggested_inventory: "{{ suggested_inventory if suggested_inventory != 'unknown' else 'kmw_inventory' }}"
+                inventory_search_completed: true
+                should_continue_execution: "{{ host_in_current_inventory or found_inventories | length > 0 }}"
 
-          when:
-            - nodename is defined
-            - nodename not in (groups['all'] | default([]))
+          when: not host_in_current_inventory
 
-        - name: Display warning but continue execution if host not found
+        - name: Display success when host found locally
           debug:
-            msg: |
-              ⚠️  WARNING: Continuing execution with inventory guidance above.
+            msg: "✅ Host '{{ nodename }}' found in current inventory. Proceeding with verification."
+          when: host_in_current_inventory
 
-              🎯 RECOMMENDED ACTION: Re-run with inventory → {{ final_suggested_inventory | default('kmw_inventory') }}
+      when: single_host_mode
 
-              The verification tasks will handle host filtering appropriately.
-          when:
-            - nodename is defined
-            - nodename not in (groups['all'] | default([]))
-
-        - name: Display validation success
-          debug:
-            msg: "✅ Host '{{ nodename }}' found in current inventory. Proceeding with execution."
-          when:
-            - nodename is defined
-            - nodename in (groups['all'] | default([]))
-
-      when: nodename is defined
-
-    - name: Display inventory-wide execution mode
+    - name: Display inventory-wide mode confirmation
       debug:
         msg: |
           📊 INVENTORY-WIDE EXECUTION MODE
-          Will process all Windows hosts in current inventory: {{ groups['all'] | default([]) | length }} total hosts
-          Windows hosts will be auto-detected during execution
-      when: nodename is not defined
-
-- name: Create OS groups
-  hosts: localhost
-  become: false
-  gather_facts: true
-  connection: local
-  tasks:
-    - name: Create OS group
-      group_by:
-        key: "machine_{{ ostype }}"
-      changed_when: false
-      when: ostype is defined
-      delegate_to: localhost
+          Will process all Windows hosts in current inventory
+          Total hosts to evaluate: {{ groups['all'] | default([]) | length }}
+          Non-Windows hosts will be automatically skipped
+          Each host will have organization auto-detected and appropriate credentials assigned
+      when: not single_host_mode
 
 - name: Socks tunnel setup
   hosts: localhost
@@ -150,247 +157,165 @@
           run_once: true
           delegate_to: localhost
 
-- name: Debug CyberArk credentials
+- name: Windows host verification with dynamic credentials
   hosts: "{{ nodename | default('all') }}"
   gather_facts: true
   ignore_unreachable: true
   ignore_errors: true
   vars:
-    # Define standard organizational credentials
-    standard_credentials:
+    # Organization to credential mapping
+    org_credential_patterns:
       kmn:
-        tower_creds: ["kmn_cred_tower_and_sfs", "kmn_cred_tower_and_sfs_no_token"]
-        description: "KMN Tower and SFS credentials"
+        os_user: "kmn_cred_{{ inventory_hostname }}_cyberark_user"
+        os_password: "kmn_cred_{{ inventory_hostname }}_cyberark_password"
+        jumphost_user: "kmn_cred_{{ inventory_hostname }}_sshproxy_user"
+        jumphost_password: "kmn_cred_{{ inventory_hostname }}_sshproxy_password"
       kmw:
-        tower_creds: ["kmw_cred_tower_and_sfs", "kmw_cred_tower_and_sfs_no_token"]
-        description: "KMW Tower and SFS credentials"
+        os_user: "kmw_cred_{{ inventory_hostname }}_cyberark_user"
+        os_password: "kmw_cred_{{ inventory_hostname }}_cyberark_password"
+        jumphost_user: "kmw_cred_{{ inventory_hostname }}_sshproxy_user"
+        jumphost_password: "kmw_cred_{{ inventory_hostname }}_sshproxy_password"
       eng:
-        tower_creds: ["eng_cred_ansible_tower", "eng_cred_tower_and_sfs_no_token"]
-        description: "Energinet Tower credentials"
+        os_user: "eng_cred_{{ inventory_hostname }}_cyberark_user"
+        os_password: "eng_cred_{{ inventory_hostname }}_cyberark_password"
+        jumphost_user: "eng_cred_{{ inventory_hostname }}_sshproxy_user"
+        jumphost_password: "eng_cred_{{ inventory_hostname }}_sshproxy_password"
   tasks:
-    - name: Check if host exists in inventory
+    - name: Display processing status
       debug:
         msg: |
-          Host check for: {{ inventory_hostname }}
-          Available hosts: {{ groups['all'] | default([]) | join(', ') }}
-          Host found: {{ inventory_hostname in (groups['all'] | default([])) }}
-      when: nodename is defined
+          === PROCESSING HOST: {{ inventory_hostname }} ===
+          Mode: {{ 'Single Host' if nodename is defined else 'Inventory Wide' }}
+          Target: {{ nodename | default('All Windows hosts in inventory') }}
 
-    - name: Fail gracefully if host not found
-      fail:
-        msg: |
-          Host '{{ nodename }}' not found in current inventory.
-          Available hosts: {{ groups['all'] | default([]) | join(', ') }}
-          Please check:
-          1. Hostname spelling: {{ nodename }}
-          2. Current inventory contains this host
-          3. Try different inventory (kmn_inventory, kmw_inventory, eng_inventory, eng_HEM)
-      when:
-        - nodename is defined
-        - groups['all'] | default([]) | length > 0
-        - nodename not in (groups['all'] | default([]))
-
-    - name: Display execution mode
-      debug:
-        msg: |
-          Execution Mode: {{ 'Single Host' if nodename is defined else 'Inventory Wide' }}
-          Target: {{ nodename | default('All hosts in inventory') }}
-          Host: {{ inventory_hostname }}
-      run_once: false
-
-    - name: Gather facts to determine OS
-      setup:
-      ignore_errors: yes
-
-    - name: Skip non-Windows hosts when running inventory-wide
+    - name: Skip non-Windows hosts in inventory-wide mode
       block:
-        - name: Check if this is a Windows machine
+        - name: Check OS family
           debug:
-            msg: "Host {{ inventory_hostname }} is {{ ansible_facts['os_family'] | default('Unknown') }}"
+            msg: "Host {{ inventory_hostname }} OS: {{ ansible_facts['os_family'] | default('Unknown') }}"
 
-        - name: Skip if not Windows (inventory-wide mode)
+        - name: Skip if not Windows (inventory-wide mode only)
           meta: end_host
           when:
             - nodename is not defined  # Only skip in inventory-wide mode
             - ansible_facts['os_family'] is not defined or ansible_facts['os_family'] != 'Windows'
 
-        - name: Display Windows host confirmation
+        - name: Confirm Windows host
           debug:
-            msg: "Processing Windows host: {{ inventory_hostname }}"
+            msg: "✅ Processing Windows host: {{ inventory_hostname }}"
           when: ansible_facts['os_family'] is defined and ansible_facts['os_family'] == 'Windows'
 
-    - name: Verify nodename pattern (single host mode)
+    - name: Validate single host target
       block:
         - name: Check nodename match
           debug:
-            msg: "Checking if {{ inventory_hostname }} matches pattern: {{ nodename }}"
-          when: nodename is defined
+            msg: "Verifying {{ inventory_hostname }} matches target: {{ nodename }}"
 
-        - name: Skip if not matching nodename pattern
+        - name: Skip if not matching target host
           meta: end_host
           when:
             - nodename is defined
             - inventory_hostname != nodename
             - inventory_hostname not in (nodename.split(',') if ',' in nodename else [])
-            - not (inventory_hostname is match(nodename) if '^' in nodename else False)
 
-        - name: Confirm nodename match
+        - name: Confirm target match
           debug:
-            msg: "Host {{ inventory_hostname }} matches nodename pattern: {{ nodename }}"
+            msg: "✅ Host {{ inventory_hostname }} matches target: {{ nodename }}"
           when:
             - nodename is defined
-            - (inventory_hostname == nodename or
-               inventory_hostname in (nodename.split(',') if ',' in nodename else []) or
-               (inventory_hostname is match(nodename) if '^' in nodename else False))
+            - (inventory_hostname == nodename or inventory_hostname in (nodename.split(',') if ',' in nodename else []))
 
-    - name: Auto-detect inventory based on hostname
-      set_fact:
-        detected_org: >-
-          {%- if inventory_hostname | lower is match('^kmn.*') or 'kmn' in inventory_hostname | lower -%}
-            kmn
-          {%- elif inventory_hostname | lower is match('^kmw.*') or 'kmw' in inventory_hostname | lower or 'ebok' in inventory_hostname | lower -%}
-            kmw
-          {%- elif inventory_hostname | lower is match('^eng.*') or 'eng' in inventory_hostname | lower or 'hem' in inventory_hostname | lower or 'energinet' in inventory_hostname | lower -%}
-            eng
-          {%- else -%}
-            unknown
-          {%- endif -%}
-        detected_inventory: >-
-          {%- if inventory_hostname | lower is match('^kmn.*') or 'kmn' in inventory_hostname | lower -%}
-            kmn_inventory
-          {%- elif inventory_hostname | lower is match('^kmw.*') or 'kmw' in inventory_hostname | lower or 'ebok' in inventory_hostname | lower -%}
-            kmw_inventory
-          {%- elif inventory_hostname | lower is match('^eng.*') or 'eng' in inventory_hostname | lower -%}
-            eng_inventory
-          {%- elif inventory_hostname | lower is match('^hem.*') or 'hem' in inventory_hostname | lower or 'energinet' in inventory_hostname | lower -%}
-            eng_HEM
-          {%- else -%}
-            unknown_inventory
-          {%- endif -%}
-
-    - name: Set organization credentials configuration
-      set_fact:
-        org_config: "{{ standard_credentials[detected_org] | default({}) }}"
-      when: detected_org != 'unknown'
-
-    - name: Display detected organization and inventory
-      debug:
-        msg: |
-          Host: {{ inventory_hostname }}
-          OS Family: {{ ansible_facts['os_family'] | default('Unknown') }}
-          Detected Organization: {{ detected_org }}
-          Detected Inventory: {{ detected_inventory }}
-          Standard Tower Credentials: {{ org_config.tower_creds | default([]) }}
-          Will lookup host-specific credentials:
-          - OS: {{ detected_org }}_cred_{{ inventory_hostname }}_cyberark_*
-          - Jumphost: {{ detected_org }}_cred_{{ inventory_hostname }}_sshproxy_*
-
-    - name: Lookup host-specific OS credentials (HOST-SPECIFIC APPROACH)
-      set_fact:
-        ansible_user: "{{ lookup('cyberark', detected_org + '_cred_' + inventory_hostname + '_cyberark_user') }}"
-        ansible_password: "{{ lookup('cyberark', detected_org + '_cred_' + inventory_hostname + '_cyberark_password') }}"
-        credential_source: "host_specific_os"
-      when: detected_org != 'unknown'
-      no_log: true
-      ignore_errors: yes
-
-    - name: Lookup host-specific jumphost credentials (HOST-SPECIFIC APPROACH)
-      set_fact:
-        jumphost_user: "{{ lookup('cyberark', detected_org + '_cred_' + inventory_hostname + '_sshproxy_user') }}"
-        jumphost_password: "{{ lookup('cyberark', detected_org + '_cred_' + inventory_hostname + '_sshproxy_password') }}"
-        jumphost_credential_source: "host_specific_jumphost"
-      when: detected_org != 'unknown'
-      no_log: true
-      ignore_errors: yes
-
-    - name: Lookup standard tower credentials for organization
-      set_fact:
-        tower_credentials: {}
-      when: detected_org != 'unknown'
-
-    - name: Get tower credentials for organization
-      set_fact:
-        tower_credentials: "{{ tower_credentials | combine({ item: lookup('cyberark', item, errors='ignore') }) }}"
-      loop: "{{ org_config.tower_creds | default([]) }}"
-      when: detected_org != 'unknown' and org_config.tower_creds is defined
-      no_log: true
-      ignore_errors: yes
-
-    - name: Display credential lookup results
-      debug:
-        msg: |
-          Host-specific credential lookup for {{ inventory_hostname }}:
-          - Organization: {{ detected_org }}
-          - OS Credentials: {{ 'Found' if ansible_user is defined else 'Not Found' }}
-          - Jumphost Credentials: {{ 'Found' if jumphost_user is defined else 'Not Found' }}
-          - Tower Credentials: {{ org_config.tower_creds | default([]) | join(', ') }}
-          - Credential Pattern: {{ detected_org }}_cred_{{ inventory_hostname }}_*
-
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- name: "Verify if ITM and Ansible has been uninstalled on Windows servers"
-  hosts: "{{ nodename | default('all') }}"
-  become: true
-  gather_facts: true
-  tasks:
-    - name: Check if host exists in current inventory (single host mode)
-      block:
-        - name: Display inventory mismatch warning
-          debug:
-            msg: |
-              ⚠️  HOST NOT IN CURRENT INVENTORY WARNING ⚠️
-
-              Requested host: {{ nodename }}
-              Current host being processed: {{ inventory_hostname }}
-
-              This host is not in the current inventory but the playbook is continuing
-              for demonstration purposes. For actual verification, please use the
-              correct inventory as suggested in the pre-flight validation.
-          when:
-            - nodename is defined
-            - nodename != inventory_hostname
-
-        - name: Skip execution for host not in inventory
-          meta: end_host
-          when:
-            - nodename is defined
-            - nodename != inventory_hostname
       when: nodename is defined
 
-    - name: Display execution context
+    - name: Auto-detect organization from hostname patterns
+      set_fact:
+        detected_org: >-
+          {%- if inventory_hostname | lower is match('^kmn.*') -%}
+            kmn
+          {%- elif inventory_hostname | lower is match('^kmw.*') or 'ebok' in inventory_hostname | lower -%}
+            kmw
+          {%- elif inventory_hostname | lower is match('^eng.*') -%}
+            eng
+          {%- elif inventory_hostname | lower is match('^hem.*') or 'energinet' in inventory_hostname | lower -%}
+            eng
+          {%- else -%}
+            kmw
+          {%- endif -%}
+        detected_inventory: >-
+          {%- if inventory_hostname | lower is match('^kmn.*') -%}
+            kmn_inventory
+          {%- elif inventory_hostname | lower is match('^kmw.*') or 'ebok' in inventory_hostname | lower -%}
+            kmw_inventory
+          {%- elif inventory_hostname | lower is match('^eng.*') -%}
+            eng_inventory
+          {%- elif inventory_hostname | lower is match('^hem.*') or 'energinet' in inventory_hostname | lower -%}
+            eng_HEM
+          {%- else -%}
+            kmw_inventory
+          {%- endif -%}
+
+    - name: Display detection results
       debug:
         msg: |
-          === VERIFICATION EXECUTION CONTEXT ===
-          Mode: {{ 'Single Host' if nodename is defined else 'Inventory Wide (Windows only)' }}
-          Target: {{ nodename | default('All Windows hosts in inventory') }}
-          Current Host: {{ inventory_hostname }}
-          OS Family: {{ ansible_facts['os_family'] | default('Unknown') }}
-
-    - name: Skip non-Windows hosts in inventory-wide mode
-      meta: end_host
-      when:
-        - nodename is not defined  # Inventory-wide mode
-        - ansible_facts['os_family'] is not defined or ansible_facts['os_family'] != 'Windows'
-
-    - name: Skip if not matching nodename pattern (single host mode)
-      meta: end_host
-      when:
-        - nodename is defined  # Single host mode
-        - inventory_hostname != nodename
-        - inventory_hostname not in (nodename.split(',') if ',' in nodename else [])
-        - not (inventory_hostname is match(nodename) if '^' in nodename else False)
-
-    - name: Verify host has credentials assigned
-      debug:
-        msg: |
+          🔍 AUTO-DETECTION RESULTS:
           Host: {{ inventory_hostname }}
-          Inventory: {{ detected_inventory | default('not_detected') }}
-          OS Credentials: {{ 'assigned' if ansible_user is defined else 'missing' }}
-          Jumphost Credentials: {{ 'assigned' if jumphost_user is defined else 'missing' }}
-          Credential Source: {{ credential_source | default('none') }}
+          Detected Organization: {{ detected_org | upper }}
+          Detected Inventory: {{ detected_inventory }}
+          Will use credential pattern: {{ detected_org }}_cred_{{ inventory_hostname }}_*
 
-    - name: Skip if no credentials found
-      meta: end_host
-      when: ansible_user is not defined or detected_inventory is not defined
+    - name: Lookup host-specific OS credentials
+      set_fact:
+        ansible_user: "{{ lookup('cyberark', org_credential_patterns[detected_org].os_user, errors='ignore') }}"
+        ansible_password: "{{ lookup('cyberark', org_credential_patterns[detected_org].os_password, errors='ignore') }}"
+        credential_source: "host_specific_os"
+      when: detected_org in org_credential_patterns
+      no_log: true
+      ignore_errors: yes
+
+    - name: Lookup host-specific jumphost credentials
+      set_fact:
+        jumphost_user: "{{ lookup('cyberark', org_credential_patterns[detected_org].jumphost_user, errors='ignore') }}"
+        jumphost_password: "{{ lookup('cyberark', org_credential_patterns[detected_org].jumphost_password, errors='ignore') }}"
+        jumphost_credential_source: "host_specific_jumphost"
+      when: detected_org in org_credential_patterns
+      no_log: true
+      ignore_errors: yes
+
+    - name: Display credential lookup status
+      debug:
+        msg: |
+          🔐 CREDENTIAL LOOKUP STATUS:
+          Organization: {{ detected_org | upper }}
+          OS Credentials: {{ 'Found' if ansible_user is defined and ansible_user != '' else 'Not Found' }}
+          Jumphost Credentials: {{ 'Found' if jumphost_user is defined and jumphost_user != '' else 'Not Found' }}
+          Credential Patterns:
+          - OS: {{ org_credential_patterns[detected_org].os_user if detected_org in org_credential_patterns else 'N/A' }}
+          - Jumphost: {{ org_credential_patterns[detected_org].jumphost_user if detected_org in org_credential_patterns else 'N/A' }}
+
+    - name: Handle missing credentials gracefully
+      block:
+        - name: Display credential warning
+          debug:
+            msg: |
+              ⚠️  CREDENTIAL WARNING for {{ inventory_hostname }}:
+
+              OS credentials not found for pattern: {{ org_credential_patterns[detected_org].os_user if detected_org in org_credential_patterns else 'N/A' }}
+
+              🔍 POSSIBLE CAUSES:
+              1. Host-specific credentials not yet configured in CyberArk
+              2. Incorrect organization detection (detected: {{ detected_org | upper }})
+              3. Non-standard credential naming pattern
+
+              🚀 RECOMMENDED ACTIONS:
+              1. Verify organization: {{ detected_org | upper }}
+              2. Check CyberArk for: {{ detected_org }}_cred_{{ inventory_hostname }}_cyberark_*
+              3. Ensure credentials are properly configured
+              4. Try running with correct inventory: {{ detected_inventory }}
+
+        - name: Skip host without credentials
+          meta: end_host
+
+      when: ansible_user is not defined or ansible_user == ''
 
     - name: Test connection with assigned credentials
       win_ping:
@@ -399,75 +324,97 @@
 
     - name: Display connection status
       debug:
-        msg: "Connection to {{ inventory_hostname }} ({{ detected_inventory }}): {{ 'SUCCESS' if connection_test is succeeded else 'FAILED' }}"
+        msg: |
+          🔌 CONNECTION TEST RESULTS:
+          Host: {{ inventory_hostname }}
+          Organization: {{ detected_org | upper }}
+          Inventory: {{ detected_inventory }}
+          Status: {{ 'SUCCESS' if connection_test is succeeded else 'FAILED' }}
+          {% if connection_test is failed %}
+          Error: {{ connection_test.msg | default('Connection failed') }}
+          {% endif %}
 
-    - name: Skip if connection failed
-      meta: end_host
+    - name: Handle connection failure gracefully
+      block:
+        - name: Display connection failure guidance
+          debug:
+            msg: |
+              ❌ CONNECTION FAILED to {{ inventory_hostname }}:
+
+              🔍 POSSIBLE CAUSES:
+              1. Incorrect credentials for organization: {{ detected_org | upper }}
+              2. Host not accessible from current network/jumphost
+              3. Windows Remote Management (WinRM) not configured
+              4. Firewall blocking connection
+
+              🚀 TROUBLESHOOTING STEPS:
+              1. Verify host is accessible: {{ inventory_hostname }}
+              2. Check organization detection: {{ detected_org | upper }}
+              3. Verify credentials in CyberArk: {{ detected_org }}_cred_{{ inventory_hostname }}_*
+              4. Ensure correct inventory: {{ detected_inventory }}
+
+        - name: Skip host with failed connection
+          meta: end_host
+
       when: connection_test is failed
 
-    # Primary verification - Directory/File checks (Most Reliable)
-    - name: "Verify ITM installation directories cleared"
+    # Proceed with de-tooling verification for successfully connected hosts
+    - name: Verify ITM installation directories cleared
       win_shell: (Test-Path "C:/IBM/ITM/bin") -and ((Get-ChildItem -Path "C:/IBM/ITM" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
       ignore_errors: yes
       register: check_itm_files
 
-    - name: "Verify Opsware installation directories cleared"
+    - name: Verify Opsware installation directories cleared
       win_shell: (Test-Path "C:/Program Files/Opsware/agent/bin") -and ((Get-ChildItem -Path "C:/Program Files/Opsware/agent/bin" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
       ignore_errors: yes
       register: check_opsware_files
 
-    # Secondary verification - Service checks (Additional context)
-    - name: "Check ITM services status"
+    - name: Check ITM services status
       win_shell: "[bool](Get-Service KNT*, K06* -ErrorAction SilentlyContinue)"
       ignore_errors: yes
       register: get_service_itm
 
-    - name: "Check Opsware services status"
+    - name: Check Opsware services status
       win_shell: "[bool](Get-Service opsware* -ErrorAction SilentlyContinue)"
       ignore_errors: yes
       register: get_service_SA
 
-    #  ----------------------------------------------------------------------------------------------------------------
-    #  verify if directories exists
-    #  ----------------------------------------------------------------------------------------------------------------
-
-    - name: "test if ansible workdir has been cleared"
-      ignore_errors: yes
+    - name: Test if ansible workdir has been cleared
       win_shell: (Test-Path "C:/ansible_workdir") -and ((Get-ChildItem -Path "C:/ansible_workdir" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
+      ignore_errors: yes
       register: check_ansible_workdir
 
-    - name: "test if ansible ProgramData has been cleared"
-      ignore_errors: yes
+    - name: Test if ansible ProgramData has been cleared
       win_shell: (Test-Path "C:/ProgramData/ansible") -and ((Get-ChildItem -Path "C:/ProgramData/ansible" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
+      ignore_errors: yes
       register: check_ansible_programdata
 
-    - name: "test if BigFix ProgramData has been cleared"
-      ignore_errors: yes
+    - name: Test if BigFix ProgramData has been cleared
       win_shell: (Test-Path "C:/ProgramData/BigFix") -and ((Get-ChildItem -Path "C:/ProgramData/BigFix" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
+      ignore_errors: yes
       register: check_bigfix_programdata
 
-    - name: "test if ilmt ProgramData has been cleared"
-      ignore_errors: yes
+    - name: Test if ilmt ProgramData has been cleared
       win_shell: (Test-Path "C:/ProgramData/ilmt") -and ((Get-ChildItem -Path "C:/ProgramData/ilmt" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
+      ignore_errors: yes
       register: check_ilmt_programdata
 
-    - name: "test if ansible Program Files has been cleared"
-      ignore_errors: yes
+    - name: Test if ansible Program Files has been cleared
       win_shell: (Test-Path "C:/PROGRA~1/ansible") -and ((Get-ChildItem -Path "C:/PROGRA~1/ansible" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
+      ignore_errors: yes
       register: check_ansible_progfiles
 
-    - name: "test if BigFix Program Files has been cleared"
-      ignore_errors: yes
+    - name: Test if BigFix Program Files has been cleared
       win_shell: (Test-Path "C:/PROGRA~1/BigFix") -and ((Get-ChildItem -Path "C:/PROGRA~1/BigFix" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
+      ignore_errors: yes
       register: check_bigfix_progfiles
 
-    - name: "test if ilmt Program Files has been cleared"
-      ignore_errors: yes
+    - name: Test if ilmt Program Files has been cleared
       win_shell: (Test-Path "C:/PROGRA~1/ilmt") -and ((Get-ChildItem -Path "C:/PROGRA~1/ilmt" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
+      ignore_errors: yes
       register: check_ilmt_progfiles
 
-    # Final determination based on file presence (most reliable)
-    - name: "Set cleanup status"
+    - name: Determine cleanup status
       set_fact:
         itm_cleanup_needed: "{{ check_itm_files.stdout == 'True' }}"
         opsware_cleanup_needed: "{{ check_opsware_files.stdout == 'True' }}"
@@ -475,102 +422,26 @@
         bigfix_cleanup_needed: "{{ (check_bigfix_programdata.stdout == 'True') or (check_bigfix_progfiles.stdout == 'True') }}"
         ilmt_cleanup_needed: "{{ (check_ilmt_programdata.stdout == 'True') or (check_ilmt_progfiles.stdout == 'True') }}"
 
-    - name: "Summary of cleanup verification"
+    - name: Display final verification summary
       debug:
         msg: |
-          === CLEANUP VERIFICATION SUMMARY for {{ inventory_hostname }} ===
-          Execution Mode: {{ 'Single Host' if nodename is defined else 'Inventory Wide (Windows only)' }}
-          Using credentials: {{ credential_source | default('none') }}
-          Inventory: {{ detected_inventory }}
-          OS Family: {{ ansible_facts['os_family'] | default('Unknown') }}
-
-          Cleanup Status:
-          - ITM Cleanup Required: {{ itm_cleanup_needed | default('Unknown') }}
-          - Opsware Cleanup Required: {{ opsware_cleanup_needed | default('Unknown') }}
-          - Ansible Cleanup Required: {{ ansible_cleanup_needed | default('Unknown') }}
-          - BigFix Cleanup Required: {{ bigfix_cleanup_needed | default('Unknown') }}
-          - ILMT Cleanup Required: {{ ilmt_cleanup_needed | default('Unknown') }}
-
-          Overall Status: {{ 'CLEANUP NEEDED' if (itm_cleanup_needed or opsware_cleanup_needed or ansible_cleanup_needed or bigfix_cleanup_needed or ilmt_cleanup_needed) else 'VERIFICATION PASSED' }}
-
-- name: Advanced host search across inventories
-  hosts: localhost
-  gather_facts: false
-  vars:
-    search_inventories:
-      - name: "kmn_inventory"
-        patterns: ["^kmn.*", ".*kmn.*"]
-        org: "KMN"
-      - name: "kmw_inventory"
-        patterns: ["^kmw.*", ".*kmw.*", ".*ebok.*"]
-        org: "KMW"
-      - name: "eng_inventory"
-        patterns: ["^eng.*", ".*eng.*"]
-        org: "Energinet"
-      - name: "eng_HEM"
-        patterns: ["^hem.*", ".*hem.*", ".*energinet.*"]
-        org: "HEM/Energinet"
-  tasks:
-    - name: Display comprehensive search information
-      debug:
-        msg: |
-          🔍 COMPREHENSIVE HOST SEARCH ANALYSIS
-
-          Searching for: {{ nodename | default('no nodename specified') }}
-          Current inventory: {{ inventory_file | default('unknown') }}
-          Current inventory size: {{ groups['all'] | default([]) | length }} hosts
-
-          📊 HOSTNAME PATTERN ANALYSIS:
-          {% for inv in search_inventories %}
-          {{ inv.name }} ({{ inv.org }}):
-            {% for pattern in inv.patterns %}
-            - Pattern: {{ pattern }} → Match: {{ (nodename | default('') | lower is match(pattern)) if nodename is defined else 'N/A' }}
-            {% endfor %}
-          {% endfor %}
-
-          🎯 SMART RECOMMENDATION:
-          {% if nodename is defined %}
-          {% for inv in search_inventories %}
-          {% for pattern in inv.patterns %}
-          {% if nodename | lower is match(pattern) %}
-          → RECOMMENDED: {{ inv.name }} ({{ inv.org }} organization)
-          {% endif %}
-          {% endfor %}
-          {% endfor %}
-          {% else %}
-          → Running inventory-wide mode
-          {% endif %}
-
-    - name: Provide specific guidance for ebok hosts
-      debug:
-        msg: |
-          💡 SPECIAL GUIDANCE FOR EBOK HOSTS:
-
-          The hostname '{{ nodename }}' contains 'ebok' which indicates:
-          - Organization: KMW
-          - Inventory: kmw_inventory
-          - Credential pattern: kmw_cred_{{ nodename }}_*
-
-          🚀 IMMEDIATE ACTION:
-          Re-run this job template with inventory: kmw_inventory
-      when:
-        - nodename is defined
-        - "'ebok' in nodename | lower"
-
-    - name: Final inventory search recommendations
-      debug:
-        msg: |
-          📋 SYSTEMATIC SEARCH APPROACH:
-
-          If the recommended inventory doesn't work, try searching in this order:
-          1. kmw_inventory (most likely for ebok hosts)
-          2. kmn_inventory
-          3. eng_inventory
-          4. eng_HEM
-
-          ✅ VERIFICATION STEPS:
-          1. Check Tower/AWX job templates for inventory assignments
-          2. Verify hostname spelling: '{{ nodename | default('N/A') }}'
-          3. Confirm host exists in target environment
-          4. Check organizational ownership of the host
-      when: nodename is defined and nodename not in (groups['all'] | default([]))
+          ╔══════════════════════════════════════════════════════════════════════════════════════╗
+          ║                          DE-TOOLING VERIFICATION SUMMARY                             ║
+          ╠══════════════════════════════════════════════════════════════════════════════════════╣
+          ║ Host: {{ "%-76s" | format(inventory_hostname) }} ║
+          ║ Organization: {{ "%-67s" | format(detected_org | upper) }} ║
+          ║ Inventory: {{ "%-70s" | format(detected_inventory) }} ║
+          ║ Execution Mode: {{ "%-65s" | format(execution_mode) }} ║
+          ║ Connection: {{ "%-69s" | format('SUCCESS') }} ║
+          ║ Credentials: {{ "%-68s" | format(credential_source | default('host_specific')) }} ║
+          ╠══════════════════════════════════════════════════════════════════════════════════════╣
+          ║                                CLEANUP STATUS                                        ║
+          ╠══════════════════════════════════════════════════════════════════════════════════════╣
+          ║ ITM Cleanup Required: {{ "%-59s" | format(itm_cleanup_needed | default('Unknown')) }} ║
+          ║ Opsware Cleanup Required: {{ "%-55s" | format(opsware_cleanup_needed | default('Unknown')) }} ║
+          ║ Ansible Cleanup Required: {{ "%-55s" | format(ansible_cleanup_needed | default('Unknown')) }} ║
+          ║ BigFix Cleanup Required: {{ "%-56s" | format(bigfix_cleanup_needed | default('Unknown')) }} ║
+          ║ ILMT Cleanup Required: {{ "%-58s" | format(ilmt_cleanup_needed | default('Unknown')) }} ║
+          ╠══════════════════════════════════════════════════════════════════════════════════════╣
+          ║ Overall Status: {{ "%-65s" | format('CLEANUP NEEDED' if (itm_cleanup_needed or opsware_cleanup_needed or ansible_cleanup_needed or bigfix_cleanup_needed or ilmt_cleanup_needed) else 'VERIFICATION PASSED') }} ║
+          ╚══════════════════════════════════════════════════════════════════════════════════════╝
