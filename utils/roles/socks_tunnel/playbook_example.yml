@@ -1,0 +1,8 @@
+---
+- name: Ansible inventory
+  hosts: all
+  gather_facts: false
+  tasks:
+  - name: Include role
+    include_role:
+      name: ansible-example-role

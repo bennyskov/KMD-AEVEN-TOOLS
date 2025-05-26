@@ -1,0 +1,6 @@
+---
+snow_username: defaultuser
+snow_password: defaultpassword
+snow_host: defaultinstance
+snow_record_number: "00000001"
+snow_record_data: {}

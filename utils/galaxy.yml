@@ -1,0 +1,21 @@
+---
+authors:
+  - Egor Margineanu <egor_margineanu@cz.ibm.com>
+  - Alexandros Zachos <alexandros.zachos@cz.ibm.com>
+dependencies: {}
+description: KMN Utils Ansible Collection
+documentation: https://github.ibm.com/eu-nordic-kmn/kmn.sra
+homepage: https://github.ibm.com/eu-nordic-kmn/kmn.sra
+issues: https://github.ibm.com/eu-nordic-kmn/kmn.sra/issues
+license_file: LICENSE
+name: sra
+namespace: kmn
+readme: README.md
+repository: https://github.ibm.com/eu-nordic-kmn/kmn.sra
+tags:
+  - ansible
+  - utils
+  - windows
+  - linux
+  - aix
+version: 0.1.0

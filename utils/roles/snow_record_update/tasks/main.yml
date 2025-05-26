@@ -1,0 +1,12 @@
+---
+- servicenow.servicenow.snow_record:
+    username: "{{ snow_username }}"
+    password: "{{ snow_password }}"
+    host: "{{ snow_host }}"
+    state: present
+    number: "{{ snow_record_number }}"
+    table: "{{ snow_record_table }}"
+    data: "{{ snow_record_data }}"
+  delegate_to: localhost
+  run_once: true
+  register: snow_record
