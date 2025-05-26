@@ -21,7 +21,7 @@ import yaml
 warnings.filterwarnings('ignore', 'This pattern is interpreted as a regular expression, and has match groups.')
 global debug
 debug = bool
-debug = True
+debug = False
 # ---------------------------------------------------------------------------------------------------------------------------------------
 #
 #
