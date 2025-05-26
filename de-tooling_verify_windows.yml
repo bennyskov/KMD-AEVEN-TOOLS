@@ -22,89 +22,13 @@
           run_once: true
           delegate_to: localhost
 
-    - name: Verify ITM installation directories cleared
-      win_shell: (Test-Path "C:/IBM/ITM/bin") -and ((Get-ChildItem -Path "C:/IBM/ITM" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
-      ignore_errors: yes
-      register: check_itm_files
-
-    - name: Verify Opsware installation directories cleared
-      win_shell: (Test-Path "C:/Program Files/Opsware/agent/bin") -and ((Get-ChildItem -Path "C:/Program Files/Opsware/agent/bin" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
-      ignore_errors: yes
-      register: check_opsware_files
-
-    - name: Check ITM services status
-      win_shell: "[bool](Get-Service KNT*, K06* -ErrorAction SilentlyContinue)"
-      ignore_errors: yes
-      register: get_service_itm
-
-    - name: Check Opsware services status
-      win_shell: "[bool](Get-Service opsware* -ErrorAction SilentlyContinue)"
-      ignore_errors: yes
-      register: get_service_SA
-
-    - name: Test if ansible workdir has been cleared
-      win_shell: (Test-Path "C:/ansible_workdir") -and ((Get-ChildItem -Path "C:/ansible_workdir" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
-      ignore_errors: yes
-      register: check_ansible_workdir
-
-    - name: Test if ansible ProgramData has been cleared
-      win_shell: (Test-Path "C:/ProgramData/ansible") -and ((Get-ChildItem -Path "C:/ProgramData/ansible" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
-      ignore_errors: yes
-      register: check_ansible_programdata
-
-    - name: Test if BigFix ProgramData has been cleared
-      win_shell: (Test-Path "C:/ProgramData/BigFix") -and ((Get-ChildItem -Path "C:/ProgramData/BigFix" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
-      ignore_errors: yes
-      register: check_bigfix_programdata
-
-    - name: Test if ilmt ProgramData has been cleared
-      win_shell: (Test-Path "C:/ProgramData/ilmt") -and ((Get-ChildItem -Path "C:/ProgramData/ilmt" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
-      ignore_errors: yes
-      register: check_ilmt_programdata
-
-    - name: Test if ansible Program Files has been cleared
-      win_shell: (Test-Path "C:/PROGRA~1/ansible") -and ((Get-ChildItem -Path "C:/PROGRA~1/ansible" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
-      ignore_errors: yes
-      register: check_ansible_progfiles
-
-    - name: Test if BigFix Program Files has been cleared
-      win_shell: (Test-Path "C:/PROGRA~1/BigFix") -and ((Get-ChildItem -Path "C:/PROGRA~1/BigFix" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
-      ignore_errors: yes
-      register: check_bigfix_progfiles
-
-    - name: Test if ilmt Program Files has been cleared
-      win_shell: (Test-Path "C:/PROGRA~1/ilmt") -and ((Get-ChildItem -Path "C:/PROGRA~1/ilmt" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
-      ignore_errors: yes
-      register: check_ilmt_progfiles
-
-    - name: Determine cleanup status
-      set_fact:
-        itm_cleanup_needed: "{{ check_itm_files.stdout == 'True' }}"
-        opsware_cleanup_needed: "{{ check_opsware_files.stdout == 'True' }}"
-        ansible_cleanup_needed: "{{ (check_ansible_workdir.stdout == 'True') or (check_ansible_programdata.stdout == 'True') or (check_ansible_progfiles.stdout == 'True') }}"
-        bigfix_cleanup_needed: "{{ (check_bigfix_programdata.stdout == 'True') or (check_bigfix_progfiles.stdout == 'True') }}"
-        ilmt_cleanup_needed: "{{ (check_ilmt_programdata.stdout == 'True') or (check_ilmt_progfiles.stdout == 'True') }}"
-
-    - name: Display final verification summary
-      debug:
-        msg: |
-          ╔══════════════════════════════════════════════════════════════════════════════════════╗
-          ║                          DE-TOOLING VERIFICATION SUMMARY                             ║
-          ╠══════════════════════════════════════════════════════════════════════════════════════╣
-          ║ Host: {{ "%-76s" | format(inventory_hostname) }} ║
-          ║ Organization: {{ "%-67s" | format(detected_org | upper) }} ║
-          ║ Inventory: {{ "%-70s" | format(detected_inventory) }} ║
-          ║ Execution Mode: {{ "%-65s" | format(execution_mode) }} ║
-          ║ Connection: {{ "%-69s" | format('SUCCESS') }} ║
-          ║ Credentials: {{ "%-68s" | format(credential_source | default('host_specific')) }} ║
-          ╠══════════════════════════════════════════════════════════════════════════════════════╣
-          ║                                CLEANUP STATUS                                        ║
-          ╠══════════════════════════════════════════════════════════════════════════════════════╣
-          ║ ITM Cleanup Required: {{ "%-59s" | format(itm_cleanup_needed | default('Unknown')) }} ║
-          ║ Opsware Cleanup Required: {{ "%-55s" | format(opsware_cleanup_needed | default('Unknown')) }} ║
-          ║ Ansible Cleanup Required: {{ "%-55s" | format(ansible_cleanup_needed | default('Unknown')) }} ║
-          ║ BigFix Cleanup Required: {{ "%-56s" | format(bigfix_cleanup_needed | default('Unknown')) }} ║
-          ║ ILMT Cleanup Required: {{ "%-58s" | format(ilmt_cleanup_needed | default('Unknown')) }} ║
-          ╠══════════════════════════════════════════════════════════════════════════════════════╣
-          ║ Overall Status: {{ "%-65s" | format('CLEANUP NEEDED' if (itm_cleanup_needed or opsware_cleanup_needed or ansible_cleanup_needed or bigfix_cleanup_needed or ilmt_cleanup_needed) else 'VERIFICATION PASSED') }} ║
-          ╚══════════════════════════════════════════════════════════════════════════════════════╝
+- name: Verify de-tooling
+  hosts: '{{ nodename }}'
+  gather_facts: false
+  tasks:
+    - include_role:
+        name: verify_de-tooling
+        apply:
+          check_mode: false
+          run_once: true
+          delegate_to: '{{ nodename }}'

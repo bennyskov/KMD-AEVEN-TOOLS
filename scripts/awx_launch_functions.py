@@ -298,7 +298,7 @@ if isRunningLocally and len(sys.argv) <= 3:  # Only use hardcoded values if not 
     # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_linux'
     launch_template_name= 'de-tooling_verify_windows'
     #
-    sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/launch_and_misc_awx_functions.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
+    sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/launch_and_misc_awx_functions.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}', '-d']
     argnum              = 11
 
     # sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/launch_and_misc_awx_functions.py','-n', f'{nodename}', '--disable']
@@ -315,6 +315,7 @@ if len(sys_argv) > 2:
             if re.search(r'-t$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; launch_template_name = sys_argv[argnum]; LAUNCH_TEMPLATE = True
             if re.search(r'-u$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; twusr = sys_argv[argnum]
             if re.search(r'-p$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; twpwd = sys_argv[argnum]
+            if re.search(r'-d$', checkArg, re.IGNORECASE): argnum = i; debug = True
 else:
     f_help_error()
 #endregion
@@ -324,9 +325,6 @@ else:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # Debug for control flow
 f_log(f'template_name', f'{template_name}', debug)
-# nodenames           = ['udv19bfs01, udv19db2aws01, udv19avs01, udv19elk02, udv19cis01, udv19tdm03, udv19bfs02, udv19tdm02, udv19tdg01, udv19elk01, udv19tools, udv19gws01, udv19app01, udv19elk03, kmddbs2136']
-# nodenames           = ['kmdlnxrls001']
-# nodenames           = ['kmdlnxprx001']
 cred_names          = []
 credentials_ids     = []
 credential_names    = []
@@ -504,7 +502,6 @@ if CONTINUE:
         f_log(f'unique_credential_names',f'{unique_credential_names}',debug)
         unique_credentials_ids = list(set(credentials_ids))
         f_log(f'unique_credentials_ids',f'{unique_credentials_ids}',debug)
-        print(f'{unique_credentials_ids}')
     except Exception as e:
         if debug: logging.error(e)
         RC = 12
@@ -564,3 +561,5 @@ if CONTINUE and LAUNCH_TEMPLATE:
         RC = 12
         f_end(RC)
 #endregion
+print(f'{payload}')
+exit(RC)

@@ -4,8 +4,3 @@
   src: https://github.kyndryl.net/Continuous-Engineering/ansible-role-event-socks-tunnel.git
   scm: git
   version: master
-
-- name: host-variable
-  src: "https://github.kyndryl.net/eu-nordic-kmn/ansible-role-host-variable.git"
-  scm: git
-  version: master
