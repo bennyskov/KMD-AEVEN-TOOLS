@@ -257,7 +257,7 @@ def f_cmdexec(cmdexec='',debug=False):
 # f_help_error
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_help_error():
-    if debug: logging.info('use: python get_cred_for_host.py -t {{ launch_template_name }} -n {{ nodename }} -s {{ change }} -u {{ twusr }} -p {{ twpwd }}')
+    if debug: logging.info('use: python get_cred_for_host.py -t {{ launch_template_name }} -n {{ nodename }} -u {{ twusr }} -p {{ twpwd }} -d')
     exit(12)
 #endregion
 #region read_input_sys_argv
@@ -283,7 +283,6 @@ if re.search(r"^automation-job.*", awx_hostname, re.IGNORECASE): isRunningLocall
 if isRunningLocally and len(sys.argv) <= 3:  # Only use hardcoded values if not provided via command line
     # nodename            = 'dfkapp3019'
     nodename            = 'eboksweb2302'
-    change              = "CHG000000"
     twusr               = 'functional_id_001'
     twpwd               = 'm9AHKuXYa*MeZZWLsHqB'
     #
@@ -298,7 +297,8 @@ if isRunningLocally and len(sys.argv) <= 3:  # Only use hardcoded values if not 
     # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_linux'
     launch_template_name= 'de-tooling_verify_windows'
     #
-    sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/launch_and_misc_awx_functions.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}', '-d']
+    # sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/launch_and_misc_awx_functions.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-u', f'{twusr}', '-p', f'{twpwd}', '-d']
+    sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/launch_and_misc_awx_functions.py', '-t', f'{launch_template_name}', '-n', f'{nodename}']
     argnum              = 11
 
     # sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/launch_and_misc_awx_functions.py','-n', f'{nodename}', '--disable']
@@ -311,7 +311,6 @@ if len(sys_argv) > 2:
         for i, arg in enumerate(sys_argv):
             checkArg = str(arg.strip())
             if re.search(r'-n$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; nodename = sys_argv[argnum].lower()
-            if re.search(r'-s$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; change = sys_argv[argnum]
             if re.search(r'-t$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; launch_template_name = sys_argv[argnum]; LAUNCH_TEMPLATE = True
             if re.search(r'-u$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; twusr = sys_argv[argnum]
             if re.search(r'-p$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; twpwd = sys_argv[argnum]
@@ -402,6 +401,7 @@ if CONTINUE:
                 if checkName in acceptedInv:
                     inv_name        = row['summary_fields']['inventory']['name']
                     inventory_id    = row['summary_fields']['inventory']['id']
+                    organization_id = row['summary_fields']['inventory']['organization_id']
                     host_id         = row['id']
                     nodename        = row['name']
 
@@ -494,9 +494,18 @@ if CONTINUE:
         # ----------------------------------------------------------------------------------------------------------------------------------------------------------
         # added to be able to use depot
         # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-        kmn_cred_tower_and_sfs = 33
-        credential_names.append('kmn_cred_tower_and_sfs')
-        credentials_ids.append(33)
+        if re.search(r"^kmn_.*", inv_name, re.IGNORECASE):
+            kmn_cred_tower_and_sfs = 33
+            credential_names.append('kmn_cred_tower_and_sfs')
+
+        elif re.search(r"^kmw_.*", inv_name, re.IGNORECASE):
+            kmn_cred_tower_and_sfs = 33
+            credential_names.append('kmw_cred_tower_and_sfs')
+
+        elif re.search(r"^eng_.*", inv_name, re.IGNORECASE):
+            credential_names.append('eng_cred_ansible_tower')
+            credentials_ids.append(117)
+
         # ----------------------------------------------------------------------------------------------------------------------------------------------------------
         unique_credential_names = list(set(credential_names))
         f_log(f'unique_credential_names',f'{unique_credential_names}',debug)
@@ -543,6 +552,7 @@ if CONTINUE and LAUNCH_TEMPLATE:
         f_log(f'{stepName}','',debug)
         f_log(f'credentials_ids',f'{credentials_ids}',debug)
         payload = {
+            "organization": organization_id,
             "inventory": inventory_id,
             "credentials": credentials_ids,
             "extra_vars": { "nodename": f"{nodename}" }
