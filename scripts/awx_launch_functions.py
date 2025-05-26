@@ -225,57 +225,6 @@ def f_requests(request,twusr,twpwd,payload,debug):
 
     return result, RC
 #endregion
-#region f_requestsUpdate
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# f_requestsUpdate
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-def f_requestsUpdate(update_request,twusr,twpwd,payload,debug):
-    result = None
-    RC = 0
-    try:
-        tower_url               = f'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local/api/v2/'
-        url                     = f'{tower_url}{update_request}'
-        f_log(f'url',f'{url}',debug)
-
-        if payload and isinstance(payload, (dict, list)):
-            payload_json = json.dumps(payload, ensure_ascii=False)
-            f_log(f'payload_json',f'{payload_json}',debug)
-            response = requests.patch(url,
-                auth=(twusr, twpwd),
-                headers={'Content-Type': 'application/json'},
-                data=payload_json,
-                verify=False,
-                timeout=1440
-            )
-        else:
-            f_log(f'error', 'Payload is required for update operations', debug)
-            RC = 400
-            return result, RC
-
-        # Handle response
-        content = response.content.decode('utf-8')
-
-        if response.status_code in [200, 201]:
-            result_loaded = f_load_data(content)
-            result = result_loaded
-        else:
-            # Log the error response content for debugging
-            f_log(f'request', update_request, debug)
-            f_log(f'response status', f'{response.status_code} {response.reason}', debug)
-            f_log(f'response content', content, debug)
-            RC = response.status_code
-            try:
-                result = json.loads(content)
-            except:
-                result = {'error': content}
-
-    except Exception as e:
-        f_log(f'request', update_request, debug)
-        f_log(f'error', str(e), debug)
-        RC = 12
-
-    return result, RC
-#endregion
 #region f_cmdexec
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # f_cmdexec
@@ -297,7 +246,6 @@ def f_cmdexec(cmdexec='',debug=False):
             f_log(f'error',f'{e}',debug)
             f_log(f'RC',f'{RC}',debug)
             f_log(f'cmdexec_result',f'{cmdexec_result}',debug)
-            f_log(f'result exectype',f'{exectype(cmdexec_result.stdout)}',debug)
             f_log(f'result stdout',f'{cmdexec_result.stdout}',debug)
             f_log(f'result stderr',f'{cmdexec_result.stderr}',debug)
             RC = 12
@@ -310,37 +258,31 @@ def f_cmdexec(cmdexec='',debug=False):
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 def f_help_error():
     if debug: logging.info('use: python get_cred_for_host.py -t {{ launch_template_name }} -n {{ nodename }} -s {{ change }} -u {{ twusr }} -p {{ twpwd }}')
-    if debug: logging.info('use: python get_cred_for_host.py -n {{ nodename }} --disable ')
-    if debug: logging.info('use: python get_cred_for_host.py --delete-failed {{ template_name }} -u {{ twusr }} -p {{ twpwd }}')
     exit(12)
 #endregion
 #region read_input_sys_argv
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # end functions
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-global exectype, tower_host, tower_url
+global tower_host, tower_url
+global project, checkCaps
+global logfile, scriptname, payload, nodename, launch_template_name
+global now, Logdate_long, jsondir, logdir
+global cred_names, credentials_ids, credential_names, template_id, CONTINUE, RC
+global LAUNCH_TEMPLATE
+
 tower_host          = 'https://ansible-tower-web-svc-tower.apps.kmdcacf001.adminkmd.local'
 tower_url           = f'{tower_host}/api/v2/'
 awx_hostname        = socket.gethostname().lower()
 sys_argv            = sys.argv
-global  DECOMMISION_HOSTNAME
-DECOMMISION_HOSTNAME    = False
-global  LAUNCH_TEMPLATE
 LAUNCH_TEMPLATE     = False
-global  template_name
 template_name       = ''
-global  DELETE_FAILED_JOBS
-DELETE_FAILED_JOBS  = False
 isRunningLocally    = True
-useRestAPI          = False
-if useRestAPI:
-    exectype = "REST"
-else:
-    exectype = 'AWX'
 if re.search(r".*kmdwinitm001.*", awx_hostname, re.IGNORECASE): isRunningLocally = True
 if re.search(r"^automation-job.*", awx_hostname, re.IGNORECASE): isRunningLocally = False
 if isRunningLocally and len(sys.argv) <= 3:  # Only use hardcoded values if not provided via command line
-    nodename            = 'dfkapp3019'
+    # nodename            = 'dfkapp3019'
+    nodename            = 'eboksweb2302'
     change              = "CHG000000"
     twusr               = 'functional_id_001'
     twpwd               = 'm9AHKuXYa*MeZZWLsHqB'
@@ -352,9 +294,9 @@ if isRunningLocally and len(sys.argv) <= 3:  # Only use hardcoded values if not 
     # launch_template_name= 'kmn_jobtemplate_de-tooling_cleanup_CACF_linux'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_servercheck_windows'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_set_maintenancemode'
-    launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_windows'
+    # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_windows'
     # launch_template_name= 'kmn_jobtemplate_de-tooling_UNinstall_ITM_linux'
-    #
+    launch_template_name= 'de-tooling_verify_windows'
     #
     sys_argv            = ['d:/scripts/GIT/KMD-AEVEN-TOOLS/scripts/launch_and_misc_awx_functions.py', '-t', f'{launch_template_name}', '-n', f'{nodename}', '-s', f'{change}', '-u', f'{twusr}', '-p', f'{twpwd}']
     argnum              = 11
@@ -373,8 +315,6 @@ if len(sys_argv) > 2:
             if re.search(r'-t$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; launch_template_name = sys_argv[argnum]; LAUNCH_TEMPLATE = True
             if re.search(r'-u$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; twusr = sys_argv[argnum]
             if re.search(r'-p$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; twpwd = sys_argv[argnum]
-            if re.search(r'--disable$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; DECOMMISION_HOSTNAME = True; LAUNCH_TEMPLATE = False
-            if re.search(r'--delete-failed$', checkArg, re.IGNORECASE): argnum = i; argnum += 1; DELETE_FAILED_JOBS = True; LAUNCH_TEMPLATE = False; template_name = sys_argv[argnum]
 else:
     f_help_error()
 #endregion
@@ -382,13 +322,7 @@ else:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 #  init
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-global project, checkCaps
-global logfile, scriptname, payload
-global now, Logdate_long, jsondir, logdir
-global cred_names, credentials_ids, credential_names, template_id, CONTINUE, RC
-
 # Debug for control flow
-f_log(f'DELETE_FAILED_JOBS', f'{DELETE_FAILED_JOBS}', debug)
 f_log(f'template_name', f'{template_name}', debug)
 # nodenames           = ['udv19bfs01, udv19db2aws01, udv19avs01, udv19elk02, udv19cis01, udv19tdm03, udv19bfs02, udv19tdm02, udv19tdg01, udv19elk01, udv19tools, udv19gws01, udv19app01, udv19elk03, kmddbs2136']
 # nodenames           = ['kmdlnxrls001']
@@ -420,19 +354,12 @@ f_set_logging(logfile,debug)
 stepName = 'begin'
 f_log(f'{stepName}','',debug)
 f_log(f'sys_argv',f'{sys_argv}',debug)
-f_log(f'DECOMMISION_HOSTNAME',f'{DECOMMISION_HOSTNAME}',debug)
 f_log(f'LAUNCH_TEMPLATE',f'{LAUNCH_TEMPLATE}',debug)
-f_log(f'DELETE_FAILED_JOBS',f'{DELETE_FAILED_JOBS}',debug)
 f_log(f'template_name',f'{template_name}',debug)
 f_log(f'isRunningLocally',f'{isRunningLocally}',debug)
-f_log(f'useRestAPI',f'{useRestAPI}',debug)
-f_log(f'{exectype}_hostname',f'{awx_hostname}',debug)
-if 'nodename' in globals():
-    f_log(f'nodename',f'{nodename}',debug)
-if 'change' in globals():
-    f_log(f'change',f'{change}',debug)
-if 'launch_template_name' in globals():
-    f_log(f'launch_template_name',f'{launch_template_name}',debug)
+f_log(f'step_hostname',f'{awx_hostname}',debug)
+f_log(f'nodename',f'{nodename}',debug)
+f_log(f'launch_template_name',f'{launch_template_name}',debug)
 f_log(f'twusr',f'{twusr}',debug)
 f_log(f'tower_host',f'{tower_host}',debug)
 f_log(f'tower_url',f'{tower_url}',debug)
@@ -443,115 +370,22 @@ f_log(f'scriptname',f'{scriptname}',debug)
 f_log(f'project',f'{project}',debug)
 f_log(f'debug',f'{debug}',debug)
 #endregion
-#region login
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# awx config settingss. awx is reading these
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if CONTINUE:
-    if not useRestAPI:
-        stepName = f'{exectype}_login'
-        f_log(f'{stepName}','',debug)
-        os.environ['TOWER_HOST']        = f'{tower_host}'
-        os.environ['TOWER_USERNAME']    = f'{twusr}'
-        os.environ['TOWER_PASSWORD']    = f'{twpwd}'
-        os.environ['TOWER_VERIFY_SSL']  = 'False'
-        os.environ['TOWER_FORMAT']      = 'json'
-        try:
-            cmdexec = ['awx', 'me', '--conf.format', 'yaml', '--conf.insecure']
-            result, RC = f_cmdexec(cmdexec, debug)
-            result = result['results'][0]
-            # f_log('me', f'{result}', debug)
-            # f_log('RC', f'{RC}', debug)
-            if isRunningLocally: f_dump_and_write(result,stepName,debug)
-            if RC == 0 and f'username' in result:
-                f_log('AWX Auth Status', 'Already logged in', debug)
-                twtok = os.environ.get('TOWER_OAUTH_TOKEN', '')
-                f_log('Current token', f'{twtok[:10]}...' if twtok else 'None', debug)
-            else:
-                raise Exception("Not authenticated"); f_end(RC)
-        except Exception as e:
-            f_log('AWX Auth Status', f'Login required: {str(e)}', debug)
-
-            # Perform login to get new token
-            cmdexec = ['awx', 'login',
-                        '--conf.host', tower_host,
-                        '--conf.username', twusr,
-                        '--conf.password', twpwd,
-                        '--conf.insecure',
-                        '--conf.format', 'yaml']
-
-            result, RC = f_cmdexec(cmdexec, debug)
-
-            if RC == 0 and 'token' in result:
-                twtok = result['token']
-                os.environ['TOWER_OAUTH_TOKEN'] = twtok
-                f_log('New token obtained', f'{twtok[:10]}...', debug)
-
-                # Configure client to use the token
-                cmdexec = ['awx', 'config', 'oauth_token', f'{twtok}']
-                result, RC = f_cmdexec(cmdexec, debug)
-                # f_log('token config', f'{result}', debug)
-
-                cmdexec = ['awx', 'config', 'use_token', 'True']
-                result, RC = f_cmdexec(cmdexec, debug)
-                # f_log('token usage config', f'{result}', debug)
-
-                # Verify login was successful
-                cmdexec = ['awx', 'me', '--conf.format', 'yaml', '--conf.insecure']
-                result, RC = f_cmdexec(cmdexec, debug)
-                result = result['results'][0]
-                if RC == 0 and 'username' in result:
-                    f_log('AWX Auth Verification', 'Successfully authenticated', debug)
-                else:
-                    f_log('AWX Auth Verification', 'Authentication still failing after login attempt', debug)
-            else:
-                f_log('Login failed', f'RC: {RC}, Result: {result}', debug)
-                raise Exception("Failed to authenticate with AWX"); f_end(RC)
-#endregion
-#region get_hostname
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# delete workflow job
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if CONTINUE and not DELETE_FAILED_JOBS:  # Skip hostname check when deleting failed jobs
-    try:
-        id = 2469476
-        stepName = f'{exectype}_workflow_job'
-        f_log(f'{stepName}','',debug)
-        if useRestAPI:
-            request = f'workflow_jobs/{id}/'
-            result,RC = f_requests(request,twusr,twpwd,payload,debug)
-        else:
-            cmdexec = ['awx', 'workflow_jobs', 'delete', f'{id}']
-            result,RC = f_cmdexec(cmdexec,debug)
-
-        if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
-        f_log('result', f'RC: {RC}, Result: {result}', debug)
-
-    except Exception as e:
-        if debug: logging.error(e)
-        RC = 12
-        f_end(RC)
-exit(0)
-#endregion
 #region get_hostname
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_hostname. To be used for all functions
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if CONTINUE and not DELETE_FAILED_JOBS:  # Skip hostname check when deleting failed jobs
+if CONTINUE:
     try:
         inv_name = None
-        stepName = f'{exectype}_hostname'
+        stepName = f'step_hostname'
         f_log(f'{stepName}','',debug)
-        acceptedInv = ['kmn_inventory','kmw_inventory','eng_inventory','enw_inventory']
+        acceptedInv = ['kmn_inventory','kmw_inventory','eng_inventory','eng_hem']
         checkCaps = [f'{nodename.lower()}',f'{nodename.upper()}']
         for capsOrNot in checkCaps:
             capsOrNot = capsOrNot.strip()
-            if useRestAPI:
-                request = f'hosts/?name={capsOrNot}'
-                result,RC = f_requests(request,twusr,twpwd,payload,debug)
-            else:
-                cmdexec = ['awx', 'host', 'list', '--name', f'{capsOrNot}']
-                result,RC = f_cmdexec(cmdexec,debug)
+
+            request = f'hosts/?name={capsOrNot}'
+            result,RC = f_requests(request,twusr,twpwd,payload,debug)
 
             if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
             if result['count'] == 0: continue
@@ -588,120 +422,21 @@ if CONTINUE and not DELETE_FAILED_JOBS:  # Skip hostname check when deleting fai
         RC = 12
         f_end(RC)
 #endregion
-#region DECOMMISION_HOSTNAME
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# DECOMMISION_HOSTNAME
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if CONTINUE and DECOMMISION_HOSTNAME:
-    try:
-        inv_name = None
-        stepName = f'DECOMMISION_HOSTNAME'
-        f_log(f'{stepName}','',debug)
-
-        payload = {
-            'enabled': False
-        }
-
-        for index, host_disID in enumerate(host_disIDs):
-        # for nodename in nodenames:
-            f_log(f'host_disID',f'{host_disID}',debug)
-            f_log(f'host_disNames',f'{host_disNames[index]}',debug)
-            if useRestAPI:
-                update_request = f'hosts/{host_disID}'
-                result,RC = f_requestsUpdate(update_request,twusr,twpwd,payload,debug)
-            else:
-                cmdexec = ['awx', 'host', 'disable', '--host', f'{host_disID}']
-                result,RC = f_cmdexec(cmdexec,debug)
-
-            if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
-            if isRunningLocally: f_dump_and_write(result,stepName,debug)
-            f_log(f'Success', f'Disabled host {nodename} (ID: {host_disID})', debug)
-
-    except Exception as e:
-        if debug: logging.error(e)
-        RC = 12
-        f_end(RC)
-
-#endregion
-#region EXPORT_nodename
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# EXPORT_nodename
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if CONTINUE and DECOMMISION_HOSTNAME:
-    try:
-        inv_name = None
-        stepName = f'EXPORT_nodename'
-        f_log(f'{stepName}','',debug)
-
-        payload = {
-            'enabled': False
-        }
-
-        for index, host_disID in enumerate(host_disIDs):
-        # for nodename in nodenames:
-            f_log(f'host_disID',f'{host_disID}',debug)
-            f_log(f'host_disNames',f'{host_disNames[index]}',debug)
-            if useRestAPI:
-                update_request = f'hosts/{host_disID}'
-                result,RC = f_requestsUpdate(update_request,twusr,twpwd,payload,debug)
-            else:
-                cmdexec = ['awx', 'host', 'disable', '--host', f'{host_disID}']
-                result,RC = f_cmdexec(cmdexec,debug)
-
-            if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
-            if isRunningLocally: f_dump_and_write(result,stepName,debug)
-            f_log(f'Success', f'Disabled host {nodename} (ID: {host_disID})', debug)
-
-    except Exception as e:
-        if debug: logging.error(e)
-        RC = 12
-        f_end(RC)
-
-#endregion
-#region get_ansible_facts
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# get_ansible_facts
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-f_log(f'Before get_ansible_facts - LAUNCH_TEMPLATE', f'{LAUNCH_TEMPLATE}', debug)
-if CONTINUE and LAUNCH_TEMPLATE:
-    try:
-        inv_name = None
-        stepName = f'{exectype}_ansible_facts'
-        f_log(f'{stepName}','',debug)
-        if useRestAPI:
-            request = f'hosts/{host_id}/ansible_facts/?page_size=all'
-            result,RC = f_requests(request,twusr,twpwd,payload,debug)
-        else:
-            cmdexec = ['awx', 'host', 'facts', '--host', f'{host_id}']  # do not work!!!!!!!!!!!!!!!! use rest
-            result,RC = f_cmdexec(cmdexec,debug)
-
-        if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
-        if isRunningLocally: f_dump_and_write(result,stepName,debug)
-        os_facts = result['ansible_system']
-        f_log(f'os_facts',f'{os_facts}',debug)
-
-    except Exception as e:
-        if debug: logging.error(e)
-        RC = 12
-        f_end(RC)
-#endregion
 #region get_allGroupsWithHost
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_allGroupsWithHost
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if CONTINUE and LAUNCH_TEMPLATE:
+if CONTINUE:
     try:
-        stepName = f'{exectype}_allGroupsWithHost'
+        stepName = f'step_allGroupsWithHost'
         f_log(f'{stepName}','',debug)
-        if useRestAPI:
-            request = f'hosts/{host_id}/all_groups/?page_size=all'
-            result,RC = f_requests(request,twusr,twpwd,payload,debug)
-        else:
-            cmdexec = ['awx', 'host', 'groups', 'list', '--host', f'{host_id}','--inventory',f'{inventory_id}','--all-pages']
-            result,RC = f_cmdexec(cmdexec,debug)
+
+        request = f'hosts/{host_id}/all_groups/?page_size=all'
+        result,RC = f_requests(request,twusr,twpwd,payload,debug)
+
         if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
         if isRunningLocally: f_dump_and_write(result,stepName,debug)
-        allGroupsWithHost = result['results']                               # REST way
+        allGroupsWithHost = result['results']
         cred_names = []
         if isinstance(allGroupsWithHost, (list)):
             for index, group in enumerate(allGroupsWithHost):
@@ -721,8 +456,6 @@ if CONTINUE and LAUNCH_TEMPLATE:
                                 cred_names.append(jumphost_cred)
 
         unique_cred_name_list = list(set(cred_names))
-        f_log(f'{exectype} unique_cred_name_list',f'{unique_cred_name_list}',debug)
-
     except Exception as e:
         if debug: logging.error(e)
         f_log(f'exception:',f'{e}',debug)
@@ -734,19 +467,16 @@ if CONTINUE and LAUNCH_TEMPLATE:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_credentials_ids
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if CONTINUE and LAUNCH_TEMPLATE:
+if CONTINUE:
     try:
-        stepName = f'{exectype}_credentials_ids'
+        stepName = f'step_credentials_ids'
         f_log(f'{stepName}','',debug)
         credentials_ids = []
         credential_names = []
         for cred_name in unique_cred_name_list:
-            if useRestAPI:
-                request = f'credentials/?name={cred_name}'
-                result,RC = f_requests(request,twusr,twpwd,payload,debug)
-            else:
-                cmdexec = ['awx', 'credential', 'list', '--name', f'{cred_name}', '--all-pages']
-                result,RC = f_cmdexec(cmdexec,debug)
+
+            request = f'credentials/?name={cred_name}'
+            result,RC = f_requests(request,twusr,twpwd,payload,debug)
 
             if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
             if isRunningLocally: f_dump_and_write(result,stepName,debug)
@@ -774,6 +504,7 @@ if CONTINUE and LAUNCH_TEMPLATE:
         f_log(f'unique_credential_names',f'{unique_credential_names}',debug)
         unique_credentials_ids = list(set(credentials_ids))
         f_log(f'unique_credentials_ids',f'{unique_credentials_ids}',debug)
+        print(f'{unique_credentials_ids}')
     except Exception as e:
         if debug: logging.error(e)
         RC = 12
@@ -783,16 +514,13 @@ if CONTINUE and LAUNCH_TEMPLATE:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # get_jobTemplateByName
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if CONTINUE and LAUNCH_TEMPLATE:
+if CONTINUE:
     try:
-        stepName = f'{exectype}_jobTemplateByName'
+        stepName = f'step_jobTemplateByName'
         f_log(f'{stepName}','---------------------------------------------------------------------------------------------------------------------------------------------',debug)
-        if useRestAPI:
-            request = f'job_templates/?name={launch_template_name}'
-            result,RC = f_requests(request,twusr,twpwd,payload,debug)
-        else:
-            cmdexec = ['awx', 'job_templates', 'list', '--name', f'{launch_template_name}']
-            result,RC = f_cmdexec(cmdexec,debug)
+
+        request = f'job_templates/?name={launch_template_name}'
+        result,RC = f_requests(request,twusr,twpwd,payload,debug)
 
         if RC > 0: raise Exception(f'step {stepName} failed')
         if isRunningLocally: f_dump_and_write(result,stepName,debug)
@@ -802,174 +530,35 @@ if CONTINUE and LAUNCH_TEMPLATE:
         else:
             template_id = result['results'][0]['id']
             f_log(f'template_id',f'{template_id}',debug)
+
     except Exception as e:
         if debug: logging.error(e)
         RC = 12
         exit(RC)
 #endregion
-# #region _template_syntax_check
-# # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# # _template_syntax_check
-# # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# if CONTINUE and LAUNCH_TEMPLATE:
-#     try:
-#         stepName = f'{exectype}_template_syntax_check'
-#         f_log(f'{stepName}','',debug)
-#         f_log(f'credentials_ids',f'{credentials_ids}',debug)
-#         if useRestAPI:
-#             payload = {
-#                 "inventory": inventory_id,
-#                 "credentials": credentials_ids,
-#                 "extra_vars": {
-#                     "nodename": nodename,
-#                     "check_mode": True
-#                 }
-#             }
-#             request = f'job_templates/{template_id}/launch/'
-#             result,RC = f_requests(request,twusr,twpwd,payload,debug)
-#             f_log(f'result',f'{result}',debug)
-#             jobid = result['id']
-#             f_log(f'jobid',f'{jobid}',debug)
-#         else:
-#             job_template    = f'--name {launch_template_name} '
-#             credential      = f'--credentials {credentials_ids} '
-#             inventory       = f'--inventory {inventory_id} '
-#             extra_vars = {
-#                 "nodename": f"{nodename}",
-#             }
-#             extra_vars  = json.dumps(extra_vars, ensure_ascii=False)
-#             extra_vars  = f'--extra_vars \"{extra_vars}\"'
-#             cmdexec = f"awx job_templates launch {launch_template_name} {credential} {inventory} {extra_vars}"
-#             f_log(f'cmdexec',f'{cmdexec}',debug)
-#             result,RC = f_cmdexec(cmdexec,debug)
-#             # jobid = result['id']
-#             # f_log(f'jobid',f'{jobid}',debug)
-#         if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
-#         if isRunningLocally:
-#             f_dump_and_write(result,stepName,debug)
-#     except Exception as e:
-#         if debug: logging.error(e)
-#         RC = 12
-# #endregion
 #region launch_job_template
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # launch_job_template
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 if CONTINUE and LAUNCH_TEMPLATE:
     try:
-        stepName = f'{exectype}_launch_job_template'
+        stepName = f'step_launch_job_template'
         f_log(f'{stepName}','',debug)
         f_log(f'credentials_ids',f'{credentials_ids}',debug)
-        if useRestAPI:
-            payload = {
-                "inventory": inventory_id,
-                "credentials": credentials_ids,
-                "extra_vars": { "nodename": f"{nodename}" }
-            }
-            request = f'job_templates/{template_id}/launch/'
-            result,RC = f_requests(request,twusr,twpwd,payload,debug)
-            f_log(f'result',f'{result}',debug)
-            jobid = result['id']
-            f_log(f'jobid',f'{jobid}',debug)
-        else:
-            job_template    = f'--name {launch_template_name} '
-            credential      = f'--credentials {credentials_ids} '
-            inventory       = f'--inventory {inventory_id} '
-            extra_vars = {
-                "nodename": f"{nodename}",
-            }
-            extra_vars  = json.dumps(extra_vars, ensure_ascii=False)
-            extra_vars  = f'--extra_vars \"{extra_vars}\"'
-            cmdexec = f"awx job_templates launch {launch_template_name} {credential} {inventory} {extra_vars}"
-            f_log(f'cmdexec',f'{cmdexec}',debug)
-            result,RC = f_cmdexec(cmdexec,debug)            # jobid = result['id']
-            # f_log(f'jobid',f'{jobid}',debug)
+        payload = {
+            "inventory": inventory_id,
+            "credentials": credentials_ids,
+            "extra_vars": { "nodename": f"{nodename}" }
+        }
+        request = f'job_templates/{template_id}/launch/'
+        result,RC = f_requests(request,twusr,twpwd,payload,debug)
+        f_log(f'result',f'{result}',debug)
+        jobid = result['id']
+        f_log(f'jobid',f'{jobid}',debug)
+
         if RC > 0: raise Exception(f'step {stepName} failed'); f_end(RC)
         if isRunningLocally:
             f_dump_and_write(result,stepName,debug)
-    except Exception as e:
-        if debug: logging.error(e)
-        RC = 12
-        f_end(RC)
-#endregion
-#region DELETE_FAILED_JOBS
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-# DELETE_FAILED_JOBS
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if CONTINUE and DELETE_FAILED_JOBS:
-    try:
-        stepName = f'{exectype}_delete_failed_jobs'
-        f_log(f'{stepName}','',debug)
-        f_log(f'template_name',f'{template_name}',debug)
-
-        # First, get the template ID
-        if useRestAPI:
-            request = f'job_templates/?name={template_name}'
-            result,RC = f_requests(request,twusr,twpwd,payload,debug)
-        else:
-            cmdexec = ['awx', 'job_templates', 'list', '--name', f'{template_name}']
-            result,RC = f_cmdexec(cmdexec,debug)
-
-        if RC > 0: raise Exception(f'step {stepName} failed - could not find template'); f_end(RC)
-
-        if isRunningLocally: f_dump_and_write(result,stepName + "_template",debug)
-
-        template_count = result['count']
-        if template_count < 1:
-            raise Exception(f'step {stepName} failed - Template {template_name} not found')
-
-        template_id = result['results'][0]['id']
-        f_log(f'template_id',f'{template_id}',debug)
-
-        # Now, get all failed jobs for this template
-        if useRestAPI:
-            # API call to get failed jobs for this template
-            request = f'jobs/?job_template={template_id}&status=failed&page_size=200'
-            result,RC = f_requests(request,twusr,twpwd,payload,debug)
-        else:
-            cmdexec = ['awx', 'jobs', 'list', '--job-template', f'{template_id}', '--status', 'failed', '--all-pages']
-            result,RC = f_cmdexec(cmdexec,debug)
-
-        if RC > 0: raise Exception(f'step {stepName} failed - could not list failed jobs'); f_end(RC)
-
-        if isRunningLocally: f_dump_and_write(result,stepName + "_jobs",debug)
-
-        failed_jobs = result['results']
-        failed_job_count = len(failed_jobs)
-
-        f_log(f'failed_job_count',f'{failed_job_count}',debug)
-
-        if failed_job_count == 0:
-            f_log(f'Jobs', f'No failed jobs found for template {template_name}', debug)
-        else:
-            deleted_count = 0
-            for job in failed_jobs:
-                job_id = job['id']
-                f_log(f'Deleting job',f'{job_id}',debug)
-
-                if useRestAPI:
-                    request = f'jobs/{job_id}/'
-                    # Using DELETE HTTP method
-                    url = f'{tower_url}{request}'
-                    response = requests.delete(url, auth=(twusr, twpwd), verify=False)
-
-                    if response.status_code in [202, 204]:  # Accepted or No Content
-                        deleted_count += 1
-                        f_log(f'Deleted job', f'{job_id}', debug)
-                    else:
-                        f_log(f'Failed to delete job', f'{job_id}: {response.status_code} {response.reason}', debug)
-                else:
-                    cmdexec = ['awx', 'jobs', 'delete', f'{job_id}', '--confirm']
-                    try:
-                        result,RC = f_cmdexec(cmdexec,debug)
-                        if RC == 0:
-                            deleted_count += 1
-                            f_log(f'Deleted job', f'{job_id}', debug)
-                    except Exception as e:
-                        f_log(f'Failed to delete job', f'{job_id}: {str(e)}', debug)
-
-            f_log(f'Summary', f'Successfully deleted {deleted_count} out of {failed_job_count} failed jobs', debug)
-
     except Exception as e:
         if debug: logging.error(e)
         RC = 12
