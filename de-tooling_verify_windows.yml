@@ -13,7 +13,17 @@
       delegate_to: localhost
 
     - name: Test DNS resolution
-      command: nslookup kmdwinccp001.adminkmd.local
+      shell: |
+        if command -v nslookup >/dev/null 2>&1; then
+          nslookup kmdwinccp001.adminkmd.local
+        elif command -v host >/dev/null 2>&1; then
+          host kmdwinccp001.adminkmd.local
+        elif command -v dig >/dev/null 2>&1; then
+          dig kmdwinccp001.adminkmd.local
+        else
+          echo "DNS lookup tools not available, attempting ping test"
+          ping -c 1 kmdwinccp001.adminkmd.local
+        fi
       register: dns_check
       ignore_errors: true
       delegate_to: localhost
@@ -31,7 +41,7 @@
         method: GET
         timeout: "{{ cyberark_timeout }}"
         validate_certs: false
-        status_code: [200, 401, 403, 404]  # Allow various HTTP responses as we just want to test connectivity
+        status_code: [200, 401, 403, 404]
       register: cyberark_connectivity
       ignore_errors: true
       delegate_to: localhost
@@ -73,27 +83,31 @@
         ansible_become_method: runas
         ansible_become_user: system
 
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Verify if ITM and Ansible has been uninstalled on Windows server
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 - name: "Verify if ITM and Ansible has been uninstalled on Windows server {{ nodename }}"
   hosts: "{{ nodename }}"
   become: true
   gather_facts: false
   vars:
-    # Add connection configuration to handle authentication issues
     ansible_connection: psrp
     ansible_psrp_protocol: http
     ansible_psrp_auth: negotiate
     ansible_psrp_cert_validation: ignore
     ansible_psrp_operation_timeout: 60
     ansible_psrp_read_timeout: 90
+    ansible_psrp_connection_timeout: 30
+    ansible_psrp_message_encryption: auto
+    ansible_psrp_credssp_auth_mechanism: auto
+    ansible_psrp_negotiate_service: HTTP
+    ansible_psrp_negotiate_hostname: "{{ inventory_hostname }}"
   tasks:
     - name: "Get-Processes on ITM"
       win_shell: |
         try {
-          Get-Process -Name "*ITM*" -ErrorAction Stop
-          Write-Output "ITM processes found"
+          $processes = Get-Process -Name "*ITM*" -ErrorAction Stop
+          Write-Output "ITM processes found: $($processes.Count) running"
+          foreach ($proc in $processes) {
+            Write-Output "  - $($proc.Name) (PID: $($proc.Id))"
+          }
         } catch {
           Write-Output "No ITM processes running"
         }
@@ -103,8 +117,11 @@
     - name: "Get-Processes OPSWARE"
       win_shell: |
         try {
-          Get-Process -Name "*OPSWARE*" -ErrorAction Stop
-          Write-Output "OPSWARE processes found"
+          $processes = Get-Process -Name "*OPSWARE*" -ErrorAction Stop
+          Write-Output "OPSWARE processes found: $($processes.Count) running"
+          foreach ($proc in $processes) {
+            Write-Output "  - $($proc.Name) (PID: $($proc.Id))"
+          }
         } catch {
           Write-Output "No OPSWARE processes running"
         }
@@ -113,149 +130,204 @@
 
     - name: "Test if ansible workdir has been cleared"
       win_shell: |
-        if (Test-Path "C:/ansible_workdir") {
-          $fileCount = (Get-ChildItem -Path "C:/ansible_workdir" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
-          if ($fileCount -gt 0) {
-            Write-Output "ansible_workdir contains $fileCount files"
+        try {
+          if (Test-Path "C:/ansible_workdir") {
+            $items = Get-ChildItem -Path "C:/ansible_workdir" -Recurse -ErrorAction Stop
+            $fileCount = ($items | Where-Object { -not $_.PSIsContainer }).Count
+            $folderCount = ($items | Where-Object { $_.PSIsContainer }).Count
+            if ($fileCount -gt 0 -or $folderCount -gt 0) {
+              Write-Output "ansible_workdir contains $fileCount files and $folderCount folders"
+            } else {
+              Write-Output "ansible_workdir is empty"
+            }
           } else {
-            Write-Output "ansible_workdir is empty"
+            Write-Output "ansible_workdir does not exist"
           }
-        } else {
-          Write-Output "ansible_workdir does not exist"
+        } catch {
+          Write-Output "Error checking ansible_workdir: $($_.Exception.Message)"
         }
       ignore_errors: yes
       register: test_ansible_workdir
 
     - name: "Test if ansible ProgramData has been cleared"
       win_shell: |
-        if (Test-Path "C:/ProgramData/ansible") {
-          $fileCount = (Get-ChildItem -Path "C:/ProgramData/ansible" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
-          if ($fileCount -gt 0) {
-            Write-Output "ProgramData/ansible contains $fileCount files"
+        try {
+          if (Test-Path "C:/ProgramData/ansible") {
+            $items = Get-ChildItem -Path "C:/ProgramData/ansible" -Recurse -ErrorAction Stop
+            $fileCount = ($items | Where-Object { -not $_.PSIsContainer }).Count
+            $folderCount = ($items | Where-Object { $_.PSIsContainer }).Count
+            if ($fileCount -gt 0 -or $folderCount -gt 0) {
+              Write-Output "ProgramData/ansible contains $fileCount files and $folderCount folders"
+            } else {
+              Write-Output "ProgramData/ansible is empty"
+            }
           } else {
-            Write-Output "ProgramData/ansible is empty"
+            Write-Output "ProgramData/ansible does not exist"
           }
-        } else {
-          Write-Output "ProgramData/ansible does not exist"
+        } catch {
+          Write-Output "Error checking ProgramData/ansible: $($_.Exception.Message)"
         }
       ignore_errors: yes
       register: test_ansible_programdata
 
     - name: "Test if BigFix ProgramData has been cleared"
       win_shell: |
-        if (Test-Path "C:/ProgramData/BigFix") {
-          $fileCount = (Get-ChildItem -Path "C:/ProgramData/BigFix" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
-          if ($fileCount -gt 0) {
-            Write-Output "ProgramData/BigFix contains $fileCount files"
+        try {
+          if (Test-Path "C:/ProgramData/BigFix") {
+            $items = Get-ChildItem -Path "C:/ProgramData/BigFix" -Recurse -ErrorAction Stop
+            $fileCount = ($items | Where-Object { -not $_.PSIsContainer }).Count
+            $folderCount = ($items | Where-Object { $_.PSIsContainer }).Count
+            if ($fileCount -gt 0 -or $folderCount -gt 0) {
+              Write-Output "ProgramData/BigFix contains $fileCount files and $folderCount folders"
+            } else {
+              Write-Output "ProgramData/BigFix is empty"
+            }
           } else {
-            Write-Output "ProgramData/BigFix is empty"
+            Write-Output "ProgramData/BigFix does not exist"
           }
-        } else {
-          Write-Output "ProgramData/BigFix does not exist"
+        } catch {
+          Write-Output "Error checking ProgramData/BigFix: $($_.Exception.Message)"
         }
       ignore_errors: yes
       register: test_bigfix_programdata
 
     - name: "Test if ilmt ProgramData has been cleared"
       win_shell: |
-        if (Test-Path "C:/ProgramData/ilmt") {
-          $fileCount = (Get-ChildItem -Path "C:/ProgramData/ilmt" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
-          if ($fileCount -gt 0) {
-            Write-Output "ProgramData/ilmt contains $fileCount files"
+        try {
+          if (Test-Path "C:/ProgramData/ilmt") {
+            $items = Get-ChildItem -Path "C:/ProgramData/ilmt" -Recurse -ErrorAction Stop
+            $fileCount = ($items | Where-Object { -not $_.PSIsContainer }).Count
+            $folderCount = ($items | Where-Object { $_.PSIsContainer }).Count
+            if ($fileCount -gt 0 -or $folderCount -gt 0) {
+              Write-Output "ProgramData/ilmt contains $fileCount files and $folderCount folders"
+            } else {
+              Write-Output "ProgramData/ilmt is empty"
+            }
           } else {
-            Write-Output "ProgramData/ilmt is empty"
+            Write-Output "ProgramData/ilmt does not exist"
           }
-        } else {
-          Write-Output "ProgramData/ilmt does not exist"
+        } catch {
+          Write-Output "Error checking ProgramData/ilmt: $($_.Exception.Message)"
         }
       ignore_errors: yes
       register: test_ilmt_programdata
 
     - name: "Test if ansible Program Files has been cleared"
       win_shell: |
-        if (Test-Path "C:/Program Files/ansible") {
-          $fileCount = (Get-ChildItem -Path "C:/Program Files/ansible" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
-          if ($fileCount -gt 0) {
-            Write-Output "Program Files/ansible contains $fileCount files"
+        try {
+          if (Test-Path "C:/Program Files/ansible") {
+            $items = Get-ChildItem -Path "C:/Program Files/ansible" -Recurse -ErrorAction Stop
+            $fileCount = ($items | Where-Object { -not $_.PSIsContainer }).Count
+            $folderCount = ($items | Where-Object { $_.PSIsContainer }).Count
+            if ($fileCount -gt 0 -or $folderCount -gt 0) {
+              Write-Output "Program Files/ansible contains $fileCount files and $folderCount folders"
+            } else {
+              Write-Output "Program Files/ansible is empty"
+            }
           } else {
-            Write-Output "Program Files/ansible is empty"
+            Write-Output "Program Files/ansible does not exist"
           }
-        } else {
-          Write-Output "Program Files/ansible does not exist"
+        } catch {
+          Write-Output "Error checking Program Files/ansible: $($_.Exception.Message)"
         }
       ignore_errors: yes
       register: test_ansible_programfiles
 
     - name: "Test if BigFix Program Files has been cleared"
       win_shell: |
-        if (Test-Path "C:/Program Files/BigFix") {
-          $fileCount = (Get-ChildItem -Path "C:/Program Files/BigFix" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
-          if ($fileCount -gt 0) {
-            Write-Output "Program Files/BigFix contains $fileCount files"
+        try {
+          if (Test-Path "C:/Program Files/BigFix") {
+            $items = Get-ChildItem -Path "C:/Program Files/BigFix" -Recurse -ErrorAction Stop
+            $fileCount = ($items | Where-Object { -not $_.PSIsContainer }).Count
+            $folderCount = ($items | Where-Object { $_.PSIsContainer }).Count
+            if ($fileCount -gt 0 -or $folderCount -gt 0) {
+              Write-Output "Program Files/BigFix contains $fileCount files and $folderCount folders"
+            } else {
+              Write-Output "Program Files/BigFix is empty"
+            }
           } else {
-            Write-Output "Program Files/BigFix is empty"
+            Write-Output "Program Files/BigFix does not exist"
           }
-        } else {
-          Write-Output "Program Files/BigFix does not exist"
+        } catch {
+          Write-Output "Error checking Program Files/BigFix: $($_.Exception.Message)"
         }
       ignore_errors: yes
       register: test_bigfix_programfiles
 
     - name: "Test if ilmt Program Files has been cleared"
       win_shell: |
-        if (Test-Path "C:/Program Files/ilmt") {
-          $fileCount = (Get-ChildItem -Path "C:/Program Files/ilmt" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
-          if ($fileCount -gt 0) {
-            Write-Output "Program Files/ilmt contains $fileCount files"
+        try {
+          if (Test-Path "C:/Program Files/ilmt") {
+            $items = Get-ChildItem -Path "C:/Program Files/ilmt" -Recurse -ErrorAction Stop
+            $fileCount = ($items | Where-Object { -not $_.PSIsContainer }).Count
+            $folderCount = ($items | Where-Object { $_.PSIsContainer }).Count
+            if ($fileCount -gt 0 -or $folderCount -gt 0) {
+              Write-Output "Program Files/ilmt contains $fileCount files and $folderCount folders"
+            } else {
+              Write-Output "Program Files/ilmt is empty"
+            }
           } else {
-            Write-Output "Program Files/ilmt is empty"
+            Write-Output "Program Files/ilmt does not exist"
           }
-        } else {
-          Write-Output "Program Files/ilmt does not exist"
+        } catch {
+          Write-Output "Error checking Program Files/ilmt: $($_.Exception.Message)"
         }
       ignore_errors: yes
       register: test_ilmt_programfiles
 
     - name: "Test if ITM has been cleared"
       win_shell: |
-        if (Test-Path "C:/IBM/ITM/bin") {
-          $fileCount = (Get-ChildItem -Path "C:/IBM/ITM" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
-          if ($fileCount -gt 0) {
-            Write-Output "IBM/ITM contains $fileCount files"
+        try {
+          if (Test-Path "C:/IBM/ITM/bin") {
+            $items = Get-ChildItem -Path "C:/IBM/ITM" -Recurse -ErrorAction Stop
+            $fileCount = ($items | Where-Object { -not $_.PSIsContainer }).Count
+            $folderCount = ($items | Where-Object { $_.PSIsContainer }).Count
+            if ($fileCount -gt 0 -or $folderCount -gt 0) {
+              Write-Output "IBM/ITM contains $fileCount files and $folderCount folders"
+            } else {
+              Write-Output "IBM/ITM is empty"
+            }
           } else {
-            Write-Output "IBM/ITM is empty"
+            Write-Output "IBM/ITM does not exist"
           }
-        } else {
-          Write-Output "IBM/ITM does not exist"
+        } catch {
+          Write-Output "Error checking IBM/ITM: $($_.Exception.Message)"
         }
       ignore_errors: yes
       register: test_itm_files
 
     - name: "Test if SA-Agent OPSWARE has been removed"
       win_shell: |
-        # Check for typical Windows OPSWARE agent paths
-        $paths = @(
-          "C:/Program Files/HP/Systems Insight Manager",
-          "C:/Program Files (x86)/HP/Systems Insight Manager",
-          "C:/Program Files/Hewlett-Packard Enterprise/SA",
-          "C:/Program Files (x86)/Hewlett-Packard Enterprise/SA",
-          "C:/PROGRA~1/opsware",
-          "C:/PROGRA~2/opsware"
-        )
+        try {
+          $paths = @(
+            "C:/Program Files/HP/Systems Insight Manager",
+            "C:/Program Files (x86)/HP/Systems Insight Manager",
+            "C:/Program Files/Hewlett-Packard Enterprise/SA",
+            "C:/Program Files (x86)/Hewlett-Packard Enterprise/SA",
+            "C:/PROGRA~1/opsware",
+            "C:/PROGRA~2/opsware",
+            "C:/opt/opsware",
+            "C:/opsware"
+          )
 
-        $found = $false
-        foreach ($path in $paths) {
-          if (Test-Path $path) {
-            $fileCount = (Get-ChildItem -Path $path -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
-            if ($fileCount -gt 0) {
-              Write-Output "OPSWARE found at $path with $fileCount files"
-              $found = $true
+          $found = $false
+          foreach ($path in $paths) {
+            if (Test-Path $path) {
+              $items = Get-ChildItem -Path $path -Recurse -ErrorAction SilentlyContinue
+              $fileCount = ($items | Where-Object { -not $_.PSIsContainer }).Count
+              $folderCount = ($items | Where-Object { $_.PSIsContainer }).Count
+              if ($fileCount -gt 0 -or $folderCount -gt 0) {
+                Write-Output "OPSWARE found at $path with $fileCount files and $folderCount folders"
+                $found = $true
+              }
             }
           }
-        }
 
-        if (-not $found) {
-          Write-Output "OPSWARE agent not found in standard locations"
+          if (-not $found) {
+            Write-Output "OPSWARE agent not found in standard locations"
+          }
+        } catch {
+          Write-Output "Error checking OPSWARE agent: $($_.Exception.Message)"
         }
       ignore_errors: yes
       register: test_opsware_agent
