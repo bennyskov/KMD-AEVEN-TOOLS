@@ -11,6 +11,47 @@
       when: ostype is defined
       delegate_to: localhost
 
+- name: CyberArk connectivity check
+  hosts: localhost
+  gather_facts: false
+  vars:
+    cyberark_url: "https://kmdwinccp001.adminkmd.local/"
+    cyberark_timeout: 10
+  tasks:
+    - name: Test connectivity to CyberArk server
+      ansible.windows.win_uri:
+        url: "{{ cyberark_url }}"
+        method: GET
+        timeout: "{{ cyberark_timeout }}"
+        validate_certs: false
+        status_code: [200, 401, 403, 404]  # Allow various HTTP responses as we just want to test connectivity
+      register: cyberark_connectivity
+      ignore_errors: true
+      delegate_to: localhost
+
+    - name: Display CyberArk connectivity result
+      debug:
+        msg: |
+          CyberArk server connectivity test:
+          URL: {{ cyberark_url }}
+          Status: {% if cyberark_connectivity.failed %}FAILED{% else %}SUCCESS{% endif %}
+          {% if not cyberark_connectivity.failed %}HTTP Status Code: {{ cyberark_connectivity.status_code }}{% endif %}
+          {% if cyberark_connectivity.failed %}Error: {{ cyberark_connectivity.msg | default('Connection failed') }}{% endif %}
+      delegate_to: localhost
+
+    - name: Fail if CyberArk server is unreachable
+      fail:
+        msg: |
+          Cannot reach CyberArk server at {{ cyberark_url }}
+          This indicates a network connectivity issue. Please check:
+          1. Network connectivity to the CyberArk server
+          2. DNS resolution for kmdwinccp001.adminkmd.local
+          3. Firewall rules allowing HTTPS traffic
+          4. Proxy settings if applicable
+          Error details: {{ cyberark_connectivity.msg | default('Connection failed') }}
+      when: cyberark_connectivity.failed
+      delegate_to: localhost
+
 - name: Socks tunnel setup
   hosts: localhost
   gather_facts: false
