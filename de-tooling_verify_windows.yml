@@ -1,3 +1,4 @@
+---
 - name: Create OS groups
   hosts: localhost
   become: false
@@ -12,7 +13,7 @@
       delegate_to: localhost
 
     - name: Test DNS resolution
-      command: host kmdwinccp001.adminkmd.local
+      command: nslookup kmdwinccp001.adminkmd.local
       register: dns_check
       ignore_errors: true
       delegate_to: localhost
@@ -71,56 +72,214 @@
     - set_fact:
         ansible_become_method: runas
         ansible_become_user: system
-    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    # Delete & create new KMD-AEVEN-TOOLS directory
-    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Verify if ITM and Ansible has been uninstalled on Windows server
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 - name: "Verify if ITM and Ansible has been uninstalled on Windows server {{ nodename }}"
   hosts: "{{ nodename }}"
   become: true
   gather_facts: false
+  vars:
+    # Add connection configuration to handle authentication issues
+    ansible_connection: psrp
+    ansible_psrp_protocol: http
+    ansible_psrp_auth: negotiate
+    ansible_psrp_cert_validation: ignore
+    ansible_psrp_operation_timeout: 60
+    ansible_psrp_read_timeout: 90
   tasks:
     - name: "Get-Processes on ITM"
-      win_shell: Get-Process -Name "*ITM*"
+      win_shell: |
+        try {
+          Get-Process -Name "*ITM*" -ErrorAction Stop
+          Write-Output "ITM processes found"
+        } catch {
+          Write-Output "No ITM processes running"
+        }
       ignore_errors: yes
       register: script_getprocess_itm
 
     - name: "Get-Processes OPSWARE"
-      win_shell: Get-Process -Name "*OPSWARE*"
+      win_shell: |
+        try {
+          Get-Process -Name "*OPSWARE*" -ErrorAction Stop
+          Write-Output "OPSWARE processes found"
+        } catch {
+          Write-Output "No OPSWARE processes running"
+        }
       ignore_errors: yes
-      register: script_getprocess_itm
+      register: script_getprocess_opsware
 
-    - name: "test if ansible has been cleared"
+    - name: "Test if ansible workdir has been cleared"
+      win_shell: |
+        if (Test-Path "C:/ansible_workdir") {
+          $fileCount = (Get-ChildItem -Path "C:/ansible_workdir" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
+          if ($fileCount -gt 0) {
+            Write-Output "ansible_workdir contains $fileCount files"
+          } else {
+            Write-Output "ansible_workdir is empty"
+          }
+        } else {
+          Write-Output "ansible_workdir does not exist"
+        }
       ignore_errors: yes
-      win_shell: (Test-Path "C:/ansible_workdir") -and ((Get-ChildItem -Path "C:/ansible_workdir" -Recurse -File | Measure-Object).Count -gt 0)
+      register: test_ansible_workdir
 
-    - name: "test if ansible has been cleared"
+    - name: "Test if ansible ProgramData has been cleared"
+      win_shell: |
+        if (Test-Path "C:/ProgramData/ansible") {
+          $fileCount = (Get-ChildItem -Path "C:/ProgramData/ansible" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
+          if ($fileCount -gt 0) {
+            Write-Output "ProgramData/ansible contains $fileCount files"
+          } else {
+            Write-Output "ProgramData/ansible is empty"
+          }
+        } else {
+          Write-Output "ProgramData/ansible does not exist"
+        }
       ignore_errors: yes
-      win_shell: (Test-Path "C:/ProgramData/ansible") -and ((Get-ChildItem -Path "C:/ProgramData/ansible" -Recurse -File | Measure-Object).Count -gt 0)
+      register: test_ansible_programdata
 
-    - name: "test if BigFix has been cleared"
+    - name: "Test if BigFix ProgramData has been cleared"
+      win_shell: |
+        if (Test-Path "C:/ProgramData/BigFix") {
+          $fileCount = (Get-ChildItem -Path "C:/ProgramData/BigFix" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
+          if ($fileCount -gt 0) {
+            Write-Output "ProgramData/BigFix contains $fileCount files"
+          } else {
+            Write-Output "ProgramData/BigFix is empty"
+          }
+        } else {
+          Write-Output "ProgramData/BigFix does not exist"
+        }
       ignore_errors: yes
-      win_shell: (Test-Path "C:/ProgramData/BigFix") -and ((Get-ChildItem -Path "C:/ProgramData/BigFix" -Recurse -File | Measure-Object).Count -gt 0)
+      register: test_bigfix_programdata
 
-    - name: "test if ilmt has been cleared"
+    - name: "Test if ilmt ProgramData has been cleared"
+      win_shell: |
+        if (Test-Path "C:/ProgramData/ilmt") {
+          $fileCount = (Get-ChildItem -Path "C:/ProgramData/ilmt" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
+          if ($fileCount -gt 0) {
+            Write-Output "ProgramData/ilmt contains $fileCount files"
+          } else {
+            Write-Output "ProgramData/ilmt is empty"
+          }
+        } else {
+          Write-Output "ProgramData/ilmt does not exist"
+        }
       ignore_errors: yes
-      win_shell: (Test-Path "C:/ProgramData/ilmt") -and ((Get-ChildItem -Path "C:/ProgramData/ilmt" -Recurse -File | Measure-Object).Count -gt 0)
+      register: test_ilmt_programdata
 
-    - name: "test if ansible has been cleared"
+    - name: "Test if ansible Program Files has been cleared"
+      win_shell: |
+        if (Test-Path "C:/Program Files/ansible") {
+          $fileCount = (Get-ChildItem -Path "C:/Program Files/ansible" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
+          if ($fileCount -gt 0) {
+            Write-Output "Program Files/ansible contains $fileCount files"
+          } else {
+            Write-Output "Program Files/ansible is empty"
+          }
+        } else {
+          Write-Output "Program Files/ansible does not exist"
+        }
       ignore_errors: yes
-      win_shell: (Test-Path "C:/PROGRA~1/ansible") -and ((Get-ChildItem -Path "C:/PROGRA~1/ansible" -Recurse -File | Measure-Object).Count -gt 0)
+      register: test_ansible_programfiles
 
-    - name: "test if BigFix has been cleared"
+    - name: "Test if BigFix Program Files has been cleared"
+      win_shell: |
+        if (Test-Path "C:/Program Files/BigFix") {
+          $fileCount = (Get-ChildItem -Path "C:/Program Files/BigFix" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
+          if ($fileCount -gt 0) {
+            Write-Output "Program Files/BigFix contains $fileCount files"
+          } else {
+            Write-Output "Program Files/BigFix is empty"
+          }
+        } else {
+          Write-Output "Program Files/BigFix does not exist"
+        }
       ignore_errors: yes
-      win_shell: (Test-Path "C:/PROGRA~1/BigFix") -and ((Get-ChildItem -Path "C:/PROGRA~1/BigFix" -Recurse -File | Measure-Object).Count -gt 0)
+      register: test_bigfix_programfiles
 
-    - name: "test if ilmt has been cleared"
+    - name: "Test if ilmt Program Files has been cleared"
+      win_shell: |
+        if (Test-Path "C:/Program Files/ilmt") {
+          $fileCount = (Get-ChildItem -Path "C:/Program Files/ilmt" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
+          if ($fileCount -gt 0) {
+            Write-Output "Program Files/ilmt contains $fileCount files"
+          } else {
+            Write-Output "Program Files/ilmt is empty"
+          }
+        } else {
+          Write-Output "Program Files/ilmt does not exist"
+        }
       ignore_errors: yes
-      win_shell: (Test-Path "C:/PROGRA~1/ilmt") -and ((Get-ChildItem -Path "C:/PROGRA~1/ilmt" -Recurse -File | Measure-Object).Count -gt 0)
+      register: test_ilmt_programfiles
 
-    - name: "test if lTM has been cleared"
+    - name: "Test if ITM has been cleared"
+      win_shell: |
+        if (Test-Path "C:/IBM/ITM/bin") {
+          $fileCount = (Get-ChildItem -Path "C:/IBM/ITM" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
+          if ($fileCount -gt 0) {
+            Write-Output "IBM/ITM contains $fileCount files"
+          } else {
+            Write-Output "IBM/ITM is empty"
+          }
+        } else {
+          Write-Output "IBM/ITM does not exist"
+        }
       ignore_errors: yes
-      win_shell: (Test-Path "C:/IBM/ITM/bin") -and ((Get-ChildItem -Path "C:/IBM/ITM" -Recurse -File | Measure-Object).Count -gt 0)
+      register: test_itm_files
 
-    - name: "test if SA-Agent OPSWARE has been installed"
+    - name: "Test if SA-Agent OPSWARE has been removed"
+      win_shell: |
+        # Check for typical Windows OPSWARE agent paths
+        $paths = @(
+          "C:/Program Files/HP/Systems Insight Manager",
+          "C:/Program Files (x86)/HP/Systems Insight Manager",
+          "C:/Program Files/Hewlett-Packard Enterprise/SA",
+          "C:/Program Files (x86)/Hewlett-Packard Enterprise/SA",
+          "C:/PROGRA~1/opsware",
+          "C:/PROGRA~2/opsware"
+        )
+
+        $found = $false
+        foreach ($path in $paths) {
+          if (Test-Path $path) {
+            $fileCount = (Get-ChildItem -Path $path -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
+            if ($fileCount -gt 0) {
+              Write-Output "OPSWARE found at $path with $fileCount files"
+              $found = $true
+            }
+          }
+        }
+
+        if (-not $found) {
+          Write-Output "OPSWARE agent not found in standard locations"
+        }
       ignore_errors: yes
-      win_shell: (Test-Path "/opt/opsware/agent/bin/") -and ((Get-ChildItem -Path "/opt/opsware/agent/bin/" -Recurse -File | Measure-Object).Count -gt 0)
+      register: test_opsware_agent
+
+    - name: "Display verification results summary"
+      debug:
+        msg: |
+          =================================================
+          ITM and Ansible Uninstallation Verification Summary
+          =================================================
+          Target Server: {{ nodename }}
+
+          Process Checks:
+          - ITM Processes: {{ script_getprocess_itm.stdout | default('Error checking') }}
+          - OPSWARE Processes: {{ script_getprocess_opsware.stdout | default('Error checking') }}
+
+          Directory Checks:
+          - Ansible WorkDir: {{ test_ansible_workdir.stdout | default('Error checking') }}
+          - Ansible ProgramData: {{ test_ansible_programdata.stdout | default('Error checking') }}
+          - Ansible Program Files: {{ test_ansible_programfiles.stdout | default('Error checking') }}
+          - BigFix ProgramData: {{ test_bigfix_programdata.stdout | default('Error checking') }}
+          - BigFix Program Files: {{ test_bigfix_programfiles.stdout | default('Error checking') }}
+          - ILMT ProgramData: {{ test_ilmt_programdata.stdout | default('Error checking') }}
+          - ILMT Program Files: {{ test_ilmt_programfiles.stdout | default('Error checking') }}
+          - ITM Installation: {{ test_itm_files.stdout | default('Error checking') }}
+          - OPSWARE Agent: {{ test_opsware_agent.stdout | default('Error checking') }}
+          =================================================
