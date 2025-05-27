@@ -11,6 +11,12 @@
       when: ostype is defined
       delegate_to: localhost
 
+    - name: Test DNS resolution
+      command: nslookup kmdwinccp001.adminkmd.local
+      register: dns_check
+      ignore_errors: true
+      delegate_to: localhost
+
 - name: CyberArk connectivity check
   hosts: localhost
   gather_facts: false
@@ -19,7 +25,7 @@
     cyberark_timeout: 10
   tasks:
     - name: Test connectivity to CyberArk server
-      ansible.windows.win_uri:
+      uri:
         url: "{{ cyberark_url }}"
         method: GET
         timeout: "{{ cyberark_timeout }}"
@@ -60,8 +66,11 @@
         name: ansible-role-event-socks-tunnel
         apply:
           check_mode: false
-          run_once: true
           delegate_to: localhost
+
+    - set_fact:
+        ansible_become_method: runas
+        ansible_become_user: system
 
 - name: Verify de-tooling
   hosts: '{{ nodename }}'
