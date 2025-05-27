@@ -1,0 +1,23 @@
+---
+- name: Add test user on Linux
+  include_role:
+    name: "kmn.sra.user_add"
+    public: yes
+    tasks_from: "unix"
+  vars:
+    user:
+      username: testuser
+      sshkey: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDRrR8u9kXOQvOfAzuAesfDvPlYaWEJMIp8i1xCbzsfghkl0jfUvSHGUbSVhK4ulYGimpcNMuXBolBOX0eo2JasYz5iPdwKb19jKTVjUR1NEEeK/aARw7INoXdNAQs0UdnGn2GIrVD0SsDKi8F8PuxpDO7SVEw3/9pW7ShbrQnDRNZY+Q2HaWa0UniuRLNFCThY7QMTwcAnqTGdVyWGBjurJ1lGLToiiWZOcPvmZ28zZHmBWZkoQyaEDwhcC3bWi6G+qnBz7frBbXm+fTvUQAz9alShCZTHiSWuspB+B79fvoe5z7ZqBtwCGSDC4S3MTzHiyAW2iqHSlHPmKs+oTDBB"
+
+- name: Get test user on Linux
+  ansible.builtin.user:
+    name: "{{ user.username }}"
+    state: present
+  vars:
+    user:
+      username: testuser
+  register: result
+
+- name: Assert that something has changed
+  assert:
+    that: result.name == "testuser"

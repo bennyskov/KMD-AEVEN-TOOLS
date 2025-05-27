@@ -1,0 +1,14 @@
+---
+- name: Converge
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  collections:
+  - ansible_hackaton.collection
+
+  vars_files:
+  - vars/main.yml
+
+  tasks:
+  - include_tasks: tasks/main.yml

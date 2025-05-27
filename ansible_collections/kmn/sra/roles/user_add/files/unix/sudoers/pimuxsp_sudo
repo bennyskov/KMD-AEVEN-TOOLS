@@ -1,0 +1,146 @@
+%pimuxsp ALL = (sapadm,daaadm,dazadm) NOPASSWD: ALL
+
+Defaults:%pimuxsp env_keep += "HDB_INSTALLER_TRACE_FILE"
+
+%pimuxsp ALL = (root) NOPASSWD: /bin/mv /etc/iscsi/initiatorname.iscsi /etc/iscsi/initiatorname.iscsi.*.bak
+%pimuxsp ALL = (root) NOPASSWD: /usr/sap/*/SYS/exe/run/saproot.sh *
+%pimuxsp ALL = (root) NOPASSWD: /usr/sap/*/SUM/STARTUP *
+%pimuxsp ALL = (root) NOPASSWD: /usr/sap/*/SUM/abap/SUMSTART *
+%pimuxsp ALL = (root) NOPASSWD: /usr/sap/*/SUM/STARTUP confighostagent *
+%pimuxsp ALL = (root) NOPASSWD: /usr/sap/*/INST/sapinst*.sh
+%pimuxsp ALL = (root) NOPASSWD: /usr/sap/*/INST/*/saphostexec -upgrade
+%pimuxsp ALL = (root) NOPASSWD: /db2/*/db2*/db2_software/instance/db2idrop *
+%pimuxsp ALL = (root) NOPASSWD: /bin/cp -a /usr/sap/* /usr/sap/*
+%pimuxsp ALL = (root) NOPASSWD: /bin/cp /usr/sap/hostctrl/* /usr/sap/*
+%pimuxsp ALL = (root) NOPASSWD: /bin/cp -a /usr/sap/hostctrl/* /usr/sap/*
+%pimuxsp ALL = (root) NOPASSWD: /bin/cp -p /usr/sap/*/SYS/exe/run/icmbnd.new /usr/sap/*/SYS/exe/run/icmbnd
+%pimuxsp ALL = (root) NOPASSWD: /bin/rm /usr/sap/DAA/*
+%pimuxsp ALL = (root) NOPASSWD: /bin/rm -rf /usr/sap/DAA/*
+%pimuxsp ALL = (root) NOPASSWD: /bin/rm /usr/sap/DAZ/*
+%pimuxsp ALL = (root) NOPASSWD: /bin/rm -rf /usr/sap/DAZ/*
+%pimuxsp ALL = (root) NOPASSWD: /bin/rm -rf /usr/sap/*
+%pimuxsp ALL = (root) NOPASSWD: /bin/rm /usr/sap/*
+%pimuxsp ALL = (root) NOPASSWD: /bin/rm -rf /sapmnt/*
+%pimuxsp ALL = (root) NOPASSWD: /bin/rm /sapmnt/*
+%pimuxsp ALL = (root) NOPASSWD: /bin/rm -rf /usr/sap/hostctrl/*
+%pimuxsp ALL = (root) NOPASSWD: /bin/rm /usr/sap/hostctrl/*
+%pimuxsp ALL = (root) NOPASSWD: /bin/chown root.sapsys sapuxuserchk
+%pimuxsp ALL = (root) NOPASSWD: /bin/chmod u+s\,o-rwx sapuxuserchk
+%pimuxsp ALL = (root) NOPASSWD: /bin/chown root.sapsys icmbnd
+%pimuxsp ALL = (root) NOPASSWD: /bin/chmod u+s\,o-rwx icmbnd
+%pimuxsp ALL = (root) NOPASSWD: /bin/mkdir /usr/sap/*/*/*
+%pimuxsp ALL = (root) NOPASSWD: /bin/ls -la /usr/sap
+%pimuxsp ALL = (root) NOPASSWD: /usr/bin/passwd sapadm
+%pimuxsp ALL = (root) NOPASSWD: /usr/bin/passwd daaadm
+%pimuxsp ALL = (root) NOPASSWD: /usr/bin/passwd dazadm
+%pimuxsp ALL = (root) NOPASSWD: /usr/bin/pkill sapinst
+%pimuxsp ALL = (root) NOPASSWD: /usr/bin/pkill -9 sapinst
+%pimuxsp ALL = (root) NOPASSWD: sudoedit /usr/sap/sapservices
+%pimuxsp ALL = (root) NOPASSWD: sudoedit /usr/sap/hostctrl/exe/host_profile
+%pimuxsp ALL = (root) NOPASSWD: sudoedit /usr/sap/hostctrl/work/ASUI.log
+%pimuxsp ALL = (root) NOPASSWD: sudoedit /etc/sysconfig/agilesilc
+%pimuxsp ALL = (root) NOPASSWD: sudoedit /etc/sysconfig/logex
+%pimuxsp ALL = (root) NOPASSWD: /usr/sap/hostctrl/exe/saphostexec *
+%pimuxsp ALL = (root) NOPASSWD: /sapmnt/*/INST/sapinst*.sh
+%pimuxsp ALL = (root) NOPASSWD: /sapmnt/*/INST/*/saphostexec *
+%pimuxsp ALL = (root) NOPASSWD: /usr/sap/*/home/*/saphostexec *
+%pimuxsp ALL = (root) NOPASSWD: /bin/cp -a /sapinst/KMD-SAP-LVM/SW/SAPACEXT_LIB/* /usr/sap/hostctrl/exe/*
+%pimuxsp ALL = (root) NOPASSWD: /bin/mv /usr/sap/hostctrl/exe/operations.d /usr/sap/hostctrl/exe/operations.d_save
+%pimuxsp ALL = (root) NOPASSWD: /bin/ln -s  /sapinst/KMD-SAP-LVM/prd_operations.d /usr/sap/hostctrl/exe/operations.d
+%pimuxsp ALL = (root) NOPASSWD: /bin/chmod 777 /usr/sap/hostctrl/exe/operations.d
+%pimuxsp ALL = (root) NOPASSWD: /bin/chgrp root /usr/sap/hostctrl/exe/operations.d
+%pimuxsp ALL = (root) NOPASSWD: /bin/chown root /usr/sap/hostctrl/exe/operations.d
+%pimuxsp ALL = (root) NOPASSWD: /bin/mkdir /tmp/LVM_sapinst
+%pimuxsp ALL = (root) NOPASSWD: /bin/mkdir /tmp/LVM_sapinst_PR
+%pimuxsp ALL = (root) NOPASSWD: /bin/chgrp sapsys /tmp/LVM_sapinst
+%pimuxsp ALL = (root) NOPASSWD: /bin/chgrp sapsys /tmp/LVM_sapinst_PR
+%pimuxsp ALL = (root) NOPASSWD: /bin/chown root /tmp/LVM_sapinst
+%pimuxsp ALL = (root) NOPASSWD: /bin/chown root /tmp/LVM_sapinst_PR
+%pimuxsp ALL = (root) NOPASSWD: /bin/chmod 775 /tmp/LVM_sapinst
+%pimuxsp ALL = (root) NOPASSWD: /bin/chmod 775 /tmp/LVM_sapinst_PR
+%pimuxsp ALL = (root) NOPASSWD: /usr/local/sbin/virt-manage *
+%pimuxsp ALL = (root) NOPASSWD: /usr/sap/hostctrl/exe/sapacosprep -a if*
+%pimuxsp ALL = (root) NOPASSWD: /usr/bin/pkill -9 saphostexec
+%pimuxsp ALL = (root) NOPASSWD: /usr/bin/pkill -9 saphostctrl
+%pimuxsp ALL = (root) NOPASSWD: /usr/bin/pkill -9 sapcontrol
+%pimuxsp   ALL = (root) NOPASSWD: /usr/bin/passwd sapadm
+%pimuxsp   ALL = (root) NOPASSWD: /usr/bin/passwd daaadm
+%pimuxsp   ALL = (root) NOPASSWD: /usr/bin/passwd dazadm
+%pimuxsp   ALL = (root) NOPASSWD: /bin/mkdir /hana/shared/install
+%pimuxsp   ALL = (root) NOPASSWD: /bin/mkdir /hana/shared/install/*
+%pimuxsp   ALL = (root) NOPASSWD: /bin/mkdir /hana/shared/install/*/*
+%pimuxsp   ALL = (root) NOPASSWD: /bin/cp /sapinst/* /hana/shared/install/*
+%pimuxsp   ALL = (root) NOPASSWD: /bin/cp -R /sapinst/* /hana/shared/install/*
+%pimuxsp   ALL = (root) NOPASSWD: /bin/cp /sapinst/* /media
+%pimuxsp   ALL = (root) NOPASSWD: /hana/shared/install/hdblcm_prepare.sh -a /hana/shared/install/SAPCAR
+%pimuxsp   ALL = (root) NOPASSWD: /hana/shared/install/rev*/hdblcm_prepare.sh
+%pimuxsp   ALL = (root) NOPASSWD: /hana/shared/install/rev*/extracted/SAP_HANA_DATABASE/hdblcm *
+%pimuxsp   ALL = (root) NOPASSWD: /hana/shared/install/extracted/SAP_HOST_AGENT/saphostexec -install
+%pimuxsp   ALL = (root) NOPASSWD: /usr/local/sbin/virtip-down-*.sh
+%pimuxsp   ALL = (root) NOPASSWD: /usr/local/sbin/virtip-up-*.sh
+%pimuxsp   ALL = (root) NOPASSWD: /usr/local/sbin/virt-manage *
+%pimuxsp   ALL = (root) NOPASSWD: /bin/cp /sapinst/KMD-HANA/SAP_HANA_PLATFORM_EDITION/1.0/rev_*/HANA_install-silent.cfg /root
+%pimuxsp   ALL = (root) NOPASSWD: /hana/shared/install/extracted/SAP_HANA_DATABASE/hdblcm *
+%pimuxsp   ALL = (root) NOPASSWD: /usr/sap/hostctrl/exe/sapcontrol *
+%pimuxsp   ALL = (root) NOPASSWD: /media/6.4.1.2-TIV-TSMERPHANA-FTP-Linux.bin *
+%pimuxsp   ALL = (root) NOPASSWD: /media/8.1.4.0-ERP-HANA-Linuxx86_64.bin *
+%pimuxsp   ALL = (root) NOPASSWD: /bin/cp /media/agent.lic /opt/tivoli/tsm/tdp_hana
+%pimuxsp   ALL = (root) NOPASSWD: /opt/tivoli/tsm/tdp_hana/setup.sh
+%pimuxsp   ALL = (root) NOPASSWD: sudoedit /opt/tivoli/tsm/client/api/bin64/dsm.opt
+%pimuxsp   ALL = (root) NOPASSWD: sudoedit /opt/tivoli/tsm/client/api/bin64/dsm.sys
+%pimuxsp   ALL = (root) NOPASSWD: sudoedit /root/HANA_install-silent.cfg
+%pimuxsp   ALL = (root) NOPASSWD: sudoedit /var/tmp/hdb*/*
+%pimuxsp   ALL = (root) NOPASSWD: sudoedit /usr/sap/*/SYS/global/hdb/opt/hdbconfig/init*.utl
+%pimuxsp   ALL = (root) NOPASSWD: /usr/sap/*/HDB86/exe/rsecssfx *
+%pimuxsp   ALL = (root) NOPASSWD: /bin/cp /usr/sap/*/SYS/global/hdb/custom/config/global.ini globalold.old
+%pimuxsp   ALL = (root) NOPASSWD: /usr/sap/*/SYS/global/hdb/custom/config/global.ini
+%pimuxsp   ALL = (root) NOPASSWD: /bin/cp /usr/sap/*/SYS/global/hdb/security/ssfs/* /sapinst/KMD-HANA/HANA-ssfs-key
+%pimuxsp   ALL = (root) NOPASSWD: /hana/shared/*/hdblcm/hdblcm
+%pimuxsp   ALL = (root) NOPASSWD: /bin/tar -cvzf /hana/shared/install/* /hana/shared/* /usr/sap/*
+%pimuxsp   ALL = (root) NOPASSWD: /bin/tar -xvzf /hana/shared/install/*
+%pimuxsp   ALL = (root) NOPASSWD: /bin/tar -tvzf /hana/shared/install/*
+%pimuxsp   ALL = (root) NOPASSWD: /bin/rm -rf /hana/shared/install/*
+%pimuxsp   ALL = (root) NOPASSWD: /bin/rm /hana/shared/install/*
+%pimuxsp   ALL = (root) NOPASSWD: /hana/shared/*/hdblcm/hdblcm *
+%pimuxsp   ALL = (root) NOPASSWD: /usr/bin/pkill prole
+%pimuxsp   ALL = (root) NOPASSWD: /bin/rm -rf /hana/shared/*
+%pimuxsp   ALL = (root) NOPASSWD: /bin/rm -rf /hana/log/*
+%pimuxsp   ALL = (root) NOPASSWD: /bin/rm -rf /hana/data/*
+%pimuxsp   ALL = (root) NOPASSWD: /bin/rm -rf /usr/sap/*
+%pimuxsp   ALL = (root) NOPASSWD: /hana/shared/install/rev_[0-9][0-9][0-9]/extracted/SAP_HANA_DATABASE/hdblcmgui
+%pimuxsp   ALL = (root) NOPASSWD: /hana/shared/install/rev_[0-9][0-9][0-9]_[0-9][0-9]/extracted/SAP_HANA_DATABASE/hdblcmgui
+%pimuxsp   ALL = (root) NOPASSWD: /hana/shared/[A-Z]??/hdblcm/hdblcmgui
+%pimuxsp   ALL = (root) NOPASSWD: /sbin/service prole_hana restart
+%pimuxsp   ALL = (root) NOPASSWD: /sbin/service prole_hana start
+%pimuxsp   ALL = (root) NOPASSWD: /sbin/service prole_hana stop
+%pimuxsp   ALL = (root) NOPASSWD: /usr/bin/systemctl restart prole_hana
+%pimuxsp   ALL = (root) NOPASSWD: /usr/bin/systemctl start prole_hana
+%pimuxsp   ALL = (root) NOPASSWD: /usr/bin/systemctl stop prole_hana
+%pimuxsp   ALL = (root) NOPASSWD: /bin/cp /sapinst/KMD-HANA/SAP_HANA_PLATFORM_EDITION/2.0/rev_253/HANA_install-silent.cfg /root
+
+# sudo commands for Agile SI/Logex
+
+
+Host_Alias IBM_AGILESI_PIMUXSP_HOST = saplvm5032, saplvm2032, kmdsap2035, kmdsap1025, kksap2013, saplvm5001
+
+Cmnd_Alias  IBM_AGILESI_PIMUXSP_BAU_CMDS  = \
+             /usr/bin/journalctl -exu agilesilc.service ,\
+             /usr/bin/journalctl -exu logex.service ,\
+             /usr/bin/journalctl -u agilesilc.service ,\
+             /usr/bin/journalctl -u logex.service ,\
+             /usr/bin/journalctl -xu agilesilc.service ,\
+             /usr/bin/journalctl -xu logex.service ,\
+             /usr/bin/systemctl restart agilesilc.service ,\
+             /usr/bin/systemctl restart logex ,\
+             /usr/bin/systemctl start agilesilc.service ,\
+             /usr/bin/systemctl start logex ,\
+             /usr/bin/systemctl status agilesilc.service ,\
+             /usr/bin/systemctl status agilesilc.service ,\
+             /usr/bin/systemctl status logex ,\
+             /usr/bin/systemctl status logex ,\
+             /usr/bin/systemctl stop agilesilc.service ,\
+             /usr/bin/systemctl stop logex
+
+%pimuxsp IBM_AGILESI_PIMUXSP_HOST=(root) NOPASSWD: IBM_AGILESI_PIMUXSP_BAU_CMDS
+
+

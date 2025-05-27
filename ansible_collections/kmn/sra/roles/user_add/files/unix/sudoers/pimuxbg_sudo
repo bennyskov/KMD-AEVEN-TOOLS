@@ -1,0 +1,4 @@
+# breakglass
+# SUDO root
+%pimuxbg ALL=(ALL) NOPASSWD: ALL
+

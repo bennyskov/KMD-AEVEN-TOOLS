@@ -1,0 +1,15 @@
+---
+status_codes:
+  "default": "204"
+  "ansible.builtin.command":
+    "ok": "200"
+    "changed": "201"
+    "failed": "500"
+  "ansible.builtin.shell":
+    "ok": "200"
+    "changed": "201"
+    "failed": "500"
+  "ansible.builtin.debug":
+    "ok": "200"
+    "changed": "201"
+    "failed": "500"

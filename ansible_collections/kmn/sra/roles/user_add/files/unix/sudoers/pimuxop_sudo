@@ -1,0 +1,3 @@
+# Operastions Onshore
+# SUDO root
+%pimuxop ALL=(ALL) NOPASSWD: ALL

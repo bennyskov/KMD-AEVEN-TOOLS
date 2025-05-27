@@ -1,0 +1,3 @@
+# Offshore Operation
+# SUDO root
+%pimuxof ALL=(ALL) NOPASSWD: ALL

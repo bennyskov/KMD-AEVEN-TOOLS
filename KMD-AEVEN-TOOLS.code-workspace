@@ -4,11 +4,8 @@
 			"path": "."
 		},
 		{
-			"path": "../../tview/build/logs/activities/ansible_raw"
+			"path": "C:/Users/DK000375/Downloads"
 		}
 	],
-	"settings": {
-		"powershell.cwd": "KMD-AEVEN-TOOLS",
-		"terminal.integrated.wordWrap": false
-	}
+	"settings": {}
 }

@@ -1,0 +1,69 @@
+# SAP server admin offshore
+# Limited to SAP
+# If anything missing manual update required based on available tempaltes from host
+
+# --- Start of pimuxso Cyberark default template --- #
+
+%pimuxso ALL = (sapadm,daaadm,dazadm) NOPASSWD: ALL
+%pimuxso ALL = (root) NOPASSWD: /usr/sap/*/SYS/exe/run/saproot.sh *
+%pimuxso ALL = (root) NOPASSWD: /usr/sap/*/SUM/STARTUP *
+%pimuxso ALL = (root) NOPASSWD: /usr/sap/*/SUM/abap/SUMSTART *
+%pimuxso ALL = (root) NOPASSWD: /usr/sap/*/SUM/STARTUP confighostagent *
+%pimuxso ALL = (root) NOPASSWD: /usr/sap/*/INST/sapinst*.sh
+%pimuxso ALL = (root) NOPASSWD: /usr/sap/*/INST/*/saphostexec -upgrade
+%pimuxso ALL = (root) NOPASSWD: /db2/*/db2*/db2_software/instance/db2idrop *
+%pimuxso ALL = (root) NOPASSWD: /bin/cp -a /usr/sap/* /usr/sap/*
+%pimuxso ALL = (root) NOPASSWD: /bin/cp /usr/sap/hostctrl/* /usr/sap/*
+%pimuxso ALL = (root) NOPASSWD: /bin/cp -a /usr/sap/hostctrl/* /usr/sap/*
+%pimuxso ALL = (root) NOPASSWD: /bin/cp -p /usr/sap/*/SYS/exe/run/icmbnd.new /usr/sap/*/SYS/exe/run/icmbnd
+%pimuxso ALL = (root) NOPASSWD: /bin/rm /usr/sap/DAA/*
+%pimuxso ALL = (root) NOPASSWD: /bin/rm -rf /usr/sap/DAA/*
+%pimuxso ALL = (root) NOPASSWD: /bin/rm /usr/sap/DAZ/*
+%pimuxso ALL = (root) NOPASSWD: /bin/rm -rf /usr/sap/DAZ/*
+%pimuxso ALL = (root) NOPASSWD: /bin/rm -rf /usr/sap/*
+%pimuxso ALL = (root) NOPASSWD: /bin/rm /usr/sap/*
+%pimuxso ALL = (root) NOPASSWD: /bin/rm -rf /sapmnt/*
+%pimuxso ALL = (root) NOPASSWD: /bin/rm /sapmnt/*
+%pimuxso ALL = (root) NOPASSWD: /bin/rm -rf /usr/sap/hostctrl/*
+%pimuxso ALL = (root) NOPASSWD: /bin/rm /usr/sap/hostctrl/*
+%pimuxso ALL = (root) NOPASSWD: /bin/chown root.sapsys sapuxuserchk
+%pimuxso ALL = (root) NOPASSWD: /bin/chmod u+s\,o-rwx sapuxuserchk
+%pimuxso ALL = (root) NOPASSWD: /bin/chown root.sapsys icmbnd
+%pimuxso ALL = (root) NOPASSWD: /bin/chmod u+s\,o-rwx icmbnd
+%pimuxso ALL = (root) NOPASSWD: /bin/mkdir /usr/sap/*/*/*
+%pimuxso ALL = (root) NOPASSWD: /bin/ls -la /usr/sap
+%pimuxso ALL = (root) NOPASSWD: /usr/bin/passwd sapadm
+%pimuxso ALL = (root) NOPASSWD: /usr/bin/passwd daaadm
+%pimuxso ALL = (root) NOPASSWD: /usr/bin/passwd dazadm
+%pimuxso ALL = (root) NOPASSWD: /usr/bin/pkill sapinst
+%pimuxso ALL = (root) NOPASSWD: /usr/bin/pkill -9 sapinst
+%pimuxso ALL = (root) NOPASSWD: sudoedit /usr/sap/sapservices
+%pimuxso ALL = (root) NOPASSWD: sudoedit /usr/sap/hostctrl/exe/host_profile
+%pimuxso ALL = (root) NOPASSWD: sudoedit /usr/sap/hostctrl/work/ASUI.log
+%pimuxso ALL = (root) NOPASSWD: sudoedit /etc/sysconfig/agilesilc
+%pimuxso ALL = (root) NOPASSWD: sudoedit /etc/sysconfig/logex
+%pimuxso ALL = (root) NOPASSWD: /usr/sap/hostctrl/exe/saphostexec *
+%pimuxso ALL = (root) NOPASSWD: /sapmnt/*/INST/sapinst*.sh
+%pimuxso ALL = (root) NOPASSWD: /sapmnt/*/INST/*/saphostexec *
+%pimuxso ALL = (root) NOPASSWD: /usr/sap/*/home/*/saphostexec *
+%pimuxso ALL = (root) NOPASSWD: /bin/cp -a /sapinst/KMD-SAP-LVM/SW/SAPACEXT_LIB/* /usr/sap/hostctrl/exe/*
+%pimuxso ALL = (root) NOPASSWD: /bin/mv /usr/sap/hostctrl/exe/operations.d /usr/sap/hostctrl/exe/operations.d_save
+%pimuxso ALL = (root) NOPASSWD: /bin/ln -s  /sapinst/KMD-SAP-LVM/prd_operations.d /usr/sap/hostctrl/exe/operations.d
+%pimuxso ALL = (root) NOPASSWD: /bin/chmod 777 /usr/sap/hostctrl/exe/operations.d
+%pimuxso ALL = (root) NOPASSWD: /bin/chgrp root /usr/sap/hostctrl/exe/operations.d
+%pimuxso ALL = (root) NOPASSWD: /bin/chown root /usr/sap/hostctrl/exe/operations.d
+%pimuxso ALL = (root) NOPASSWD: /bin/mkdir /tmp/LVM_sapinst
+%pimuxso ALL = (root) NOPASSWD: /bin/mkdir /tmp/LVM_sapinst_PR
+%pimuxso ALL = (root) NOPASSWD: /bin/chgrp sapsys /tmp/LVM_sapinst
+%pimuxso ALL = (root) NOPASSWD: /bin/chgrp sapsys /tmp/LVM_sapinst_PR
+%pimuxso ALL = (root) NOPASSWD: /bin/chown root /tmp/LVM_sapinst
+%pimuxso ALL = (root) NOPASSWD: /bin/chown root /tmp/LVM_sapinst_PR
+%pimuxso ALL = (root) NOPASSWD: /bin/chmod 775 /tmp/LVM_sapinst
+%pimuxso ALL = (root) NOPASSWD: /bin/chmod 775 /tmp/LVM_sapinst_PR
+%pimuxso ALL = (root) NOPASSWD: /usr/local/sbin/virt-manage *
+%pimuxso ALL = (root) NOPASSWD: /usr/sap/hostctrl/exe/sapacosprep -a if*
+%pimuxso ALL = (root) NOPASSWD: /usr/bin/pkill -9 saphostexec
+%pimuxso ALL = (root) NOPASSWD: /usr/bin/pkill -9 saphostctrl
+%pimuxso ALL = (root) NOPASSWD: /usr/bin/pkill -9 sapcontrol
+
+# --- End of pimuxso Cyberark default template --- #

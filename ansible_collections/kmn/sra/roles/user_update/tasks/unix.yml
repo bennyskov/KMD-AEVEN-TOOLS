@@ -1,0 +1,9 @@
+---
+- name: "2.A2.1. Update user {{ data.username }}"
+  ansible.builtin.user:
+    name: "{{ data.username }}"
+    comment: "{{ data.comment | default(omit) }}"
+    groups: "{{ data.groups | default(omit) }}"
+    append: "{{ data.groups is defined | ternary((data.append | default(yes)) | bool, omit) }}"
+    state: present
+  failed_when: data.username is not defined or data.username | length == 0

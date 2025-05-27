@@ -1,0 +1,18 @@
+---
+- name: "2.A2.1. Check if user exists already"
+  ansible.windows.win_user:
+    name: "{{ data.username }}"
+    state: query
+  ignore_errors: true
+  register: win_user_info
+- name: "2.A2.2. Delete user {{ data.username }}"
+  ansible.windows.win_user:
+    name: "{{ data.username }}"
+    state: absent
+- name: "2.A2.3. Set user defaults for {{ data.username }}"
+  community.windows.win_user_profile:
+    username: "{{ win_user_info.sid }}"
+    state: absent
+  when:
+   - data.remove_user_dirs | default(true)
+   - win_user_info.sid is defined

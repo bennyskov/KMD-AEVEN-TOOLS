@@ -1,0 +1,4 @@
+# Nearshore Operation
+# SUDO root
+%pimuxns ALL=(ALL) NOPASSWD: ALL
+

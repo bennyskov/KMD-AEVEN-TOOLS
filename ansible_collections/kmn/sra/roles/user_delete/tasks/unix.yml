@@ -1,0 +1,10 @@
+---
+- name: "2.A2.1. Delete user {{ data.username }}"
+  ansible.builtin.user:
+    name: "{{ data.username }}"
+    remove: "{{ data.remove_user_dirs | default(true) }}"
+    state: absent
+- name: "2.A2.5. Delete sudoers profile for {{ data.username }}"
+  ansible.builtin.file:
+    path: "/etc/sudoers.d/{{ data.username }}_sudo"
+    state: absent

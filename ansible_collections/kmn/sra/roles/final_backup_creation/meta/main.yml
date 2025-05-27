@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  name: final_backup_creation
+  author: Zoltán Borzas <Zoltan.Borzas@kyndryl.com>
+  description: Change Task Automation - Final Backup Creation
+  min_ansible_version: 2.9
+  galaxy_tags:
+    - backup_management
+  platforms:
+    - name: GenericUNIX
+      versions:
+        - any
+# TODO: Include argument spec when Ansible Core 2.11 is released
+dependencies: {}
