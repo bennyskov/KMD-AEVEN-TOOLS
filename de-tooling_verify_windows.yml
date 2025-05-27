@@ -12,7 +12,7 @@
       delegate_to: localhost
 
     - name: Test DNS resolution
-      command: nslookup kmdwinccp001.adminkmd.local
+      command: host kmdwinccp001.adminkmd.local
       register: dns_check
       ignore_errors: true
       delegate_to: localhost
@@ -41,7 +41,7 @@
           CyberArk server connectivity test:
           URL: {{ cyberark_url }}
           Status: {% if cyberark_connectivity.failed %}FAILED{% else %}SUCCESS{% endif %}
-          {% if not cyberark_connectivity.failed %}HTTP Status Code: {{ cyberark_connectivity.status_code }}{% endif %}
+          {% if not cyberark_connectivity.failed %}HTTP Status Code: {{ cyberark_connectivity.status }}{% endif %}
           {% if cyberark_connectivity.failed %}Error: {{ cyberark_connectivity.msg | default('Connection failed') }}{% endif %}
       delegate_to: localhost
 
@@ -71,14 +71,56 @@
     - set_fact:
         ansible_become_method: runas
         ansible_become_user: system
-
-- name: Verify de-tooling
-  hosts: '{{ nodename }}'
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Delete & create new KMD-AEVEN-TOOLS directory
+    # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+- name: "Verify if ITM and Ansible has been uninstalled on Windows server {{ nodename }}"
+  hosts: "{{ nodename }}"
+  become: true
   gather_facts: false
   tasks:
-    - include_role:
-        name: verify_de-tooling
-        apply:
-          check_mode: false
-          run_once: true
-          delegate_to: '{{ nodename }}'
+    - name: "Get-Processes on ITM"
+      win_shell: Get-Process -Name "*ITM*"
+      ignore_errors: yes
+      register: script_getprocess_itm
+
+    - name: "Get-Processes OPSWARE"
+      win_shell: Get-Process -Name "*OPSWARE*"
+      ignore_errors: yes
+      register: script_getprocess_itm
+
+    - name: "test if ansible has been cleared"
+      ignore_errors: yes
+      win_shell: (Test-Path "C:/ansible_workdir") -and ((Get-ChildItem -Path "C:/ansible_workdir" -Recurse -File | Measure-Object).Count -gt 0)
+
+    - name: "test if ansible has been cleared"
+      ignore_errors: yes
+      win_shell: (Test-Path "C:/ProgramData/ansible") -and ((Get-ChildItem -Path "C:/ProgramData/ansible" -Recurse -File | Measure-Object).Count -gt 0)
+
+    - name: "test if BigFix has been cleared"
+      ignore_errors: yes
+      win_shell: (Test-Path "C:/ProgramData/BigFix") -and ((Get-ChildItem -Path "C:/ProgramData/BigFix" -Recurse -File | Measure-Object).Count -gt 0)
+
+    - name: "test if ilmt has been cleared"
+      ignore_errors: yes
+      win_shell: (Test-Path "C:/ProgramData/ilmt") -and ((Get-ChildItem -Path "C:/ProgramData/ilmt" -Recurse -File | Measure-Object).Count -gt 0)
+
+    - name: "test if ansible has been cleared"
+      ignore_errors: yes
+      win_shell: (Test-Path "C:/PROGRA~1/ansible") -and ((Get-ChildItem -Path "C:/PROGRA~1/ansible" -Recurse -File | Measure-Object).Count -gt 0)
+
+    - name: "test if BigFix has been cleared"
+      ignore_errors: yes
+      win_shell: (Test-Path "C:/PROGRA~1/BigFix") -and ((Get-ChildItem -Path "C:/PROGRA~1/BigFix" -Recurse -File | Measure-Object).Count -gt 0)
+
+    - name: "test if ilmt has been cleared"
+      ignore_errors: yes
+      win_shell: (Test-Path "C:/PROGRA~1/ilmt") -and ((Get-ChildItem -Path "C:/PROGRA~1/ilmt" -Recurse -File | Measure-Object).Count -gt 0)
+
+    - name: "test if lTM has been cleared"
+      ignore_errors: yes
+      win_shell: (Test-Path "C:/IBM/ITM/bin") -and ((Get-ChildItem -Path "C:/IBM/ITM" -Recurse -File | Measure-Object).Count -gt 0)
+
+    - name: "test if SA-Agent OPSWARE has been installed"
+      ignore_errors: yes
+      win_shell: (Test-Path "/opt/opsware/agent/bin/") -and ((Get-ChildItem -Path "/opt/opsware/agent/bin/" -Recurse -File | Measure-Object).Count -gt 0)
