@@ -131,7 +131,7 @@ def f_help_error():
     print('\t\t\t ITMAgentInstall_UNinstall_windows.cmd -nodename kmdwinitm001 -ccode kmn -primary 84.255.124.200 -secondary 84.255.124.201 -f')
     print('\t\t\t ITMAgentInstall_UNinstall_windows.cmd -nodename kmdwinitm001 -p      ( ping only. )')
     print('\t\t\t ITMAgentInstall_UNinstall_windows.cmd -nodename kmdwinitm001 -u      ( uninstall only. )')
-    print('\t\t\t ITMAgentInstall_UNinstall_windows.cmd -nodename kmdwinitm001 -u -d   ( set all services disabled. and uninstall )')
+    print('\t\t\t ITMAgentInstall_UNinstall_windows.cmd -nodename kmdwinitm001 -f -u -d   ( set all services disabled. and uninstall )')
     print(" ")
     print(" ")
     exit()
