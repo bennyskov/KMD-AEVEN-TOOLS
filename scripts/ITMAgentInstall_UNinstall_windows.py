@@ -802,7 +802,8 @@ if Pingonly:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # Ping & port check
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-else:
+if Install:
+
     # ----------------------------------------------------------------------------------------------------------------------------------------------------------
     # Ports check
     # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -935,8 +936,8 @@ else:
             text= f"force ForceUninstall is set to {ForceUninstall}, so we continue to reinstall OS & GSMA ITM agents";logging.warning(text);print(f"{text}")
         else:
             text= f"force ForceUninstall is set to {ForceUninstall}, so we are exiting. To force a reinstall you have to set -f as argument";logging.error(text);print(f"{text}")
-            RC = 12
-            f_end(RC, debug) #NOTE
+            # RC = 12
+            # f_end(RC, debug) #NOTE
     else:
         text= f"there are running {services_cnt} ITM agents as expected for only OS & GSMA";logging.info(text)
 
@@ -1070,7 +1071,7 @@ if Install:
         if debug:
             logging.error(f"No ITM Agent found after install!")
         RC = 0
-        f_end(RC, debug) #NOTE
+        # f_end(RC, debug) #NOTE
     # ----------------------------------------------------------------------------------------------------------------------------------------------------------
     # restore smitoolConfigZIP.zip & smitoolScriptZIP, after reinstall.
     # ----------------------------------------------------------------------------------------------------------------------------------------------------------
