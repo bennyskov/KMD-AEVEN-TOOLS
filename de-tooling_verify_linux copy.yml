@@ -1,0 +1,144 @@
+- name: Create OS groups
+  hosts: localhost
+  become: false
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: Create OS group
+      group_by:
+        key: "machine_{{ ostype }}"
+      changed_when: false
+      when: ostype is defined
+      delegate_to: localhost
+
+- name: Socks tunnel setup
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - include_role:
+        name: ansible-role-event-socks-tunnel
+        apply:
+          check_mode: false
+          run_once: true
+          delegate_to: localhost
+
+    - set_fact:
+        ansible_become_method: sudo
+
+- name: "Verify if ITM and Ansible has been uninstalled on Linux servers"
+  hosts: "{{ nodename | default('all') }}"
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Verify nodename pattern
+      debug:
+        msg: "Running against host: {{ inventory_hostname }}"
+      when: (nodename is not defined) or
+            (inventory_hostname == nodename) or
+            (inventory_hostname in nodename.split(',') if ',' in nodename else False) or
+            (inventory_hostname is match(nodename) if '^' in nodename else False)
+      run_once: true
+
+    - name: Skip if not matching nodename pattern
+      meta: end_host
+      when: nodename is defined and
+            inventory_hostname != nodename and
+            inventory_hostname not in (nodename.split(',') if ',' in nodename else []) and
+            not (inventory_hostname is match(nodename) if '^' in nodename else False)
+
+    - name: Skip if not Linux
+      meta: end_host
+      when: ansible_facts['os_family'] is not defined or ansible_facts['os_family'] != 'RedHat'
+    - name: "Check for k08agent processes"
+      shell: "pgrep -f k08agent || true"
+      register: k08agent_check
+      ignore_errors: yes
+    - name: print_verify_k08agent
+      debug:
+        msg: "is_k08agent_running:{{ k08agent_check.stdout | length > 0 }}"
+
+    - name: "Check for klzagent processes"
+      shell: "pgrep -f klzagent || true"
+      register: klzagent_check
+      ignore_errors: yes
+    - name: print_verify_klzagent
+      debug:
+        msg: "is_klzagent_running:{{ klzagent_check.stdout | length > 0 }}"
+
+    - name: "Check for any ITM processes"
+      shell: "pgrep -f '/opt/IBM/ITM' || true"
+      register: itm_process_check
+      ignore_errors: yes
+    - name: print_verify_itm_process
+      debug:
+        msg: "is_itm_process_running:{{ itm_process_check.stdout | length > 0 }}"
+
+    - name: "Check for opsware-agent processes"
+      shell: "pgrep -f opsware-agent || true"
+      register: opsware_process_check
+      ignore_errors: yes
+    - name: print_verify_opsware_process
+      debug:
+        msg: "is_opsware_agent_running:{{ opsware_process_check.stdout | length > 0 }}"
+
+    # Directory existence checks
+    - name: "Check if Bigfix directories exist"
+      stat:
+        path: "{{ item }}"
+      register: bigfix_dirs
+      with_items:
+        - "/etc/opt/bigfix"
+        - "/etc/opt/Bigfix"
+        - "/etc/BESClient"
+      ignore_errors: yes
+    - name: print_verify_bigfix
+      debug:
+        msg: "exists_bigfix_dir_{{ item.item | basename }}:{{ item.stat.exists | default(false) }}"
+      with_items: "{{ bigfix_dirs.results }}"
+
+    - name: "Check if ILMT directories exist"
+      stat:
+        path: "{{ item }}"
+      register: ilmt_dirs
+      with_items:
+        - "/var/tmp/ilmt"
+        - "/var/tmp/aicbackup/ilmt"
+      ignore_errors: yes
+    - name: print_verify_ilmt
+      debug:
+        msg: "exists_ilmt_dir_{{ item.item | basename }}:{{ item.stat.exists | default(false) }}"
+      with_items: "{{ ilmt_dirs.results }}"
+
+    - name: "Check for BESClient temporary files"
+      shell: "ls /tmp/*BESClient* 2>/dev/null || true"
+      register: besclient_tmp
+      ignore_errors: yes
+    - name: print_verify_besclient_tmp
+      debug:
+        msg: "exists_besclient_tmp:{{ besclient_tmp.stdout | length > 0 }}"
+
+    - name: "Check if ITM directories exist"
+      stat:
+        path: "{{ item }}"
+      register: itm_dirs
+      with_items:
+        - "/opt/IBM/ITM"
+        - "/_opt_IBM_ITM_i"
+      ignore_errors: yes
+    - name: print_verify_itm
+      debug:
+        msg: "exists_itm_dir_{{ item.item | basename }}:{{ item.stat.exists | default(false) }}"
+      with_items: "{{ itm_dirs.results }}"
+
+    - name: "Check if Opsware agent directory and mid file exist"
+      stat:
+        path: "{{ item }}"
+      register: opsware_paths
+      with_items:
+        - "/opt/opsware/agent/bin"
+        - "/etc/opt/opsware/agent/mid"
+      ignore_errors: yes
+    - name: print_verify_opsware
+      debug:
+        msg: "exists_{{ item.item | basename | replace('/', '_') }}:{{ item.stat.exists | default(false) }}"
+      with_items: "{{ opsware_paths.results }}"
