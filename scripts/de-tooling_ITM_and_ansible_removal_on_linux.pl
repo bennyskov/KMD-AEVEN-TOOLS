@@ -547,6 +547,8 @@ sub stop_all_agents {
         # Example: db2por    60615      1  0 Feb13 ?        00:32:00 /opt/IBM/ITM/lx8266/ud/bin/kuddb2 kmdlnxblc001_db2por
         # $cmdexec = "ps -ef | grep -i /opt/IBM/ITM | grep -v grep | awk '{print $8}' | xargs -n1 basename | pkill -9 xargs 2>&1";
         # $cmdexec = "ps -ef | grep -i '/opt/IBM/ITM' | grep -v 'grep' | sed 's/  */ /g' | cut -d' ' -f8- | while read line; do pskill -f $line; done";
+        # $cmdexec = "ps -ef | grep -i '/opt/IBM/ITM' | grep -v 'grep' | sed 's/  */ /g' | cut -d' ' -f8- | while read line; do if [[ '$line' == *'/opt/IBM/ITM'* ]]; then pskill -f $line; fi; done"
+
         $cmdexec = "pkill -9 -f /opt/IBM/ITM/ 2>&1";
         if ( $debug ) { plog("\n$cmdexec\n"); }
         @out = `$cmdexec`;
