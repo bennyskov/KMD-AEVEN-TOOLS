@@ -1,6 +1,0 @@
----
-- name: "2.A2. Test - Unix"
-  block:
-    - name: "2.A2.A1. Test message"
-      debug:
-        msg: "{{ data }}"

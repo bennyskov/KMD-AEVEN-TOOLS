@@ -1,6 +1,0 @@
-# Technical account for AIM requirments
-# Limited to APP 
-# Host specific manual update needed
-
-# For Dynamic Automation IPSoft need root access
-%pimuxte ALL=(ALL) NOPASSWD: ALL

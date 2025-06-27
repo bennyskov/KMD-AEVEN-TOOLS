@@ -1,5 +1,0 @@
-# This allows the logon account to run the commands from a script
-Defaults:pimuxrc !requiretty
-# This allows the logon account to run the commands with sudo and no password (one line)
-pimuxrc ALL = (root) NOPASSWD: /bin/test *, /bin/touch *, /bin/chown *, /bin/cp *, /bin/echo *, /bin/chmod *, /bin/chown *, /bin/mv *, /bin/stat *, /bin/rmdir *, /bin/mkdir *, /usr/bin/test *, /usr/bin/touch *, /usr/bin/chown *, /usr/bin/cp *, /usr/bin/echo *, /usr/bin/chmod *, /usr/bin/chown *, /usr/bin/mv *, /usr/bin/stat *, /usr/bin/rmdir *, /usr/bin/mkdir *
-

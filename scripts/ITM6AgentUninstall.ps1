@@ -46,7 +46,7 @@ function Get-ITMStatusReport {
     $text = "--- ITM SERVICES ---"; Logline -logstring $text -step $step
     $itmServices = Get-Service | Where-Object {
         ($_.Name -match "^k" -and ($_.DisplayName -match "monitoring Agent" -or $_.DisplayName -like "*ITM*")) -or
-        (($_.Name -like "*IBM*" -or $_.Name -like "*Tivoli*") -and ($_.DisplayName -match "monitoring Agent" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*Candle*"))
+        (($_.Name -like "*IBM*" -or ($_.Name -like "*Tivoli*" -and $_.Name -notlike "*TSM*" -and $_.DisplayName -notlike "*Storage*")) -and ($_.DisplayName -match "monitoring Agent" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*Candle*"))
     }
 
     if($itmServices -and $itmServices.Count -gt 0) {
@@ -935,7 +935,7 @@ function Invoke-ForceUninstall {
     try {
         $servicesToRemove = Get-Service | Where-Object {
             ($_.Name -match "^k" -and ($_.DisplayName -match "monitoring Agent" -or $_.DisplayName -like "*ITM*")) -or
-            (($_.Name -like "*IBM*" -or $_.Name -like "*Tivoli*") -and ($_.DisplayName -match "monitoring Agent" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*Candle*"))
+            (($_.Name -like "*IBM*" -or ($_.Name -like "*Tivoli*" -and $_.Name -notlike "*TSM*" -and $_.DisplayName -notlike "*Storage*")) -and ($_.DisplayName -match "monitoring Agent" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*Candle*"))
         }
 
         if ($servicesToRemove -and $servicesToRemove.Count -gt 0) {
@@ -1623,9 +1623,12 @@ function Show-RemainingRegistryEntries {
         if (Test-Path $searchPath) {
             try {
                 if ($searchPath -like "*Services*") {
-                    # For services, look for ITM/Candle specific services
+                    # For services, look for ITM/Candle specific services, but exclude TSM (Tivoli Storage Manager)
                     $itmServices = Get-ChildItem -Path $searchPath -ErrorAction SilentlyContinue |
-                        Where-Object { $_.Name -match "(candle|itm|tivoli)" }
+                        Where-Object {
+                            $_.Name -match "(candle|itm)" -or
+                            ($_.Name -match "tivoli" -and $_.Name -notmatch "tsm|storage|sched|cad")
+                        }
 
                     if ($itmServices -and $itmServices.Count -gt 0) {
                         $foundRegistryEntries = $true
@@ -1635,9 +1638,12 @@ function Show-RemainingRegistryEntries {
                         }
                     }
                 } else {
-                    # For IBM paths, look for ITM/Tivoli specific entries
+                    # For IBM paths, look for ITM/Tivoli specific entries, but exclude TSM (Tivoli Storage Manager)
                     $itmEntries = Get-ChildItem -Path $searchPath -ErrorAction SilentlyContinue |
-                        Where-Object { $_.Name -match "(itm|tivoli|candle|monitoring)" }
+                        Where-Object {
+                            $_.Name -match "(itm|candle|monitoring)" -or
+                            ($_.Name -match "tivoli" -and $_.Name -notmatch "storage|tsm")
+                        }
 
                     if ($itmEntries -and $itmEntries.Count -gt 0) {
                         $foundRegistryEntries = $true
@@ -1713,6 +1719,21 @@ function Test-AdditionalDirectoriesRemoved {
                 } catch {
                     $text = "Error running handle.exe for $normalizedPath : $_"; Logline -logstring $text -step $step
                 }
+            }
+
+            # Change file attributes to normal before attempting removal
+            try {
+                $text = "Changing file attributes to normal for $normalizedPath"; Logline -logstring $text -step $step
+                Get-ChildItem -Path $normalizedPath -Recurse -Force -ErrorAction SilentlyContinue | ForEach-Object {
+                    try {
+                        $_.Attributes = 'Normal'
+                    } catch {
+                        # Ignore individual file attribute errors
+                    }
+                }
+                Start-Sleep -Seconds 1
+            } catch {
+                $text = "Warning: Could not change all file attributes in $normalizedPath : $_"; Logline -logstring $text -step $step
             }
 
             # Now try to remove the directory

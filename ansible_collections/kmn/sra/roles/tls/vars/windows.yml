@@ -1,7 +1,0 @@
----
-status_codes:
-  "default": "204"
-  "win_regedit":
-    "ok": "200"
-    "changed": "201"
-    "failed": "500"
