@@ -44,9 +44,23 @@ function Get-ITMStatusReport {
 
     # Check Services
     $text = "--- ITM SERVICES ---"; Logline -logstring $text -step $step
-    $itmServices = Get-Service | Where-Object {
-        ($_.Name -match "^k" -and ($_.DisplayName -match "monitoring Agent" -or $_.DisplayName -like "*ITM*")) -or
-        (($_.Name -like "*IBM*" -or ($_.Name -like "*Tivoli*" -and $_.Name -notlike "*TSM*" -and $_.DisplayName -notlike "*Storage*")) -and ($_.DisplayName -match "monitoring Agent" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*Candle*"))
+    try {
+        $itmServices = Get-ServicesWithFallback -ServicePattern "^k" -DisplayNamePattern "monitoring Agent"
+        if (-not $itmServices) {
+            $itmServices = Get-ServicesWithFallback | Where-Object {
+                ($_.Name -match "^k" -and ($_.DisplayName -match "monitoring Agent" -or $_.DisplayName -like "*ITM*")) -or
+                (($_.Name -like "*IBM*" -or ($_.Name -like "*Tivoli*" -and $_.Name -notlike "*TSM*" -and $_.DisplayName -notlike "*Storage*")) -and ($_.DisplayName -match "monitoring Agent" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*Candle*"))
+            }
+            # Explicitly filter out any TSM (Tivoli Storage Management) related services
+            $itmServices = $itmServices | Where-Object {
+                -not ($_.Name -like "*TSM*" -or $_.DisplayName -like "*TSM*" -or
+                      $_.DisplayName -like "*Tivoli Storage*" -or $_.DisplayName -like "*Storage Management*")
+            }
+        }
+    }
+    catch {
+        $text = "Error checking ITM services: $_"; Logline -logstring $text -step $step
+        $itmServices = @()
     }
 
     if($itmServices -and $itmServices.Count -gt 0) {
@@ -205,22 +219,10 @@ function Get-ITMStatusReport {
 # ${DisplayName}AgentUninstall.ps1  :      project de-tooling
 #
 # Objective:
-# For this script is to do a complete uninstall of ${DisplayName} agent and all legacy versions, if any on a given server.
-# Also check and uninstall if any legacy versions. But do not uninstall if an OpenText version exists on server.
-#
-# Steps performed:
-# • Start-ProductAgent - Starts any monitoring agents found, setting them to Automatic start
-# • Test-lastUninstall - Check for any hanging uninstall processes from previous runs
-# • Stop-ProductAgent - Stops all monitoring agent services using multiple methods if needed
-# • Uninstall-ProductAgent - Runs the uninstallation process using various methods (uninstaller, MSI, WMIC)
-# • Test-CleanupRegistry - Removes any leftover registry entries
-# • Test-CleanupProductFiles - Cleans up any remaining product files
-# • Test-IsAllGone - Final verification that all components are removed
 #
 # 2025-03-13  Initial release ( Benny.Skov@kyndryl.dk )
 #
 #>
-# ----------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------
 # begining - INIT
 # ----------------------------------------------------------------------------------------------------------------------------
@@ -248,8 +250,24 @@ $global:scriptTOP = $scriptarray[0..($scriptarray.Count - 3)] -join "/"
 $global:scriptDir = "${scriptTOP}/scripts"
 $global:scriptBin = "${scriptTOP}/bin"
 $global:logfile = "${scriptDir}/${scriptName}.log"
+# Convert log file path back to Windows format for compatibility
+$global:logfile = $global:logfile -replace "/", "\"
 if (Test-Path $logfile) { Remove-Item -Path $logfile -Force -ErrorAction SilentlyContinue }
 $global:continue = $true
+# ----------------------------------------------------------------------------------------------------------------------------
+# Helper Functions
+# ----------------------------------------------------------------------------------------------------------------------------
+function Test-CmdletAvailable {
+    param([string]$CmdletName)
+
+    try {
+        return [bool](Get-Command $CmdletName -ErrorAction SilentlyContinue)
+    }
+    catch {
+        return $false
+    }
+}
+
 # ----------------------------------------------------------------------------------------------------------------------------
 # Logline
 # ----------------------------------------------------------------------------------------------------------------------------
@@ -345,19 +363,23 @@ function Test-lastUninstall {
     try {
         # ${UninstName} = ''
         $continue = $true
-        if ( [bool]$(Get-WmiObject Win32_Process -ErrorAction SilentlyContinue | Where-Object Name -imatch "${UninstName}")) {
+        $runningProcesses = Get-ProcessesWithFallback -ProcessPattern "${UninstName}"
+        if ($runningProcesses) {
             $text = "stop ${UninstName} if UninstPath is still running from last run."; $step++; Logline -logstring $text -step $step
-            $result = $(Get-WmiObject Win32_Process -ErrorAction SilentlyContinue | Where-Object Name -imatch "${UninstName}") | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -PassThru }
-            Logline -logstring $result -step $step
+            foreach ($proc in $runningProcesses) {
+                Stop-ProcessWithFallback -ProcessName $proc.Name -ProcessId $proc.Id
+            }
         }
-        if ( [bool]$(Get-WmiObject Win32_Process -ErrorAction SilentlyContinue | Where-Object Name -imatch "${UninstName}")) {
+        $runningProcesses = Get-ProcessesWithFallback -ProcessPattern "${UninstName}"
+        if ($runningProcesses) {
             $text = "${UninstName} is still running. We try stopping it using psKill"; Logline -logstring $text -step $step
-            $cmdexec = "${scriptBin}/psKill -t $UninstName -accepteula -nobanner"
+            $cmdexec = "$scriptBin\pskill.exe -t $UninstName -accepteula -nobanner"
             Logline -logstring $cmdexec -step $step
             $result = & cmd /C $cmdexec
             Logline -logstring $result -step $step
 
-            if ( [bool]$(Get-WmiObject Win32_Process -ErrorAction SilentlyContinue | Where-Object Name -imatch "${UninstName}")) {
+            $runningProcesses = Get-ProcessesWithFallback -ProcessPattern "${UninstName}"
+            if ($runningProcesses) {
                 $text = "${UninstName} is still running. We must break now"; Logline -logstring $result -step $step
                 $continue = $false
             }
@@ -375,7 +397,7 @@ function Start-ProductAgent {
     try {
         $IsAgentsStarted = $false
         $text = "Start ${DisplayName} agents"; $step++; Logline -logstring $text -step $step
-        $services = Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }
+        $services = Get-ServicesWithFallback -ServicePattern "${ServiceName}" -DisplayNamePattern "${DisplayName}"
 
         if ($services.Count -gt 0) {
             $text = "Found $($services.Count) services matching pattern '${ServiceName}' with display name matching '${DisplayName}'"; Logline -logstring $text -step $step
@@ -389,11 +411,11 @@ function Start-ProductAgent {
             if ( -not $($service).Name -imatch "FCProvider" ) {
                 $text = "Processing service: $($service.Name) ($($service.DisplayName))"; Logline -logstring $text -step $step
                 $text = "Stopping service $($service.Name)..."; Logline -logstring $text -step $step
-                $service | Stop-Service
+                Stop-ServiceWithFallback -ServiceName $service.Name
                 $text = "Setting startup type to Automatic for $($service.Name)..."; Logline -logstring $text -step $step
                 $service | Set-Service -StartupType Automatic
                 $text = "Starting service $($service.Name)..."; Logline -logstring $text -step $step
-                $service | Start-Service
+                Start-ServiceWithFallback -ServiceName $service.Name
                 $text = "Service $($service.Name) status: $($service.Status)"; Logline -logstring $text -step $step
             }
             else {
@@ -415,7 +437,7 @@ function Start-ProductAgent {
     $text = "Agents started status: $IsAgentsStarted"; Logline -logstring $text -step $step $text = "Final services status:"; Logline -logstring $text -step $step
     Show-AgentStatus
 
-    $runningServices = Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" -and $_.Status -eq "Running" }
+    $runningServices = Get-ServicesWithFallback -ServicePattern "${ServiceName}" -DisplayNamePattern "${DisplayName}" | Where-Object { $_.Status -eq "Running" }
 
     if ($runningServices -and $runningServices.Count -gt 0) {
         $text = "Monitoring agent services running: $($runningServices.Count)"; Logline -logstring $text -step $step
@@ -433,7 +455,7 @@ function Stop-ProductAgent {
         $IsAgentsStopped = $false
         if ( -not $IsAgentsStopped ) {
             $text = "stop Method 1: Stop all ${DisplayName} agents using Stop-Service"; $step++; Logline -logstring $text -step $step
-            $servicesToStop = Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }
+            $servicesToStop = Get-ServicesWithFallback -ServicePattern "${ServiceName}" -DisplayNamePattern "${DisplayName}"
 
             if ($servicesToStop -and $servicesToStop.Count -gt 0) {
                 $text = "Found $($servicesToStop.Count) monitoring agent services to stop"; Logline -logstring $text -step $step
@@ -445,14 +467,40 @@ function Stop-ProductAgent {
 
             foreach ($service in $servicesToStop) {
                 if ( $disable ) { $service | Set-Service -StartupType Disabled }
-                $service | Stop-Service -force
+                Stop-ServiceWithFallback -ServiceName $service.Name
             }
             if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
         }
 
         if ( -not $IsAgentsStopped ) {
-            $text = "stop Method 2: Stop ${DisplayName} using WMI Terminate"; $step++; Logline -logstring $text -step $step
-            $ReturnValue = $(Get-WmiObject Win32_Process -ErrorAction SilentlyContinue | Where-Object CommandLine -match "${CommandLine}" | ForEach-Object { $_.Terminate() }).ReturnValue
+            $text = "stop Method 2: Stop ${DisplayName} using process termination"; $step++; Logline -logstring $text -step $step
+
+            # Try WMI first if available
+            $ReturnValue = @()
+            if (Test-CmdletAvailable "Get-WmiObject") {
+                try {
+                    $ReturnValue = $(Get-WmiObject Win32_Process -ErrorAction SilentlyContinue | Where-Object CommandLine -match "${CommandLine}" | ForEach-Object { $_.Terminate() }).ReturnValue
+                } catch {
+                    $text = "WMI process termination failed: $_"; Logline -logstring $text -step $step
+                }
+            }
+
+            # Fallback to direct process killing by name patterns
+            if (-not $ReturnValue) {
+                $processNames = @("k06agent", "kcawd", "kntcma", "klzagent", "k*agent")
+                foreach ($processName in $processNames) {
+                    $processes = Get-ProcessesWithFallback -ProcessPattern $processName
+                    foreach ($proc in $processes) {
+                        $success = Stop-ProcessWithFallback -ProcessName $proc.Name -ProcessId $proc.Id
+                        if ($success) {
+                            $text = "Successfully killed process: $($proc.Name) (ID: $($proc.Id))"; Logline -logstring $text -step $step
+                        } else {
+                            $text = "Failed to kill process $($proc.Name) (ID: $($proc.Id))"; Logline -logstring $text -step $step
+                        }
+                    }
+                }
+            }
+
             if ($ReturnValue) {
                 foreach ($rc in $ReturnValue) {
                     if ( -not $rc -eq 0 ) {
@@ -465,7 +513,7 @@ function Stop-ProductAgent {
 
         if ( -not $IsAgentsStopped ) {
             $text = "stop Method 3: Stop ${DisplayName} using 'net stop service'"; $step++; Logline -logstring $text -step $step
-            $servicesToStop = $(Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }).Name
+            $servicesToStop = $(Get-ServicesWithFallback -ServicePattern "${ServiceName}" -DisplayNamePattern "${DisplayName}").Name
             foreach ($service in $servicesToStop) {
                 $cmdexec = "net stop $service"
                 $result = & cmd /C $cmdexec
@@ -476,10 +524,10 @@ function Stop-ProductAgent {
 
         if ( -not $IsAgentsStopped ) {
             $text = "stop Method 4: Stop ${DisplayName} using 'psKill service'"; $step++; Logline -logstring $text -step $step
-            $servicesToKill = Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }
+            $servicesToKill = Get-ServicesWithFallback -ServicePattern "${ServiceName}" -DisplayNamePattern "${DisplayName}"
             foreach ($service in $servicesToKill) {
                 $text = "${service} is still running. We try stopping it using psKill"; Logline -logstring $result -step $step
-                $cmdexec = "${scriptBin}/psKill -t $service -accepteula -nobanner"
+                $cmdexec = "$scriptBin\pskill.exe -t $service -accepteula -nobanner"
                 Logline -logstring $cmdexec -step $step
                 $result = & cmd /C $cmdexec
                 Logline -logstring $result -step $step
@@ -489,10 +537,10 @@ function Stop-ProductAgent {
 
         if ( -not $IsAgentsStopped ) {
             $text = "stop and disable services"; $step++; Logline -logstring $text -step $step
-            $servicesToStop = Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }
+            $servicesToStop = Get-ServicesWithFallback -ServicePattern "${ServiceName}" -DisplayNamePattern "${DisplayName}"
             foreach ($service in $servicesToStop) {
                 if ( $disable ) { $service | Set-Service -StartupType Disabled }
-                $service | Stop-Service -force
+                Stop-ServiceWithFallback -ServiceName $service.Name
             }
             Logline -logstring "$result"
             if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
@@ -508,43 +556,48 @@ function Stop-ProductAgent {
 function Uninstall-ProductAgent {
     $text = "run Uninstall ${DisplayName} Agents"; $step++; Logline -logstring $text -step $step
 
-    if ( Test-IsAgentsStopped -eq $true ) {
-        if (Test-Path "$UninstPath") {
-            try {
-                $text = "Executing ${UninstName} with parameters: $UninstCmdexec"; Logline -logstring $text -step $step
+    # Always try to run ITMRmvAll.exe if it exists, regardless of service state
+    if (Test-Path "$UninstPath") {
+        try {
+            $text = "Executing ${UninstName} with parameters: $UninstCmdexec"; Logline -logstring $text -step $step
 
-                # Convert array to a proper command string
-                # $cmdString = "cmd /C " + ($UninstCmdexec -join ' ')
-                $cmdString = "cmd /C ${UninstCmdexec}"
-                $text = "Command to execute: $cmdString"; Logline -logstring $text -step $step
+            # Convert array to a proper command string
+            # $cmdString = "cmd /C " + ($UninstCmdexec -join ' ')
+            $cmdString = "cmd /C ${UninstCmdexec}"
+            $text = "Command to execute: $cmdString"; Logline -logstring $text -step $step
 
-                # Execute the command
-                $result = Invoke-Expression $cmdString
-                $rc = $?
+            # Execute the command
+            $result = Invoke-Expression $cmdString
+            $rc = $?
 
-                if ( $rc ) {
-                    Logline -logstring "Success. rc=$rc result=$result" -step $step
-                }
-                else {
-                    Logline -logstring "Failed. rc=$rc result=$result" -step $step
-                }
-
-                $text = "${UninstPath} execution completed"; Logline -logstring $text -step $step
+            if ( $rc ) {
+                Logline -logstring "Success. rc=$rc result=$result" -step $step
             }
-            catch {
-                $text = "${UninstName} error: $_"; Logline -logstring $text -step $step
+            else {
+                Logline -logstring "Failed. rc=$rc result=$result" -step $step
             }
+
+            $text = "${UninstPath} execution completed"; Logline -logstring $text -step $step
         }
+        catch {
+            $text = "${UninstName} error: $_"; Logline -logstring $text -step $step
+        }
+    } else {
+        $text = "ITMRmvAll.exe not found at: $UninstPath"; Logline -logstring $text -step $step
     }
 
     if ( Test-IsAllGone -eq $false ) {
         $text = "uninstall via MsiExec for direct uninstall (if other methods fail)"; $step++; Logline -logstring $text -step $step
         try {
-            $clientMsi = Get-WmiObject -Class Win32_Product -ErrorAction SilentlyContinue | Where-Object { $_.Description -like "*${DisplayName}*" }
-            if ($clientMsi) {
-                $text = "Uninstalling via MSI: $($clientMsi.Name)"; Logline -logstring $text -step $step
-                $result = $clientMsi.Uninstall()
-                $text = "MSI uninstall result: $($result.ReturnValue)"; Logline -logstring $text -step $step
+            if (Test-CmdletAvailable "Get-WmiObject") {
+                $clientMsi = Get-WmiObject -Class Win32_Product -ErrorAction SilentlyContinue | Where-Object { $_.Description -like "*${DisplayName}*" }
+                if ($clientMsi) {
+                    $text = "Uninstalling via MSI: $($clientMsi.Name)"; Logline -logstring $text -step $step
+                    $result = $clientMsi.Uninstall()
+                    $text = "MSI uninstall result: $($result.ReturnValue)"; Logline -logstring $text -step $step
+                }
+            } else {
+                $text = "Get-WmiObject not available - skipping MSI uninstall method"; Logline -logstring $text -step $step
             }
         }
         catch {
@@ -654,48 +707,183 @@ function Test-CleanupRegistry {
         }
     }
 
+    # Clean up ITM services by deleting them from the system
+    $text = "Removing ITM services from the system"; Logline -logstring $text -step $step
+    try {
+        $servicesToRemove = Get-ServicesWithFallback | Where-Object {
+            ($_.Name -match "^k" -and ($_.DisplayName -match "monitoring Agent" -or $_.DisplayName -like "*ITM*")) -or
+            (($_.Name -like "*IBM*" -or ($_.Name -like "*Tivoli*" -and $_.Name -notlike "*TSM*" -and $_.DisplayName -notlike "*Storage*")) -and ($_.DisplayName -match "monitoring Agent" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*Candle*"))
+        }
+
+        # Explicitly filter out any TSM (Tivoli Storage Management) related services
+        $servicesToRemove = $servicesToRemove | Where-Object {
+            -not ($_.Name -like "*TSM*" -or $_.DisplayName -like "*TSM*" -or
+                  $_.DisplayName -like "*Tivoli Storage*" -or $_.DisplayName -like "*Storage Management*")
+        }
+
+        if ($servicesToRemove -and $servicesToRemove.Count -gt 0) {
+            foreach ($svc in $servicesToRemove) {
+                $text = "Removing service: $($svc.Name)"; Logline -logstring $text -step $step
+
+                # First, stop the service if it's running
+                try {
+                    Stop-ServiceWithFallback -ServiceName $svc.Name
+                    Start-Sleep -Seconds 2
+
+                    # Use SC delete to remove the service
+                    $cmdString = "sc.exe delete $($svc.Name)"
+                    $text = "Executing: $cmdString"; Logline -logstring $text -step $step
+                    $result = & cmd /C $cmdString
+                    $text = "SC delete result: $result"; Logline -logstring $text -step $step
+
+                    if ($result -match "SUCCESS") {
+                        $text = "Successfully removed service: $($svc.Name)"; Logline -logstring $text -step $step
+                    }
+                }
+                catch {
+                    $text = "Error removing service $($svc.Name): $_"; Logline -logstring $text -step $step
+                    $isAllRegistryGone = $false
+                }
+            }
+        } else {
+            $text = "No ITM services found to remove"; Logline -logstring $text -step $step
+        }
+    }
+    catch {
+        $text = "Error removing services: $_"; Logline -logstring $text -step $step
+        $isAllRegistryGone = $false
+    }
+
     return $isAllRegistryGone
 }
 
 function Stop-AllITMProcesses {
     $text = "Forcefully terminating all IBM/ITM related processes"; $step++; Logline -logstring $text -step $step
 
-    # Stop any processes related to IBM or ITM
-    $processesToStop = Get-Process | Where-Object {
-        ($_.Name -match "^k" -and ($_.Path -like "*IBM\ITM*" -or $_.Company -like "*IBM*")) -or
-        (($_.Company -like "*IBM*" -or $_.Name -like "*ITM*") -and $_.Path -like "*IBM\ITM*")
-    }
+    # Define specific ITM process names to target
+    $itmProcessNames = @(
+        "k06agent",
+        "kcawd",
+        "kntcma",
+        "kdc",
+        "kdh",
+        "klz",
+        "kul",
+        "kux",
+        "kpx",
+        "kuira",
+        "kglprm",
+        "kglmain"
+    )
 
-    if ($processesToStop -and $processesToStop.Count -gt 0) {
-        $text = "Found $($processesToStop.Count) processes to terminate"; Logline -logstring $text -step $step
-        $processesToStop | Select-Object Id, Name, Path | Format-Table -AutoSize | Out-String -Width 300 | ForEach-Object { Logline -logstring $_ -step $step }
+    $processesKilled = $false
 
-        foreach ($process in $processesToStop) {
-            try {
-                $text = "Stopping process $($process.Name) (PID: $($process.Id))"; Logline -logstring $text -step $step
-                $process | Stop-Process -Force -ErrorAction SilentlyContinue
+    # Method 1: Try using Get-Process if available
+    try {
+        if (Test-CmdletAvailable "Get-Process") {
+            $processesToStop = Get-Process | Where-Object {
+                ($_.Name -match "^k" -and ($_.Path -like "*IBM\ITM*" -or $_.Company -like "*IBM*")) -or
+                (($_.Company -like "*IBM*" -or $_.Name -like "*ITM*") -and $_.Path -like "*IBM\ITM*") -or
+                ($itmProcessNames -contains $_.Name)
             }
-            catch {
-                $text = "Failed to stop process $($process.Name) : $_"; Logline -logstring $text -step $step
-                try {
-                    # Try with pskill as fallback
-                    $cmdexec = "${binDir}/pskill -t $processId -accepteula -nobanner"
-                    $text = "Attempting fallback pskill: $cmdexec"; Logline -logstring $text -step $step
-                    $result = & cmd /C $cmdexec
-                    Logline -logstring "$result" -step $step
-                }
-                catch {
-                    $text = "pskill also failed: $_"; Logline -logstring $text -step $step
+
+            if ($processesToStop -and $processesToStop.Count -gt 0) {
+                $text = "Found $($processesToStop.Count) processes to terminate using Get-Process"; Logline -logstring $text -step $step
+                $processesToStop | Select-Object Id, Name, Path | Format-Table -AutoSize | Out-String -Width 300 | ForEach-Object { Logline -logstring $_ -step $step }
+
+                foreach ($process in $processesToStop) {
+                    $success = Stop-ProcessWithFallback -ProcessName $process.Name -ProcessId $process.Id
+                    if ($success) {
+                        $text = "Successfully stopped process $($process.Name) (PID: $($process.Id))"; Logline -logstring $text -step $step
+                        $processesKilled = $true
+                    } else {
+                        $text = "Failed to stop process $($process.Name) (PID: $($process.Id))"; Logline -logstring $text -step $step
+                    }
                 }
             }
         }
+    }
+    catch {
+        $text = "Get-Process method failed: $_"; Logline -logstring $text -step $step
+    }
 
-        return $true
+    # Method 2: Use tasklist and taskkill as fallback
+    try {
+        $text = "Using tasklist/taskkill method for ITM processes"; Logline -logstring $text -step $step
+
+        foreach ($processName in $itmProcessNames) {
+            try {
+                # Check if process exists using tasklist
+                $tasklistOutput = & cmd /C "tasklist /FI `"IMAGENAME eq $processName.exe`" /FO CSV" 2>$null
+
+                if ($tasklistOutput -and $tasklistOutput.Count -gt 1) {
+                    $text = "Found running process: $processName.exe"; Logline -logstring $text -step $step
+
+                    # Kill the process using taskkill
+                    $killResult = & cmd /C "taskkill /F /IM `"$processName.exe`" /T" 2>$null
+                    $text = "taskkill result for ${processName}.exe: $killResult"; Logline -logstring $text -step $step
+                    $processesKilled = $true
+                }
+            }                catch {
+                    $text = "Error checking/killing process ${processName}.exe: $_"; Logline -logstring $text -step $step
+            }
+        }
     }
-    else {
+    catch {
+        $text = "tasklist/taskkill method failed: $_"; Logline -logstring $text -step $step
+    }
+
+    # Method 3: Use pskill if available
+    if (Test-Path "$scriptBin\pskill.exe") {
+        try {
+            $text = "Using pskill method for remaining ITM processes"; Logline -logstring $text -step $step
+
+            foreach ($processName in $itmProcessNames) {
+                try {
+                    $pskillResult = & "$scriptBin\pskill.exe" -t $processName -accepteula -nobanner 2>$null
+                    if ($pskillResult -and $pskillResult -notmatch "not found") {
+                        $text = "pskill result for ${processName}: $pskillResult"; Logline -logstring $text -step $step
+                        $processesKilled = $true
+                    }
+                }
+                catch {
+                    $text = "pskill failed for ${processName}: $_"; Logline -logstring $text -step $step
+                }
+            }
+        }
+        catch {
+            $text = "pskill method failed: $_"; Logline -logstring $text -step $step
+        }
+    }
+
+    # Method 4: Use wmic as final fallback
+    try {
+        $text = "Using wmic method as final fallback"; Logline -logstring $text -step $step
+
+        foreach ($processName in $itmProcessNames) {
+            try {
+                $wmicResult = & cmd /C "wmic process where `"name='$processName.exe'`" delete" 2>$null
+                if ($wmicResult -and $wmicResult -match "successful") {
+                    $text = "wmic successfully terminated $processName.exe"; Logline -logstring $text -step $step
+                    $processesKilled = $true
+                }
+            }                catch {
+                    $text = "wmic failed for ${processName}.exe: $_"; Logline -logstring $text -step $step
+            }
+        }
+    }
+    catch {
+        $text = "wmic method failed: $_"; Logline -logstring $text -step $step
+    }
+
+    if ($processesKilled) {
+        $text = "ITM processes termination completed - waiting 3 seconds for cleanup"; Logline -logstring $text -step $step
+        Start-Sleep -Seconds 3
+    } else {
         $text = "No IBM/ITM processes found to terminate"; Logline -logstring $text -step $step
-        return $true
     }
+
+    return $true
 }
 
 function Remove-BlockedPath {
@@ -762,36 +950,47 @@ function Test-CleanupProductFiles {
 
     $text = "cleanup all product files, if uninstall didnt do it"; $step++; Logline -logstring $text -step $step
     foreach (${path} in $global:RemoveDirs) {
-        ${path} = [System.Text.RegularExpressions.Regex]::Replace(${path}, "\\", "/")
+        ${path} = [System.Text.RegularExpressions.Regex]::Replace(${path}, "\", "/")
         if (Test-Path ${path}) {
-            $text = "Attempting to remove directory: ${path}"; Logline -logstring $text -step $step
+            $text = "Found directory to remove: ${path}"; Logline -logstring $text -step $step
+
+            if (${path} -like "*BigFix*") {
+                $text = "Attempting to set permissions for ${path}"; Logline -logstring $text -step $step
+                try {
+                    $text = "Taking ownership of ${path}"; Logline -logstring $text -step $step
+                    $takeownCmd = "takeown /F `"${path}`" /R /A"
+                    Invoke-Expression $takeownCmd | Out-Null
+
+                    $text = "Granting full control to Administrators for ${path}"; Logline -logstring $text -step $step
+                    $icaclsCmd = "icacls `"${path}`" /grant Administrators:F /T /C /Q"
+                    Invoke-Expression $icaclsCmd | Out-Null
+                }
+                catch {
+                    $text = "ERROR: Failed to set permissions for ${path}: $_"; Logline -logstring $text -step $step
+                }
+            }
+
             $result = Remove-BlockedPath -path ${path}
             if (-not $result) {
-                $filesNotRemoved += ${path}
                 $isAllFilesGone = $false
+                $filesNotRemoved += ${path}
             }
         }
         else {
-            $text = "Path does not exist: ${path}"; Logline -logstring $text -step $step
+            $text = "Directory not found (already removed): ${path}"; Logline -logstring $text -step $step
         }
 
         if ( $isAllFilesGone ) {
-            $result = "success. All Agents files are removed"
-            Logline -logstring $result -step $step
+            $text = "SUCCESS: all files are gone"; Logline -logstring $text -step $step
         }
         else {
-            if ( $filesNotRemoved.Count -gt 0 ) {
-                $text = "filesNotRemoved=" + $filesNotRemoved.Count; Logline -logstring $text -step $step
-                foreach (${path} in $filesNotRemoved) {
-                    Logline -logstring $line -step $step
-                }
-            }
+            $text = "WARNING: some files could not be removed"; Logline -logstring $text -step $step
         }
     }
     return $isAllFilesGone
 }
 function Show-AgentStatus {
-    $services = $(Get-Service | Where-Object { $_.Name -imatch "${ServiceName}" -and $_.DisplayName -imatch "${DisplayName}" })
+    $services = Get-ServicesWithFallback -ServicePattern "${ServiceName}" -DisplayNamePattern "${DisplayName}"
 
     if ($services.Count -gt 0) {
         $text = "Found $($services.Count) services matching criteria"; Logline -logstring $text -step $step
@@ -806,8 +1005,17 @@ function Show-AgentStatus {
 }
 function Test-IsAgentsStopped {
 
-    $serviceExists = $(Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }).Name
-    $processExists = $(Get-Process | Where-Object { $_.ProcessName -match "${ServiceName}" -and $_.Description -match "${DisplayName}" }).ProcessName
+    $serviceExists = $(Get-ServicesWithFallback -ServicePattern "${ServiceName}" -DisplayNamePattern "${DisplayName}").Name
+
+    # Use Get-ProcessesWithFallback instead of Get-Process for restricted environments
+    try {
+        $itmProcesses = Get-ProcessesWithFallback | Where-Object { $_.Name -match "${ServiceName}" }
+        $processExists = $itmProcesses.Name
+    }
+    catch {
+        $processExists = @()
+    }
+
     $serviceExists | format-table -autosize | Out-string -Width 300
     $processExists | format-table -autosize | Out-string -Width 300
 
@@ -845,8 +1053,16 @@ function Test-IsAllGone {
         }
     }
     $isRegistryGone = -not [bool]$(Test-Path "HKLM:\SOFTWARE\Candle")
-    $serviceExists = [bool]$(Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" })
-    $processExists = [bool]$(Get-Process | Where-Object { $_.ProcessName -match "${ServiceName}" -and $_.Description -match "${DisplayName}" })
+    $serviceExists = [bool]$(Get-ServicesWithFallback -ServicePattern "${ServiceName}" -DisplayNamePattern "${DisplayName}")
+
+    # Use Get-ProcessesWithFallback instead of Get-Process for restricted environments
+    try {
+        $itmProcesses = Get-ProcessesWithFallback | Where-Object { $_.Name -match "${ServiceName}" }
+        $processExists = [bool]($itmProcesses -and $itmProcesses.Count -gt 0)
+    }
+    catch {
+        $processExists = $false
+    }
 
     # Also check for remaining ITM entries in Programs and Features
     $programsAndFeaturesEntries = @()
@@ -933,7 +1149,7 @@ function Invoke-ForceUninstall {
     $text = "Forcibly removing ITM services from registry"; Logline -logstring $text -step $step
 
     try {
-        $servicesToRemove = Get-Service | Where-Object {
+        $servicesToRemove = Get-ServicesWithFallback | Where-Object {
             ($_.Name -match "^k" -and ($_.DisplayName -match "monitoring Agent" -or $_.DisplayName -like "*ITM*")) -or
             (($_.Name -like "*IBM*" -or ($_.Name -like "*Tivoli*" -and $_.Name -notlike "*TSM*" -and $_.DisplayName -notlike "*Storage*")) -and ($_.DisplayName -match "monitoring Agent" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*Candle*"))
         }
@@ -944,7 +1160,7 @@ function Invoke-ForceUninstall {
 
                 # First, kill processes associated with service
                 try {
-                    $svc | Stop-Service -Force -ErrorAction SilentlyContinue
+                    Stop-ServiceWithFallback -ServiceName $svc.Name
                     Start-Sleep -Seconds 2
 
                     # Use SC delete as a more forceful approach
@@ -1024,24 +1240,12 @@ function Invoke-ForceUninstall {
                                 }
 
                                 # If handle closing didn't work, kill the process
-                                try {
-                                    $text = "Attempting to kill locking process: $processName (PID: $processId)"; Logline -logstring $text -step $step
-                                    Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+                                $text = "Attempting to kill locking process: $processName (PID: $processId)"; Logline -logstring $text -step $step
+                                $success = Stop-ProcessWithFallback -ProcessName $processName -ProcessId $processId
+                                if ($success) {
                                     $text = "Successfully killed process: $processName (PID: $processId)"; Logline -logstring $text -step $step
-                                }
-                                catch {
-                                    $text = "Failed to kill process $processName (PID: $processId): $_"; Logline -logstring $text -step $step
-
-                                    # Try with pskill as backup
-                                    try {
-                                        $pskillCmd = "${scriptBin}/pskill.exe -t $processId -accepteula -nobanner"
-                                        $text = "Attempting pskill: $pskillCmd"; Logline -logstring $text -step $step
-                                        $pskillResult = & cmd /C $pskillCmd
-                                        $text = "Pskill result: $pskillResult"; Logline -logstring $text -step $step
-                                    }
-                                    catch {
-                                        $text = "Pskill also failed: $_"; Logline -logstring $text -step $step
-                                    }
+                                } else {
+                                    $text = "Failed to kill process $processName (PID: $processId) with all methods"; Logline -logstring $text -step $step
                                 }
                             }
                         }
@@ -1116,6 +1320,9 @@ function Invoke-ForceUninstall {
         $envVars = [Environment]::GetEnvironmentVariables([EnvironmentVariableTarget]::Machine)
         foreach ($varName in $envVars.Keys) {
             $varValue = $envVars[$varName]
+
+
+
             if ($varValue -like "*IBM\ITM*" -or $varValue -like "*Tivoli*" -or
                 $varName -like "*CANDLEHOME*" -or $varName -like "*ITM*") {
                 $text = "Removing environment variable: $varName = $varValue"; Logline -logstring $text -step $step
@@ -1187,6 +1394,7 @@ function Invoke-ForceUninstall {
                     $text = "Error force removing registry key $regKey : $_"; Logline -logstring $text -step $step
 
                     # Final attempt with direct WMI registry manipulation
+
                     try {
                         $text = "Final attempt using WMI StdRegProv for $regKey"; Logline -logstring $text -step $step
                         $regProvider = [wmiclass]"\\.\root\default:StdRegProv"
@@ -1307,19 +1515,14 @@ function Invoke-ForceUninstall {
                                         $processName = $matches[1].Trim()
                                         $processId = $matches[2].Trim()
                                         $handleId = $matches[3].Trim()
+                                        $filePath = $matches[4].Trim()
 
                                         $text = "Killing locking process: $processName (PID: $processId)"; Logline -logstring $text -step $step
-                                        try {
-                                            Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
-                                        }
-                                        catch {
-                                                                                       try {
-                                                $pskillCmd = "${scriptBin}/pskill.exe -t $processId -accepteula -nobanner"
-                                                & cmd /C $pskillCmd
-                                            }
-                                            catch {
-                                                $text = "Failed to kill process $processId"; Logline -logstring $text -step $step
-                                            }
+                                        $success = Stop-ProcessWithFallback -ProcessName $processName -ProcessId $processId
+                                        if ($success) {
+                                            $text = "Successfully killed process: $processName (PID: $processId)"; Logline -logstring $text -step $step
+                                        } else {
+                                            $text = "Failed to kill process $processName (PID: $processId) with all methods"; Logline -logstring $text -step $step
                                         }
                                     }
                                 }
@@ -1372,19 +1575,11 @@ function Invoke-ForceUninstall {
                                     $handleId = $matches[3].Trim()
 
                                     $text = "Killing locking process for root directory: $processName (PID: $processId)"; Logline -logstring $text -step $step
-                                    try {
-                                        Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+                                    $success = Stop-ProcessWithFallback -ProcessName $processName -ProcessId $processId
+                                    if ($success) {
                                         $text = "Successfully killed process: $processName (PID: $processId)"; Logline -logstring $text -step $step
-                                    }
-                                    catch {
-                                        try {
-                                            $pskillCmd = "${scriptBin}/pskill.exe -t $processId -accepteula -nobanner"
-                                            $pskillResult = & cmd /C $pskillCmd
-                                            $text = "Pskill result for PID $processId : $pskillResult"; Logline -logstring $text -step $step
-                                        }
-                                        catch {
-                                            $text = "Failed to kill process $processId with pskill: $_"; Logline -logstring $text -step $step
-                                        }
+                                    } else {
+                                        $text = "Failed to kill process $processId with all methods"; Logline -logstring $text -step $step
                                     }
                                 }
                             }
@@ -1610,53 +1805,20 @@ function Show-RemainingRegistryEntries {
         }
     }
 
-    # Check for any other IBM/ITM related registry entries using broader search
+    # Perform a broader search for any remaining IBM/ITM references in the registry
     $text = "Performing broader registry search for IBM/ITM references"; Logline -logstring $text -step $step
+    $allServices = Get-ServicesWithFallback
 
-    $broadSearchPaths = @(
-        "HKLM:\SOFTWARE\IBM",
-        "HKLM:\SOFTWARE\Wow6432Node\IBM",
-        "HKLM:\SYSTEM\CurrentControlSet\Services"
-    )
+    # Filter for services that might be ITM-related, excluding TSM
+    $itmRelatedServices = $allServices | Where-Object {
+        ($_.Name -like "*IBM*" -or $_.DisplayName -like "*IBM*" -or $_.Name -like "*Tivoli*" -or $_.DisplayName -like "*Tivoli*" -or $_.Name -like "*Candle*" -or $_.DisplayName -like "*Candle*") -and
+        ($_.Name -notlike "*TSM*" -and $_.DisplayName -notlike "*TSM*" -and $_.DisplayName -notlike "*Tivoli Storage*" -and $_.DisplayName -notlike "*Storage Management*")
+    }
 
-    foreach ($searchPath in $broadSearchPaths) {
-        if (Test-Path $searchPath) {
-            try {
-                if ($searchPath -like "*Services*") {
-                    # For services, look for ITM/Candle specific services, but exclude TSM (Tivoli Storage Manager)
-                    $itmServices = Get-ChildItem -Path $searchPath -ErrorAction SilentlyContinue |
-                        Where-Object {
-                            $_.Name -match "(candle|itm)" -or
-                            ($_.Name -match "tivoli" -and $_.Name -notmatch "tsm|storage|sched|cad")
-                        }
-
-                    if ($itmServices -and $itmServices.Count -gt 0) {
-                        $foundRegistryEntries = $true
-                        $text = "WARNING: Found $($itmServices.Count) ITM-related service registry entries"; Logline -logstring $text -step $step
-                        foreach ($service in $itmServices) {
-                            $text = "  - Service: $($service.PSChildName)"; Logline -logstring $text -step $step
-                        }
-                    }
-                } else {
-                    # For IBM paths, look for ITM/Tivoli specific entries, but exclude TSM (Tivoli Storage Manager)
-                    $itmEntries = Get-ChildItem -Path $searchPath -ErrorAction SilentlyContinue |
-                        Where-Object {
-                            $_.Name -match "(itm|candle|monitoring)" -or
-                            ($_.Name -match "tivoli" -and $_.Name -notmatch "storage|tsm")
-                        }
-
-                    if ($itmEntries -and $itmEntries.Count -gt 0) {
-                        $foundRegistryEntries = $true
-                        $text = "WARNING: Found $($itmEntries.Count) ITM-related entries under $searchPath"; Logline -logstring $text -step $step
-                        foreach ($entry in $itmEntries) {
-                            $text = "  - $($entry.PSChildName)"; Logline -logstring $text -step $step
-                        }
-                    }
-                }
-            }
-            catch {
-                $text = "Error searching $searchPath : $_"; Logline -logstring $text -step $step
-            }
+    if ($itmRelatedServices -and $itmRelatedServices.Count -gt 0) {
+        $text = "WARNING: Found $($itmRelatedServices.Count) potentially ITM-related service registry entries"; Logline -logstring $text -step $step
+        foreach ($svc in $itmRelatedServices) {
+            $text = "  - Service: $($svc.DisplayName)"; Logline -logstring $text -step $step
         }
     }
 
@@ -1765,17 +1927,294 @@ function Test-AdditionalDirectoriesRemoved {
     $text = "--- END OF ADDITIONAL DIRECTORIES CHECK ---"; Logline -logstring $text -step $step
 }
 # ----------------------------------------------------------------------------------------------------------------------------
-# Helper function to safely check cmdlet availability without triggering auto-imports
+# Enhanced service management functions for restricted environments
 # ----------------------------------------------------------------------------------------------------------------------------
-function Test-CmdletAvailable {
-    param([string]$CmdletName)
+
+function Get-ServicesWithFallback {
+    param([string]$ServicePattern = "", [string]$DisplayNamePattern = "")
+
+    $services = @()
+
+    # Method 1: Try Get-Service if available
     try {
-        $cmd = Get-Command $CmdletName -ErrorAction SilentlyContinue
-        return ($null -ne $cmd)
+        if (Test-CmdletAvailable "Get-Service") {
+            $allServices = Get-Service -ErrorAction SilentlyContinue
+            if ($ServicePattern -and $DisplayNamePattern) {
+                $services = $allServices | Where-Object {
+                    $_.Name -match $ServicePattern -and $_.DisplayName -match $DisplayNamePattern
+                }
+            } elseif ($ServicePattern) {
+                $services = $allServices | Where-Object { $_.Name -match $ServicePattern }
+            } elseif ($DisplayNamePattern) {
+                $services = $allServices | Where-Object { $_.DisplayName -match $DisplayNamePattern }
+            } else {
+                $services = $allServices
+            }
+            return $services
+        }
     }
     catch {
-        return $false
+        $text = "Get-Service method failed: $_"; Logline -logstring $text -step $step
     }
+
+    # Method 2: Use sc query as fallback
+    try {
+        $text = "Using 'sc query' fallback method for service enumeration"; Logline -logstring $text -step $step
+        $scOutput = & cmd /C "sc query" 2>$null
+
+        if ($scOutput) {
+            $serviceLines = $scOutput | Where-Object { $_ -match "SERVICE_NAME: (.+)" }
+            foreach ($line in $serviceLines) {
+                if ($line -match "SERVICE_NAME: (.+)") {
+                    $serviceName = $matches[1].Trim()
+
+                    # Get additional details if patterns are specified
+                    if ($ServicePattern -or $DisplayNamePattern) {
+                        $serviceDetails = & cmd /C "sc qc `"$serviceName`"" 2>$null
+                        $displayName = ""
+
+                        if ($serviceDetails) {
+                            $displayNameLine = $serviceDetails | Where-Object { $_ -match "DISPLAY_NAME\s*:\s*(.+)" }
+                            if ($displayNameLine -and $displayNameLine -match "DISPLAY_NAME\s*:\s*(.+)") {
+                                $displayName = $matches[1].Trim()
+                            }
+                        }
+
+                        # Apply filters
+                        $matchesPattern = $true
+                        if ($ServicePattern -and $serviceName -notmatch $ServicePattern) { $matchesPattern = $false }
+                        if ($DisplayNamePattern -and $displayName -notmatch $DisplayNamePattern) { $matchesPattern = $false }
+
+                        if ($matchesPattern) {
+                            $services += [PSCustomObject]@{
+                                Name = $serviceName
+                                DisplayName = $displayName
+                                Status = "Unknown"
+                            }
+                        }
+                    } else {
+                        $services += [PSCustomObject]@{
+                            Name = $serviceName
+                            DisplayName = "Unknown"
+                            Status = "Unknown"
+                        }
+                    }
+                }
+            }
+        }
+    }
+    catch {
+        $text = "sc query fallback method failed: $_"; Logline -logstring $text -step $step
+    }
+
+    return $services
+}
+
+function Stop-ServiceWithFallback {
+    param([string]$ServiceName)
+
+    $success = $false
+
+    # Method 1: Try Stop-Service if available
+    try {
+        if (Test-CmdletAvailable "Get-Service" -and Test-CmdletAvailable "Stop-Service") {
+            $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+            if ($service) {
+                $text = "Stopping service $ServiceName using Stop-Service"; Logline -logstring $text -step $step
+                $service | Stop-Service -Force -ErrorAction Stop
+                $success = $true
+                return $success
+            }
+        }
+    }
+    catch {
+        $text = "Stop-Service method failed for $ServiceName : $_"; Logline -logstring $text -step $step
+    }
+
+    # Method 2: Use net stop as fallback
+    try {
+        $text = "Stopping service $ServiceName using 'net stop'"; Logline -logstring $text -step $step
+        $netResult = & cmd /C "net stop `"$ServiceName`"" 2>$null
+        if ($netResult -and $netResult -match "successfully|stopped") {
+            $text = "net stop successful for $ServiceName"; Logline -logstring $text -step $step
+            $success = $true
+            return $success
+        }
+    }
+    catch {
+        $text = "net stop failed for $ServiceName : $_"; Logline -logstring $text -step $step
+    }
+
+    # Method 3: Use sc stop as final fallback
+    try {
+        $text = "Stopping service $ServiceName using 'sc stop'"; Logline -logstring $text -step $step
+        $scResult = & cmd /C "sc stop `"$ServiceName`"" 2>$null
+        if ($scResult -and $scResult -match "STOP_PENDING|STOPPED") {
+            $text = "sc stop successful for $ServiceName"; Logline -logstring $text -step $step
+            $success = $true
+        }
+    }
+    catch {
+        $text = "sc stop failed for $ServiceName : $_"; Logline -logstring $text -step $step
+    }
+
+    return $success
+}
+
+function Stop-ProcessWithFallback {
+    param(
+        [Parameter(Mandatory=$true)][string]$ProcessName,
+        [string]$ProcessId = ""
+    )
+
+    $success = $false
+    $processName = $ProcessName -replace "\.exe$", ""  # Remove .exe extension if present
+
+    # Method 1: Try Stop-Process if available
+    try {
+        if (Test-CmdletAvailable "Stop-Process" -and Test-CmdletAvailable "Get-Process") {
+            if ($ProcessId) {
+                $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+                if ($process) {
+                    $text = "Stopping process $($process.Name) (PID: $ProcessId) using Stop-Process"; Logline -logstring $text -step $step
+                    Stop-Process -Id $ProcessId -Force -ErrorAction Stop
+                    $success = $true
+                }
+            } else {
+                $processes = Get-Process -Name $processName -ErrorAction SilentlyContinue
+                foreach ($proc in $processes) {
+                    $text = "Stopping process $($proc.Name) (PID: $($proc.Id)) using Stop-Process"; Logline -logstring $text -step $step
+                    Stop-Process -Id $proc.Id -Force -ErrorAction Stop
+                    $success = $true
+                }
+            }
+        }
+    }
+    catch {
+        $text = "Stop-Process method failed for $processName : $_"; Logline -logstring $text -step $step
+    }
+
+    # Method 2: Try taskkill as fallback
+    if (-not $success) {
+        try {
+            if ($ProcessId) {
+                $text = "Stopping process (PID: $ProcessId) using taskkill"; Logline -logstring $text -step $step
+                $killResult = & cmd /C "taskkill /F /PID `"$ProcessId`" /T" 2>$null
+            } else {
+                $text = "Stopping process $processName using taskkill"; Logline -logstring $text -step $step
+                $killResult = & cmd /C "taskkill /F /IM `"$processName.exe`" /T" 2>$null
+            }
+
+            if ($? -or ($killResult -and $killResult -match "SUCCESS|TERMINATED")) {
+                $text = "taskkill successful for $processName"; Logline -logstring $text -step $step
+                $success = $true
+            }
+        }
+        catch {
+            $text = "taskkill failed for $processName : $_"; Logline -logstring $text -step $step
+        }
+    }
+
+    # Method 3: Try pskill if available
+    if (-not $success -and (Test-Path "$scriptBin\pskill.exe")) {
+        try {
+            if ($ProcessId) {
+                $text = "Stopping process (PID: $ProcessId) using pskill"; Logline -logstring $text -step $step
+                $pskillResult = & "$scriptBin\pskill.exe" -t $ProcessId -accepteula -nobanner 2>$null
+            } else {
+                $text = "Stopping process $processName using pskill"; Logline -logstring $text -step $step
+                $pskillResult = & "$scriptBin\pskill.exe" -t $processName -accepteula -nobanner 2>$null
+            }
+
+            if ($pskillResult -and $pskillResult -notmatch "not found|Process not found") {
+                $text = "pskill successful for $processName : $pskillResult"; Logline -logstring $text -step $step
+                $success = $true
+            } else {
+                $text = "pskill reported process not found for $processName"; Logline -logstring $text -step $step
+            }
+        }
+        catch {
+            $text = "pskill failed for $processName : $_"; Logline -logstring $text -step $step
+        }
+    }
+
+    # Method 4: Try wmic as final fallback
+    if (-not $success) {
+        try {
+            if ($ProcessId) {
+                $text = "Stopping process (PID: $ProcessId) using wmic"; Logline -logstring $text -step $step
+                $wmicResult = & cmd /C "wmic process where `"processid='$ProcessId'`" delete" 2>$null
+            } else {
+                $text = "Stopping process $processName using wmic"; Logline -logstring $text -step $step
+                $wmicResult = & cmd /C "wmic process where `"name='$processName.exe'`" delete" 2>$null
+            }
+
+            if ($wmicResult -and $wmicResult -match "successful") {
+                $text = "wmic successfully terminated $processName"; Logline -logstring $text -step $step
+                $success = $true
+            }
+        }
+        catch {
+            $text = "wmic failed for $processName : $_"; Logline -logstring $text -step $step
+        }
+    }
+
+    return $success
+}
+
+function Get-ProcessesWithFallback {
+    param([string]$ProcessPattern = "")
+
+    $processes = @()
+
+    # Method 1: Try Get-Process if available
+    try {
+        if (Test-CmdletAvailable "Get-Process") {
+            $allProcesses = Get-Process -ErrorAction SilentlyContinue
+            if ($ProcessPattern) {
+                $processes = $allProcesses | Where-Object { $_.Name -match $ProcessPattern }
+            } else {
+                $processes = $allProcesses
+            }
+            return $processes
+        }
+    }
+    catch {
+        $text = "Get-Process method failed: $_"; Logline -logstring $text -step $step
+    }
+
+    # Method 2: Use tasklist as fallback
+    try {
+        $text = "Using 'tasklist' fallback method for process enumeration"; Logline -logstring $text -step $step
+
+        if ($ProcessPattern) {
+            $tasklistOutput = & cmd /C "tasklist /FI `"IMAGENAME eq $ProcessPattern*`" /FO CSV" 2>$null
+        } else {
+            $tasklistOutput = & cmd /C "tasklist /FO CSV" 2>$null
+        }
+
+        if ($tasklistOutput -and $tasklistOutput.Count -gt 1) {
+            # Skip header line and process CSV output
+            for ($i = 1; $i -lt $tasklistOutput.Count; $i++) {
+                $line = $tasklistOutput[$i]
+                if ($line -match '"([^"]+)","([^"]+)"') {
+                    $processName = $matches[1].Replace(".exe", "")
+                    $processId = $matches[2]
+
+                    $processes += [PSCustomObject]@{
+                        Name = $processName
+                        Id = $processId
+                        Path = "Unknown"
+                    }
+                }
+            }
+        }
+    }
+    catch {
+        $text = "tasklist fallback method failed: $_"; Logline -logstring $text -step $step
+    }
+
+    return $processes
 }
 
 # ----------------------------------------------------------------------------------------------------------------------------
