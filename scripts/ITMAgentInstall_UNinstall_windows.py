@@ -1120,32 +1120,32 @@ if Install:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # cleaupTemp
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-if cleaupTemp:
-    files = ['smitoolConfigZIP.zip','smitoolScriptZIP.zip','ITM_win_6307SP14-349-1KMD.zip','rtems.csv','ITMRmvAll.exe','ITMRmvAll.log','PortablePython.zip']
-    try:
-        for file in files:
-            file = f'{workdir}/{file}'
-            if os.path.isfile(file):
-                os.remove(file)
-            if debug:
-                text = 'zipfile is removed '+ str(file);logging.info(text)
-    except Exception as e:
-        if debug:
-            text = f'file {str(file)} is NOT removed. Error: {str(e)}';logging.warning(text)
-    # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-    # cleanup dir
-    # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-    try:
-        dirlist = ['ITM_win_6307SP14-349-1KMD','PortablePython']
-        for dirname in dirlist:
-            dirname = f"{workdir}/{dirname}"
-            if os.path.isdir(dirname):
-                shutil.rmtree(dirname)
-                if debug:
-                    text = 'extracted zip dir is removed '+ str(dirname);logging.info(text)
-    except Exception as e:
-        if debug:
-            text = f'extracted zip dir {str(file)} is NOT removed. Error: {str(e)}';logging.warning(text)
+# if cleaupTemp:
+#     files = ['smitoolConfigZIP.zip','smitoolScriptZIP.zip','ITM_win_6307SP14-349-1KMD.zip','rtems.csv','ITMRmvAll.exe','ITMRmvAll.log','PortablePython.zip']
+#     try:
+#         for file in files:
+#             file = f'{workdir}/{file}'
+#             if os.path.isfile(file):
+#                 os.remove(file)
+#             if debug:
+#                 text = 'zipfile is removed '+ str(file);logging.info(text)
+#     except Exception as e:
+#         if debug:
+#             text = f'file {str(file)} is NOT removed. Error: {str(e)}';logging.warning(text)
+#     # ----------------------------------------------------------------------------------------------------------------------------------------------------------
+#     # cleanup dir
+#     # ----------------------------------------------------------------------------------------------------------------------------------------------------------
+#     try:
+#         dirlist = ['ITM_win_6307SP14-349-1KMD','PortablePython']
+#         for dirname in dirlist:
+#             dirname = f"{workdir}/{dirname}"
+#             if os.path.isdir(dirname):
+#                 shutil.rmtree(dirname)
+#                 if debug:
+#                     text = 'extracted zip dir is removed '+ str(dirname);logging.info(text)
+#     except Exception as e:
+#         if debug:
+#             text = f'extracted zip dir {str(file)} is NOT removed. Error: {str(e)}';logging.warning(text)
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # show environtment after Install de-Install
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1164,4 +1164,26 @@ if debug:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 # THE END
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
-f_end(RC, debug)
+def force_cleanup_and_exit(rc):
+    """Force cleanup and exit"""
+    try:
+        # Close database connections
+        if 'con' in globals() and con:
+            con.close()
+
+        # Close logging handlers
+        for handler in logging.root.handlers[:]:
+            handler.close()
+            logging.root.removeHandler(handler)
+
+        # Call your existing cleanup
+        f_end(con, nodename, debug)
+
+    except Exception as e:
+        print(f"Cleanup error: {e}")
+    finally:
+        # Force exit
+        os._exit(rc)
+
+# Replace your final lines with:
+force_cleanup_and_exit(RC)
