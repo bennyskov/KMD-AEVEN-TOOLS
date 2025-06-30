@@ -51,19 +51,18 @@ $global:scriptName = $myinvocation.mycommand.Name
 #
 # Steps performed:
 # • Get-ITMStatusReport - Collects comprehensive information about ITM installation before uninstallation
-# • Get-InstallationLogs - Gathers installation logs before and after uninstall, filtering irrelevant messages and only checking the most recent log file
+# • Get-InstallationLogs - Gathers installation logs before and after uninstall for comparison
 # • Start-ProductAgent - Starts any monitoring agents found, setting them to Automatic start
 # • Test-lastUninstall - Check for any hanging uninstall processes from previous runs
 # • Stop-ProductAgent - Stops all monitoring agent services using multiple methods if needed
 # • Find-LockedFiles - Identifies any locked files that might prevent removal
 # • Stop-AllITMProcesses - Forcefully terminates any remaining ITM-related processes
 # • Uninstall-ProductAgent - Runs the uninstallation process using various methods (uninstaller, MSI, WMIC)
-# • Reset-FileAttributes - Recursively resets read-only, hidden, and system attributes on files to facilitate removal
 # • Test-CleanupRegistry - Removes any leftover registry entries
 # • Test-CleanupProductFiles - Cleans up any remaining product files
 # • Test-IsAllGone - Final verification that all components are removed
 # • Invoke-ForceUninstall - Emergency cleanup for stubborn installations (if needed)
-# • Test-AdditionalDirectoriesRemoved - Removes related directories with aggressive permission resets (ansible, BigFix, ilmt)
+# • Test-AdditionalDirectoriesRemoved - Removes related directories (ansible, BigFix, ilmt)
 # • Show-RemainingRegistryEntries - Final scan for any leftover registry entries
 #
 # 2025-03-13  Initial release ( Benny.Skov@kyndryl.dk )
@@ -129,43 +128,6 @@ Function Logline {
     else {
         Write-Host $text -ForegroundColor Cyan
     }
-}
-
-# ----------------------------------------------------------------------------------------------------------------------------
-# Test-LogMessageRelevance - Determine if a log message is relevant to ITM uninstallation
-# ----------------------------------------------------------------------------------------------------------------------------
-function Test-LogMessageRelevance {
-    param (
-        [string]$Message
-    )
-
-    # Skip if message is empty or too short
-    if ([string]::IsNullOrWhiteSpace($Message) -or $Message.Length -lt 10) {
-        return $false
-    }
-
-    # List of terms that indicate a message is relevant to ITM
-    $relevantTerms = @(
-        'IBM', 'Tivoli', 'ITM', 'monitoring agent', 'candle',
-        'TEMA', 'itmcmd', 'kincinfo', 'kbbsspc', 'KCIIN',
-        'install manager', 'agent', 'uninstall'
-    )
-
-    # Check if message contains any relevant terms (case-insensitive)
-    $containsRelevantTerm = ($relevantTerms | Where-Object { $Message -match [regex]::Escape($_) }).Count -gt 0
-
-    # List of exclusion terms that indicate a message should be ignored
-    $exclusionTerms = @(
-        'OFFICECL', 'click-to-run', 'appmodel', 'telemetry',
-        'Microsoft Office', 'Visual Studio', 'Windows Feature',
-        'chocolatey', 'appx', 'Microsoft Edge', 'OneDrive'
-    )
-
-    # Check if message contains any exclusion terms (case-insensitive)
-    $containsExclusionTerm = ($exclusionTerms | Where-Object { $Message -match [regex]::Escape($_) }).Count -gt 0
-
-    # Message is relevant if it contains a relevant term and doesn't contain any exclusion terms
-    return $containsRelevantTerm -and -not $containsExclusionTerm
 }
 # ----------------------------------------------------------------------------------------------------------------------------
 #
@@ -312,8 +274,7 @@ function Get-ITMStatusReport {
     try {
         if (Test-CmdletAvailable "Get-WmiObject") {
             $itmProducts = Get-WmiObject -Class Win32_Product -ErrorAction SilentlyContinue | Where-Object {
-                (($_.Name -like "*IBM*" -or $_.Vendor -like "*IBM*") -and ($_.Name -like "*Tivoli*" -or $_.Name -like "*ITM*" -or $_.Name -like "*Monitoring*" -or $_.Name -like "*Candle*")) -and
-                -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.Name -Publisher $_.Vendor)
+                (($_.Name -like "*IBM*" -or $_.Vendor -like "*IBM*") -and ($_.Name -like "*Tivoli*" -or $_.Name -like "*ITM*" -or $_.Name -like "*Monitoring*" -or $_.Name -like "*Candle*"))
             }
         }
         else {
@@ -368,6 +329,27 @@ function Get-ITMStatusReport {
     }
     else {
         $text = "No ITM processes currently running"; Logline -logstring $text -step $step
+    }
+
+    # Check for ITM scheduled tasks
+    $text = "--- ITM SCHEDULED TASKS ---"; Logline -logstring $text -step $step
+    try {
+        $itmTasks = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object {
+            ($_.TaskName -like "*IBM*" -and ($_.TaskName -like "*ITM*" -or $_.TaskName -like "*Tivoli*" -or $_.TaskName -like "*monitoring*")) -or
+            ($_.Description -like "*IBM*" -and ($_.Description -like "*ITM*" -or $_.Description -like "*Tivoli*" -or $_.Description -like "*monitoring*"))
+        }
+
+        if ($itmTasks -and $itmTasks.Count -gt 0) {
+            $text = "Found $($itmTasks.Count) ITM related scheduled tasks"; Logline -logstring $text -step $step
+            $itmTasks | Select-Object TaskName, State | Format-Table -AutoSize |
+            Out-String -Width 300 | ForEach-Object { Logline -logstring $_ -step $step }
+        }
+        else {
+            $text = "No ITM scheduled tasks found"; Logline -logstring $text -step $step
+        }
+    }
+    catch {
+        $text = "Error checking scheduled tasks: $_"; Logline -logstring $text -step $step
     }
 
     $text = "----- END OF ITM STATUS REPORT -----"; Logline -logstring $text -step $step
@@ -599,30 +581,24 @@ function Uninstall-ProductAgent {
         $text = "Attempting to find and uninstall by product GUID"; $step++; Logline -logstring $text -step $step
         try {
             # Find any IBM ITM related products
-            # Find product GUIDs where the line contains ALL: IBM, Tivoli, and ITM (in any order)
-            $guidCmd = "wmic product get name,identifyingnumber | findstr /I 'IBM' | findstr /I 'Tivoli' | findstr /I 'ITM'"
+            $guidCmd = "wmic product get name,identifyingnumber | findstr /i ""IBM Tivoli ITM"""
             $guidResults = Invoke-Expression $guidCmd
             Logline -logstring "Found product GUIDs: $guidResults" -step $step
 
-            # Extract GUIDs using regex, only if $guidResults is not null or empty
-            if (![string]::IsNullOrWhiteSpace($guidResults)) {
-                $guidMatches = [regex]::Matches($guidResults, '{([0-9A-F-]+)}')
-                if ($guidMatches.Count -gt 0) {
-                    foreach ($match in $guidMatches) {
-                        $guid = $match.Groups[1].Value
-                        $text = "Found GUID: $guid - attempting direct uninstall"; Logline -logstring $text -step $step
-                        $uninstCmd = "msiexec.exe /x {$guid} /qn"
-                        Logline -logstring "Running: $uninstCmd" -step $step
-                        $result = Invoke-Expression $uninstCmd
-                        Start-Sleep -Seconds 10  # Give uninstall some time
-                    }
-                }
-                else {
-                    $text = "No product GUIDs found for direct uninstall"; Logline -logstring $text -step $step
+            # Extract GUIDs using regex
+            $guidMatches = [regex]::Matches($guidResults, '{([0-9A-F-]+)}')
+            if ($guidMatches.Count -gt 0) {
+                foreach ($match in $guidMatches) {
+                    $guid = $match.Groups[1].Value
+                    $text = "Found GUID: $guid - attempting direct uninstall"; Logline -logstring $text -step $step
+                    $uninstCmd = "msiexec.exe /x {$guid} /qn"
+                    Logline -logstring "Running: $uninstCmd" -step $step
+                    $result = Invoke-Expression $uninstCmd
+                    Start-Sleep -Seconds 10  # Give uninstall some time
                 }
             }
             else {
-                $text = "No product GUIDs found for direct uninstall (wmic output empty)"; Logline -logstring $text -step $step
+                $text = "No product GUIDs found for direct uninstall"; Logline -logstring $text -step $step
             }
         }
         catch {
@@ -668,7 +644,7 @@ function Test-CleanupRegistry {
                     $props -and (
                             ($props.DisplayName -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*")) -or
                             ($props.Publisher -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*"))
-                    ) -and -not (Test-ShouldExcludeFromITMUninstall -DisplayName $props.DisplayName -Publisher $props.Publisher)
+                    )
                 }
 
                 foreach ($entry in $uninstallEntries) {
@@ -747,237 +723,51 @@ function Remove-BlockedPath {
         return $false
     }
 
-    # First try recursive deletion from deepest subdirectories
-    if (Test-Path ${path} -PathType Container) {
-        $text = "Attempting recursive deletion from deepest subdirectories: ${path} (depth: $depth)"; Logline -logstring $text -step $step
-
-        try {
-            # Get all subdirectories sorted by depth (deepest first)
-            $subDirectories = Get-ChildItem -Path ${path} -Directory -Recurse -ErrorAction SilentlyContinue |
-                Sort-Object @{Expression={($_.FullName -split '\\').Count}; Descending=$true}
-
-            # Delete subdirectories from deepest to shallowest
-            foreach ($subDir in $subDirectories) {
-                if (Test-Path $subDir.FullName) {
-                    $text = "Removing subdirectory: $($subDir.FullName)"; Logline -logstring $text -step $step
-                    try {
-                        # Reset attributes first
-                        Reset-FileAttributes -path $subDir.FullName
-                        Remove-Item -Path $subDir.FullName -Recurse -Force -ErrorAction Stop
-                        $text = "Successfully removed subdirectory: $($subDir.FullName)"; Logline -logstring $text -step $step
-                    }
-                    catch {
-                        $text = "WARNING: Denied to remove subdirectory $($subDir.FullName): $_, tryieng a lower directory"; Logline -logstring $text -step $step
-                        # Try handle on this specific subdirectory
-                        $result = Invoke-HandleOnPath -targetPath $subDir.FullName
-                        if ($result) {
-                            try {
-                                Remove-Item -Path $subDir.FullName -Recurse -Force -ErrorAction Stop
-                                $text = "Successfully removed subdirectory after handle cleanup: $($subDir.FullName)"; Logline -logstring $text -step $step
-                            }
-                            catch {
-                                $text = "Still failed to remove subdirectory after handle cleanup: $($subDir.FullName) - $_"; Logline -logstring $text -step $step
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        catch {
-            $text = "Error during recursive subdirectory cleanup: $_"; Logline -logstring $text -step $step
-        }
-    }
-
-    # Try to delete the main path
+    # Try to delete the path
     try {
-        $text = "Attempting to remove main path: ${path} (depth: $depth)"; Logline -logstring $text -step $step
+        $text = "Attempting to remove: ${path} (depth: $depth)"; Logline -logstring $text -step $step
         Remove-Item -Path ${path} -Recurse -Force
         $text = "Successfully removed: ${path}"; Logline -logstring $text -step $step
         return $true
     }
     catch {
-        $errorMsg = $_.ToString()
-        $text = "Failed to remove: ${path} - $errorMsg"; Logline -logstring $text -step $step
-
-        # Extract blocked file/directory path from error message
-        $deniedPathMatch = [regex]::Match($errorMsg, "Access to the path '([^']+)' is denied")
-        $cannotAccessMatch = [regex]::Match($errorMsg, "Cannot remove item (.*?): The process cannot access the file")
-
-        $targetPath = $null
-        if ($deniedPathMatch.Success) {
-            $targetPath = $deniedPathMatch.Groups[1].Value
-            $text = "Extracted denied path: $targetPath"; Logline -logstring $text -step $step
-        }
-        elseif ($cannotAccessMatch.Success) {
-            $targetPath = $cannotAccessMatch.Groups[1].Value.Trim()
-            $text = "Extracted blocked file path: $targetPath"; Logline -logstring $text -step $step
-        }
-        elseif ($blockedFilePath) {
-            $targetPath = $blockedFilePath
-        }
-        else {
-            # If we can't extract the specific path, use the main path
-            $targetPath = ${path}
-        }
-
-        # Run handle on the specific problematic path
-        if ($targetPath) {
-            $text = "Running handle.exe on problematic path: $targetPath"; Logline -logstring $text -step $step
-            $handleResult = Invoke-HandleOnPath -targetPath $targetPath
-
-            if ($handleResult) {
-                # Wait for processes to terminate
-                Start-Sleep -Seconds 2
-
-                # Try deletion again after handle cleanup
-                try {
-                    $text = "Retrying deletion after handle cleanup: ${path}"; Logline -logstring $text -step $step
-                    Remove-Item -Path ${path} -Recurse -Force
-                    $text = "Successfully removed after handle cleanup: ${path}"; Logline -logstring $text -step $step
-                    return $true
-                }
-                catch {
-                    $text = "Still failed after handle cleanup: ${path} - $_"; Logline -logstring $text -step $step
-
-                    # Try recursive call with increased depth
-                    if ($depth -lt 3) {
-                        $text = "Attempting recursive retry with depth $($depth + 1)"; Logline -logstring $text -step $step
-                        Start-Sleep -Seconds 1
-                        return Remove-BlockedPath -path ${path} -blockedFilePath $targetPath -depth ($depth + 1)
-                    }
-                }
+        # Extract blocked file path if not already known
+        if (-not $blockedFilePath) {
+            $errorMsg = $_.ToString()
+            $filePathMatch = [regex]::Match($errorMsg, "Cannot remove item (.*?): The process cannot access the file")
+            if ($filePathMatch.Success) {
+                $blockedFilePath = $filePathMatch.Groups[1].Value
+                $text = "Found blocked file: $blockedFilePath"; Logline -logstring $text -step $step
             }
         }
 
+        if ($blockedFilePath) {
+            # Run handle on blocked file
+            $handleCmd = "${binDir}/handle `"$blockedFilePath`" -accepteula -nobanner"
+            $handleResult = & cmd /C $handleCmd
+            Logline -logstring "Handle result: $handleResult" -step $step
+
+            # Parse handle output
+            $handleRegex = [regex]::Match($handleResult, "pid:\s*(\d+).*?type:\s*File\s*([0-9A-F]+):")
+            if ($handleRegex.Success) {
+                $processId = $handleRegex.Groups[1].Value.Trim()
+                $handleId = $handleRegex.Groups[2].Value.Trim()
+
+                # Close handle
+                $cmdexec = "${binDir}/handle -c $handleId -y -p ${processId} -accepteula -nobanner"
+                Logline -logstring "Executing: $cmdexec" -step $step
+                $closeResult = & cmd /C $cmdexec
+                Logline -logstring $closeResult -step $step
+
+                # Recursive call to retry deletion
+                return Remove-BlockedPath -path ${path} -blockedFilePath $null -depth ($depth + 1)
+            }
+        }
+
+        $text = "Failed to remove: ${path} - $_"; Logline -logstring $text -step $step
         return $false
     }
 }
-
-# Helper function to run handle.exe on a specific path and kill locking processes
-function Invoke-HandleOnPath {
-    param(
-        [string]$targetPath
-    )
-
-    try {
-        $handleCmd = "${scriptBin}/handle.exe `"$targetPath`" -accepteula -nobanner"
-        $text = "Executing: $handleCmd"; Logline -logstring $text -step $step
-        $handleResult = & cmd /C $handleCmd
-        $text = "Handle result for $targetPath : $handleResult"; Logline -logstring $text -step $step
-
-        # Parse handle output and kill locking processes
-        $handleLines = $handleResult -split "`n"
-        $processesKilled = $false
-
-        foreach ($line in $handleLines) {
-            if ($line -match "^(.+?\.exe)\s+pid:\s*(\d+)\s+type:\s*File\s+([0-9A-Fa-f]+):\s*(.+)") {
-                $processName = $matches[1].Trim()
-                $processId = $matches[2].Trim()
-                $handleId = $matches[3].Trim()
-                $filePath = $matches[4].Trim()
-
-                $text = "Found locking process: $processName (PID: $processId) holding handle $handleId to $filePath"; Logline -logstring $text -step $step
-
-                # Try to close the specific handle first
-                try {
-                    $closeHandleCmd = "${scriptBin}/handle.exe -c $handleId -y -p $processId -accepteula -nobanner"
-                    $text = "Attempting to close handle: $closeHandleCmd"; Logline -logstring $text -step $step
-                    $closeResult = & cmd /C $closeHandleCmd
-                    $text = "Close handle result: $closeResult"; Logline -logstring $text -step $step
-                }
-                catch {
-                    $text = "Failed to close handle, will try killing process: $_"; Logline -logstring $text -step $step
-                }
-
-                # Try to kill the process
-                try {
-                    $text = "Attempting to kill locking process: $processName (PID: $processId)"; Logline -logstring $text -step $step
-                    Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
-                    $text = "Successfully killed process: $processName (PID: $processId)"; Logline -logstring $text -step $step
-                    $processesKilled = $true
-                }
-                catch {
-                    $text = "Failed to kill process $processName (PID: $processId): $_"; Logline -logstring $text -step $step
-
-                    # Try with pskill as backup
-                    try {
-                        $pskillCmd = "${scriptBin}/pskill.exe -t $processId -accepteula -nobanner"
-                        $text = "Attempting pskill: $pskillCmd"; Logline -logstring $text -step $step
-                        $pskillResult = & cmd /C $pskillCmd
-                        $text = "Pskill result: $pskillResult"; Logline -logstring $text -step $step
-                        $processesKilled = $true
-                    }
-                    catch {
-                        $text = "Pskill also failed: $_"; Logline -logstring $text -step $step
-                    }
-                }
-            }
-        }
-
-        return $processesKilled
-    }
-    catch {
-        $text = "Error running handle.exe on $targetPath : $_"; Logline -logstring $text -step $step
-        return $false
-    }
-}
-
-# ----------------------------------------------------------------------------------------------------------------------------
-# Reset-FileAttributes - Recursively clears read-only, hidden and system attributes on files/folders
-# ----------------------------------------------------------------------------------------------------------------------------
-function Reset-FileAttributes {
-    param(
-        [string]$path
-    )
-
-    try {
-        # Check if path exists
-        if (-not (Test-Path -Path $path)) {
-            return $false
-        }
-
-        # Reset attributes on the directory itself
-        $folder = Get-Item -Path $path -Force -ErrorAction SilentlyContinue
-        if ($folder -and ($folder.Attributes -band [System.IO.FileAttributes]::ReadOnly -or
-                           $folder.Attributes -band [System.IO.FileAttributes]::Hidden -or
-                           $folder.Attributes -band [System.IO.FileAttributes]::System)) {
-            $folder.Attributes = $folder.Attributes -band -bnot ([System.IO.FileAttributes]::ReadOnly -bor
-                                                                 [System.IO.FileAttributes]::Hidden -bor
-                                                                 [System.IO.FileAttributes]::System)
-        }
-
-        # Reset attributes on all child files
-        Get-ChildItem -Path $path -File -Force -Recurse -ErrorAction SilentlyContinue |
-        ForEach-Object {
-            if ($_.Attributes -band [System.IO.FileAttributes]::ReadOnly -or
-                $_.Attributes -band [System.IO.FileAttributes]::Hidden -or
-                $_.Attributes -band [System.IO.FileAttributes]::System) {
-                $_.Attributes = $_.Attributes -band -bnot ([System.IO.FileAttributes]::ReadOnly -bor
-                                                          [System.IO.FileAttributes]::Hidden -bor
-                                                          [System.IO.FileAttributes]::System)
-            }
-        }
-
-        # Reset attributes on all child directories
-        Get-ChildItem -Path $path -Directory -Force -Recurse -ErrorAction SilentlyContinue |
-        ForEach-Object {
-            if ($_.Attributes -band [System.IO.FileAttributes]::ReadOnly -or
-                $_.Attributes -band [System.IO.FileAttributes]::Hidden -or
-                $_.Attributes -band [System.IO.FileAttributes]::System) {
-                $_.Attributes = $_.Attributes -band -bnot ([System.IO.FileAttributes]::ReadOnly -bor
-                                                          [System.IO.FileAttributes]::Hidden -bor
-                                                          [System.IO.FileAttributes]::System)
-            }
-        }
-
-        return $true
-    }
-    catch {
-        $text = "Error resetting file attributes on $path : $_"; Logline -logstring $text -step $step
-        return $false
-    }
-}
-
 function Test-CleanupProductFiles {
 
     $isAllFilesGone = $true
@@ -987,26 +777,11 @@ function Test-CleanupProductFiles {
     foreach (${path} in $global:RemoveDirs) {
         ${path} = [System.Text.RegularExpressions.Regex]::Replace(${path}, "\\", "/")
         if (Test-Path ${path}) {
-            # First reset file attributes to enable deletion
-            $text = "Resetting file attributes to prepare for deletion: ${path}"; Logline -logstring $text -step $step
-            Reset-FileAttributes -path ${path}
-
-            # Sleep briefly to allow filesystem to update
-            Start-Sleep -Milliseconds 500
-
             $text = "Attempting to remove directory: ${path}"; Logline -logstring $text -step $step
             $result = Remove-BlockedPath -path ${path}
-
-            # If first attempt fails, try one more time after a brief pause
             if (-not $result) {
-                $text = "First removal attempt failed, retrying after pause: ${path}"; Logline -logstring $text -step $step
-                Start-Sleep -Seconds 2
-                $result = Remove-BlockedPath -path ${path}
-
-                if (-not $result) {
-                    $filesNotRemoved += ${path}
-                    $isAllFilesGone = $false
-                }
+                $filesNotRemoved += ${path}
+                $isAllFilesGone = $false
             }
         }
         else {
@@ -1089,13 +864,11 @@ function Test-IsAllGone {
     # Also check for remaining ITM entries in Programs and Features
     $programsAndFeaturesEntries = @()
     $programsAndFeaturesEntries += Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
-    Where-Object { (($_.DisplayName -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) -or
-                              ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
-                             -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
+    Where-Object { ($_.DisplayName -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) -or
+                              ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) }
     $programsAndFeaturesEntries += Get-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
-    Where-Object { (($_.DisplayName -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) -or
-                              ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
-                             -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
+    Where-Object { ($_.DisplayName -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) -or
+                              ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) }
 
     $noProgramsAndFeaturesEntries = ($programsAndFeaturesEntries.Count -eq 0)
 
@@ -1111,13 +884,11 @@ function Invoke-ForceUninstall {
     try {
         $products = @()
         $products += Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
-        Where-Object { (($_.DisplayName -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) -or
-                                  ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
-                                 -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
+        Where-Object { ($_.DisplayName -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) -or
+                                  ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) }
         $products += Get-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
-        Where-Object { (($_.DisplayName -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) -or
-                                  ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
-                                 -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
+        Where-Object { ($_.DisplayName -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) -or
+                                  ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) }
 
         if ($products -and $products.Count -gt 0) {
             $text = "Found $($products.Count) IBM/ITM related products"; Logline -logstring $text -step $step
@@ -1265,7 +1036,7 @@ function Invoke-ForceUninstall {
                                     $text = "Failed to close handle, will try killing process: $_"; Logline -logstring $text -step $step
                                 }
 
-                                # Try to kill the process
+                                # If handle closing didn't work, kill the process
                                 try {
                                     $text = "Attempting to kill locking process: $processName (PID: $processId)"; Logline -logstring $text -step $step
                                     Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
@@ -1291,7 +1062,7 @@ function Invoke-ForceUninstall {
                         # Wait a moment for processes to fully terminate
                         Start-Sleep -Seconds 3
 
-                        # Try to remove the directory again after killing locking processes
+                        # Try removing the directory again after killing locking processes
                         $text = "Attempting directory removal after killing locking processes"; Logline -logstring $text -step $step
                         Remove-Item -Path ${path} -Recurse -Force -ErrorAction SilentlyContinue
 
@@ -1379,15 +1150,14 @@ function Invoke-ForceUninstall {
     try {
         # Aggressive cleanup of specific Candle registry keys that often persist
         $text = "Aggressively removing stubborn Candle/ITM registry keys"; Logline -logstring $text -step $step
-        # "HKLM:\SOFTWARE\Wow6432Node\IBM\Tivoli" # do not remove from registry, might be another product than ITM6
-        # "HKLM:\SOFTWARE\IBM\Tivoli" # do not remove from registry, might be another product than ITM6
-
         $stubborn_registry_keys = @(
             "HKLM:\SOFTWARE\Candle",
             "HKLM:\SOFTWARE\Wow6432Node\Candle",
             "HKLM:\SYSTEM\CurrentControlSet\Services\Candle",
             "HKLM:\SOFTWARE\IBM\ITM",
-            "HKLM:\SOFTWARE\Wow6432Node\IBM\ITM"
+            "HKLM:\SOFTWARE\Wow6432Node\IBM\ITM",
+            "HKLM:\SOFTWARE\IBM\Tivoli",
+            "HKLM:\SOFTWARE\Wow6432Node\IBM\Tivoli"
         )
 
         foreach ($regKey in $stubborn_registry_keys) {
@@ -1418,17 +1188,69 @@ function Invoke-ForceUninstall {
 
                         # Fallback to PowerShell method
                         $text = "Fallback: Using PowerShell Remove-Item for $regKey"; Logline -logstring $text -step $step
-                        try {
-                            Remove-Item -Path $regKey -Recurse -Force
-                            $text = "Successfully force removed registry key: $regKey"; Logline -logstring $text -step $step
+                        Remove-Item -Path $regKey -Recurse -Force -ErrorAction SilentlyContinue
+
+                        if (-not (Test-Path $regKey)) {
+                            $text = "Successfully removed with PowerShell: $regKey"; Logline -logstring $text -step $step
                         }
-                        catch {
-                            $text = "Error force removing registry key $regKey : $_"; Logline -logstring $text -step $step
+                        else {
+                            $text = "WARNING: Registry key still exists: $regKey"; Logline -logstring $text -step $step
                         }
                     }
                 }
                 catch {
                     $text = "Error force removing registry key $regKey : $_"; Logline -logstring $text -step $step
+
+                    # Final attempt with direct WMI registry manipulation
+                    try {
+                        $text = "Final attempt using WMI StdRegProv for $regKey"; Logline -logstring $text -step $step
+                        $regProvider = [wmiclass]"\\.\root\default:StdRegProv"
+                        $hive = 2147483650 # HKEY_LOCAL_MACHINE
+                        $keyPath = ($regKey -replace "HKLM:\\", "") -replace "\\", "\"
+                        $result = $regProvider.DeleteKey($hive, $keyPath)
+
+                        if ($result.ReturnValue -eq 0) {
+                            $text = "Successfully removed with WMI: $regKey"; Logline -logstring $text -step $step
+                        }
+                        else {
+                            $text = "WMI deletion failed with return code: $($result.ReturnValue) for $regKey"; Logline -logstring $text -step $step
+                        }
+                    }
+                    catch {
+                        $text = "WMI registry deletion also failed for $regKey : $_"; Logline -logstring $text -step $step
+                    }
+                }
+            }
+        }
+
+        # Clean up any remaining Programs and Features entries
+        $text = "Cleaning up Programs and Features entries"; Logline -logstring $text -step $step
+        $uninstallPaths = @(
+            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+            "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+        )
+
+        foreach ($uninstallPath in $uninstallPaths) {
+            if (Test-Path $uninstallPath) {
+                $uninstallEntries = Get-ChildItem -Path $uninstallPath -ErrorAction SilentlyContinue |
+                Where-Object {
+                    $props = Get-ItemProperty -Path $_.PSPath -ErrorAction SilentlyContinue
+                    $props -and (
+                            ($props.DisplayName -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*")) -or
+                            ($props.Publisher -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*"))
+                    )
+                }
+
+                foreach ($entry in $uninstallEntries) {
+                    $props = Get-ItemProperty -Path $entry.PSPath -ErrorAction SilentlyContinue
+                    $text = "Force removing Programs and Features entry: $($props.DisplayName)"; Logline -logstring $text -step $step
+                    try {
+                        Remove-Item -Path $entry.PSPath -Recurse -Force
+                        $text = "Successfully force removed entry: $($props.DisplayName)"; Logline -logstring $text -step $step
+                    }
+                    catch {
+                        $text = "Error force removing Programs and Features entry $($props.DisplayName): $_"; Logline -logstring $text -step $step
+                    }
                 }
             }
         }
@@ -1446,7 +1268,6 @@ function Invoke-ForceUninstall {
             "HKLM:\SOFTWARE\Wow6432Node\Candle",
             "HKLM:\SYSTEM\CurrentControlSet\Services\Candle",
             "HKLM:\SOFTWARE\IBM\ITM",
-
             "HKLM:\SOFTWARE\Wow6432Node\IBM\ITM",
             "HKLM:\SOFTWARE\IBM\Tivoli",
             "HKLM:\SOFTWARE\Wow6432Node\IBM\Tivoli"
@@ -1644,65 +1465,57 @@ function Get-InstallationLogs {
             $itmLogs += Get-ChildItem -Path $logPath -Filter "*install*" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -gt (Get-Date).AddDays(-1) }
 
             if ($itmLogs -and $itmLogs.Count -gt 0) {
-                # Get the most recent log file only
-                $mostRecentLog = $itmLogs | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+                $text = "Found $($itmLogs.Count) potential ITM logs"; Logline -logstring $text -step $step
 
-                $text = "Found $($itmLogs.Count) potential ITM logs, will check only the most recent one: $($mostRecentLog.FullName) (Last modified: $($mostRecentLog.LastWriteTime))"; Logline -logstring $text -step $step
+                foreach ($log in $itmLogs) {
+                    $text = "Found log: $($log.FullName)"; Logline -logstring $text -step $step
 
-                # For text log files, try to extract error messages (only during post-uninstall phase)
-                if ($mostRecentLog.Extension -in ".log", ".txt" -and $Phase -eq "post-uninstall") {
-                    # Skip scanning our own active log file to avoid recursive errors
-                    if ($mostRecentLog.FullName -eq $global:logfile) {
-                        $text = "Skipping scan of active log file: $($mostRecentLog.FullName)"; Logline -logstring $text -step $step
-                        continue
-                    }
-
-                    try {
-                        $text = "Scanning log for errors: $($mostRecentLog.FullName)"; Logline -logstring $text -step $step
-
-                        # Read file with better error handling
-                        $logContent = @()
-                        try {
-                            $logContent = Get-Content -Path $mostRecentLog.FullName -ErrorAction Stop
-                        }
-                        catch {
-                            $text = "Cannot read log file (may be locked): $($mostRecentLog.FullName)"; Logline -logstring $text -step $step
+                    # For text log files, try to extract error messages (only during post-uninstall phase)
+                    if ($log.Extension -in ".log", ".txt" -and $Phase -eq "post-uninstall") {
+                        # Skip scanning our own active log file to avoid recursive errors
+                        if ($log.FullName -eq $global:logfile) {
+                            $text = "Skipping scan of active log file: $($log.FullName)"; Logline -logstring $text -step $step
                             continue
                         }
 
-                        # Only process if we got valid line content
-                        if ($logContent -and $logContent.Count -gt 0) {
-                            # First pass filter - find lines with error indicators
-                            $errorLines = $logContent | Where-Object {
-                                $_ -and $_.Length -gt 10 -and $_ -match "error|fail|except|warning"
+                        try {
+                            $text = "Scanning log for errors: $($log.FullName)"; Logline -logstring $text -step $step
+
+                            # Read file with better error handling
+                            $logContent = @()
+                            try {
+                                $logContent = Get-Content -Path $log.FullName -ErrorAction Stop
+                            }
+                            catch {
+                                $text = "Cannot read log file (may be locked): $($log.FullName)"; Logline -logstring $text -step $step
+                                continue
                             }
 
-                            # Second pass filter - use central function to determine relevance
-                            $filteredErrorLines = $errorLines | Where-Object {
-                                Test-LogMessageRelevance -Message $_
-                            }
+                            # Only process if we got valid line content
+                            if ($logContent -and $logContent.Count -gt 0) {
+                                $errorLines = $logContent | Where-Object {
+                                    $_ -and $_.Length -gt 10 -and $_ -match "error|fail|except|warning"
+                                }
 
-                            if ($filteredErrorLines -and $filteredErrorLines.Count -gt 0) {
-                                $text = "Found $($filteredErrorLines.Count) relevant error lines in log"; Logline -logstring $text -step $step
-                                # Show only last 5 errors to avoid log spam
-                                $lastErrors = if ($filteredErrorLines.Count -gt 5) { $filteredErrorLines[-5..-1] } else { $filteredErrorLines }
-                                foreach ($line in $lastErrors) {
-                                    if ($line -and $line.Trim().Length -gt 0) {
-                                        Logline -logstring "LOG ERROR: $($line.Trim())" -step $step
+                                if ($errorLines -and $errorLines.Count -gt 0) {
+                                    $text = "Found $($errorLines.Count) error lines in log"; Logline -logstring $text -step $step
+                                    # Show only last 5 errors to avoid log spam
+                                    $lastErrors = if ($errorLines.Count -gt 5) { $errorLines[-5..-1] } else { $errorLines }
+                                    foreach ($line in $lastErrors) {
+                                        if ($line -and $line.Trim().Length -gt 0) {
+                                            Logline -logstring "LOG ERROR: $($line.Trim())" -step $step
+                                        }
                                     }
                                 }
                             }
-                            elseif ($errorLines -and $errorLines.Count -gt 0) {
-                                $text = "Found $($errorLines.Count) error lines in log, but none were relevant to ITM"; Logline -logstring $text -step $step
-                            }
+                        }
+                        catch {
+                            $text = "Error reading log file $($log.FullName): $_"; Logline -logstring $text -step $step
                         }
                     }
-                    catch {
-                        $text = "Error reading log file $($mostRecentLog.FullName): $_"; Logline -logstring $text -step $step
+                    elseif ($log.Extension -in ".log", ".txt" -and $Phase -eq "pre-uninstall") {
+                        $text = "Skipping error scan during pre-uninstall phase to avoid false positives from previous runs"; Logline -logstring $text -step $step
                     }
-                }
-                elseif ($mostRecentLog.Extension -in ".log", ".txt" -and $Phase -eq "pre-uninstall") {
-                    $text = "Skipping error scan during pre-uninstall phase to avoid false positives from previous runs"; Logline -logstring $text -step $step
                 }
             }
             else {
@@ -1720,17 +1533,9 @@ function Get-InstallationLogs {
             Where-Object { ($_.Message -like "*IBM*" -and ($_.Message -like "*Tivoli*" -or $_.Message -like "*ITM*" -or $_.Message -like "*monitoring*")) }
 
             if ($msiEvents -and $msiEvents.Count -gt 0) {
-                # Filter events using the same relevance function
-                $relevantEvents = $msiEvents | Where-Object { Test-LogMessageRelevance -Message $_.Message }
-
-                if ($relevantEvents -and $relevantEvents.Count -gt 0) {
-                    $text = "Found $($relevantEvents.Count) relevant MSI installer events related to ITM"; Logline -logstring $text -step $step
-                    foreach ($event in $relevantEvents) {
-                        $text = "Event ID $($event.Id) (Level: $($event.LevelDisplayName)) at $($event.TimeCreated): $($event.Message)"; Logline -logstring $text -step $step
-                    }
-                }
-                else {
-                    $text = "Found $($msiEvents.Count) MSI installer events, but none were relevant to ITM"; Logline -logstring $text -step $step
+                $text = "Found $($msiEvents.Count) MSI installer events related to ITM"; Logline -logstring $text -step $step
+                foreach ($event in $msiEvents) {
+                    $text = "Event ID $($event.Id) (Level: $($event.LevelDisplayName)) at $($event.TimeCreated): $($event.Message)"; Logline -logstring $text -step $step
                 }
             }
             else {
@@ -1842,10 +1647,7 @@ function Show-RemainingRegistryEntries {
                 if ($searchPath -like "*Services*") {
                     # For services, look for ITM/Candle specific services
                     $itmServices = Get-ChildItem -Path $searchPath -ErrorAction SilentlyContinue |
-                    Where-Object {
-                        $_.Name -match "(candle|itm|tivoli|\\IBM\\ITM\\)" -and
-                        $_.Name -notmatch "(TSM|Spectrum)"
-                    }
+                    Where-Object { $_.Name -match "(candle|itm|tivoli)" }
 
                     if ($itmServices -and $itmServices.Count -gt 0) {
                         $foundRegistryEntries = $true
@@ -1903,67 +1705,64 @@ function Test-AdditionalDirectoriesRemoved {
             $allDirectoriesRemoved = $false
             $text = "WARNING: Directory still exists: $normalizedPath"; Logline -logstring $text -step $step
 
-            # Reset file attributes before attempting to remove
-            $text = "Resetting file attributes to prepare for deletion: $normalizedPath"; Logline -logstring $text -step $step
-            Reset-FileAttributes -path $normalizedPath
+            # Try to remove using handle.exe to kill any locking processes
+            $text = "Attempting to remove directory $normalizedPath using handle.exe"; Logline -logstring $text -step $step
 
-            # Wait briefly for file system to update
-            Start-Sleep -Milliseconds 500
-
-            # Use the improved Remove-BlockedPath function
-            $text = "Attempting to remove directory using improved Remove-BlockedPath: $normalizedPath"; Logline -logstring $text -step $step
-            $removeResult = Remove-BlockedPath -path $normalizedPath
-
-            if ($removeResult) {
-                $text = "SUCCESS: Directory removed using Remove-BlockedPath: $normalizedPath"; Logline -logstring $text -step $step
-            }
-            else {
-                $text = "FAILED: Could not remove directory even with Remove-BlockedPath: $normalizedPath"; Logline -logstring $text -step $step
-
-                # Try one more time with takeown and icacls for extremely stubborn directories
-                $text = "Attempting final aggressive permissions reset for $normalizedPath"; Logline -logstring $text -step $step
-
+            # Check for locking processes using handle.exe
+            if (Test-Path "$scriptBin\handle.exe") {
                 try {
-                    # Take ownership and set full permissions
-                    $takeownCmd = "takeown /f `"$normalizedPath`" /r /d y"
-                    $icaclsCmd = "icacls `"$normalizedPath`" /grant administrators:F /t /q"
-                    $icaclsResetCmd = "icacls `"$normalizedPath\*`" /reset /T /Q"
+                    $handleOutput = & "$scriptBin\handle.exe" -nobanner $normalizedPath 2>$null
+                    if ($handleOutput) {
+                        $text = "Found processes locking $normalizedPath"; Logline -logstring $text -step $step
+                        foreach ($line in $handleOutput) {
+                            if ($line -match "^\s*(\w+)\s+pid:\s*(\d+)\s+type:\s*(\w+)\s+(.+)$") {
+                                $processName = $matches[1]
+                                $processId = $matches[2]
+                                $text = "  Locking process: $processName (PID: $processId)"; Logline -logstring $text -step $step
 
-                    $text = "Running: $takeownCmd"; Logline -logstring $text -step $step
-                    & cmd /C $takeownCmd 2>&1 | Out-Null
+                                # Kill the locking process
+                                try {
+                                    Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+                                    $text = "Killed process $processName (PID: $processId)"; Logline -logstring $text -step $step
+                                }
+                                catch {
+                                    $text = "Failed to kill process $processName (PID: $processId): $_"; Logline -logstring $text -step $step
+                                }
+                            }
+                        }
 
-                    $text = "Running: $icaclsCmd"; Logline -logstring $text -step $step
-                    & cmd /C $icaclsCmd 2>&1 | Out-Null
-
-                    $text = "Running: $icaclsResetCmd"; Logline -logstring $text -step $step
-                    & cmd /C $icaclsResetCmd 2>&1 | Out-Null
-
-                    # Wait for permissions to take effect
-                    Start-Sleep -Seconds 2
-
-                    # Try Remove-BlockedPath again after permissions reset
-                    $text = "Retry Remove-BlockedPath after permissions reset: $normalizedPath"; Logline -logstring $text -step $step
-                    $retryResult = Remove-BlockedPath -path $normalizedPath
-
-                    if ($retryResult) {
-                        $text = "SUCCESS: Directory removed after permissions reset: $normalizedPath"; Logline -logstring $text -step $step
-                    }
-                    else {
-                        $text = "FINAL FAILURE: Cannot remove directory even after all attempts: $normalizedPath"; Logline -logstring $text -step $step
-                        $allDirectoriesRemoved = $false
+                        # Wait a moment for processes to fully terminate
+                        Start-Sleep -Seconds 2
                     }
                 }
                 catch {
-                    $text = "ERROR during final permission reset attempt for $normalizedPath : $_"; Logline -logstring $text -step $step
+                    $text = "Error running handle.exe for $normalizedPath : $_"; Logline -logstring $text -step $step
+                }
+            }
+
+            # Now try to remove the directory
+            try {
+                Remove-Item -Path $normalizedPath -Recurse -Force -ErrorAction Stop
+                $text = "SUCCESS: Removed directory $normalizedPath"; Logline -logstring $text -step $step
+
+                # Verify removal
+                if (-not (Test-Path $normalizedPath)) {
+                    $text = "VERIFIED: Directory $normalizedPath successfully removed"; Logline -logstring $text -step $step
+                }
+                else {
+                    $text = "WARNING: Directory $normalizedPath still exists after removal attempt"; Logline -logstring $text -step $step
                     $allDirectoriesRemoved = $false
                 }
+            }
+            catch {
+                $text = "ERROR: Failed to remove directory $normalizedPath : $_"; Logline -logstring $text -step $step
+                $allDirectoriesRemoved = $false
             }
         }
         else {
             $text = "SUCCESS: Directory not found (already removed): $normalizedPath"; Logline -logstring $text -step $step
         }
     }
-
     if ($allDirectoriesRemoved) {
         $text = "SUCCESS: All additional directories have been removed or were not present"; Logline -logstring $text -step $step
     }
@@ -2022,7 +1821,7 @@ if ( $continue ) {
 # run Stop-ProductAgent
 # ----------------------------------------------------------------------------------------------------------------------------
 if ( $continue ) {
-    $text = "run Stop-ProductAgent"; Logline -logstring $text -step $step
+    $text = "run Stop-ProductAgent"; $step++; Logline -logstring $text -step $step
     $continue = Stop-ProductAgent
 }
 # ----------------------------------------------------------------------------------------------------------------------------
@@ -2120,248 +1919,3 @@ else {
 $Difference = '{0:00}:{1:00}:{2:00}' -f $Hrs, $Mins, $Secs
 $text = "The End, Elapsed time: ${Difference}"; $step++; Logline -logstring $text -step $step
 $text = "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"; Logline -logstring $text -step $step
-# ----------------------------------------------------------------------------------------------------------------------------
-# Test-ShouldExcludeFromITMUninstall - Determine if IBM software should be excluded from ITM uninstallation
-# ----------------------------------------------------------------------------------------------------------------------------
-function Test-ShouldExcludeFromITMUninstall {
-    param (
-        [string]$DisplayName,
-        [string]$Publisher = ""
-    )
-
-    # Return false if DisplayName is null or empty
-    if ([string]::IsNullOrWhiteSpace($DisplayName)) {
-        return $false
-    }
-
-    # List of IBM software that should NOT be uninstalled during ITM cleanup
-    $excludedSoftware = @(
-        # TSM/Spectrum Protect Client - backup software that should remain
-        'TSM', 'Tivoli Storage Manager', 'Spectrum Protect', 'Storage Manager',
-
-        # OpenText versions of former IBM products - should remain
-        'OpenText',
-
-        # Other IBM software that should not be removed during ITM cleanup
-        'WebSphere', 'DB2', 'Lotus', 'Notes', 'Domino', 'SPSS', 'Rational',
-        'FileNet', 'Cognos', 'InfoSphere', 'DataStage', 'QRadar', 'AppScan',
-        'BigInsights', 'PureData', 'Sterling', 'MQ', 'Message Queue',
-        'Cloud Pak', 'Red Hat', 'Power Systems', 'AIX', 'i2', 'TRIRIGA',
-        'Maximo', 'Planning Analytics', 'Watson', 'DOORS', 'Rhapsody'
-    )
-
-    # Check if the DisplayName contains any excluded software names (case-insensitive)
-    foreach ($excludedItem in $excludedSoftware) {
-        if ($DisplayName -like "*$excludedItem*") {
-            $text = "EXCLUDING from ITM uninstall: '$DisplayName' (matches exclusion pattern: '$excludedItem')";
-            Logline -logstring $text -step $step
-            return $true
-        }
-    }
-
-    # Additional check for publisher to catch edge cases
-    if (-not [string]::IsNullOrWhiteSpace($Publisher)) {
-        foreach ($excludedItem in $excludedSoftware) {
-            if ($Publisher -like "*$excludedItem*") {
-                $text = "EXCLUDING from ITM uninstall: '$DisplayName' (publisher '$Publisher' matches exclusion pattern: '$excludedItem')";
-                Logline -logstring $text -step $step
-                return $true
-            }
-        }
-    }
-
-    return $false
-}
-
-# ----------------------------------------------------------------------------------------------------------------------------
-# Get-MSIProductInfo - Get MSI product information from a product code (GUID)
-# ----------------------------------------------------------------------------------------------------------------------------
-function Get-MSIProductInfo {
-    param (
-        [Parameter(Mandatory=$true)]
-        [string]$ProductCode
-    )
-
-    # Ensure the product code is properly formatted with braces
-    if (-not $ProductCode.StartsWith("{")) {
-        $ProductCode = "{$ProductCode}"
-    }
-    if (-not $ProductCode.EndsWith("}")) {
-        $ProductCode = "$ProductCode}"
-    }
-
-    try {
-        # Try to get product information using WMI first
-        if (Test-CmdletAvailable "Get-WmiObject") {
-            $msiProduct = Get-WmiObject -Class Win32_Product -Filter "IdentifyingNumber='$ProductCode'" -ErrorAction SilentlyContinue
-
-            if ($msiProduct) {
-                return [PSCustomObject]@{
-                    DisplayName = $msiProduct.Name
-                    Publisher = $msiProduct.Vendor
-                    Version = $msiProduct.Version
-                    InstallDate = $msiProduct.InstallDate
-                    InstallLocation = $msiProduct.InstallLocation
-                    ProductCode = $ProductCode
-                    UninstallString = "msiexec.exe /x $ProductCode /qn"
-                }
-            }
-        }
-
-        # Fallback: Try to get information from registry
-        $registryPaths = @(
-            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$ProductCode",
-            "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\$ProductCode"
-        )
-
-        foreach ($regPath in $registryPaths) {
-            if (Test-Path $regPath) {
-                $regInfo = Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue
-                if ($regInfo) {
-                    return [PSCustomObject]@{
-                        DisplayName = $regInfo.DisplayName
-                        Publisher = $regInfo.Publisher
-                        Version = $regInfo.DisplayVersion
-                        InstallDate = $regInfo.InstallDate
-                        InstallLocation = $regInfo.InstallLocation
-                        ProductCode = $ProductCode
-                        UninstallString = $regInfo.UninstallString
-                    }
-                }
-            }
-        }
-
-        # If we get here, the product wasn't found
-        $text = "MSI Product not found for GUID: $ProductCode"; Logline -logstring $text -step $step
-        return $null
-    }
-    catch {
-        $text = "Error getting MSI product info for $ProductCode : $_"; Logline -logstring $text -step $step
-        return $null
-    }
-}
-
-# ----------------------------------------------------------------------------------------------------------------------------
-# Show-IBMSoftwareAnalysis - Show analysis of IBM software and what would be included/excluded from cleanup
-# ----------------------------------------------------------------------------------------------------------------------------
-function Show-IBMSoftwareAnalysis {
-    $text = "--- IBM SOFTWARE ANALYSIS FOR ITM CLEANUP ---"; $step++; Logline -logstring $text -step $step
-
-    try {
-        # Check Programs and Features for IBM software
-        $uninstallPaths = @(
-            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
-            "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
-        )
-
-        $allIBMSoftware = @()
-        foreach ($uninstallPath in $uninstallPaths) {
-            if (Test-Path $uninstallPath) {
-                $ibmEntries = Get-ChildItem -Path $uninstallPath -ErrorAction SilentlyContinue |
-                Where-Object {
-                    $props = Get-ItemProperty -Path $_.PSPath -ErrorAction SilentlyContinue
-                    $props -and (
-                        ($props.DisplayName -like "*IBM*") -or
-                        ($props.Publisher -like "*IBM*")
-                    )
-                }
-
-                foreach ($entry in $ibmEntries) {
-                    $props = Get-ItemProperty -Path $entry.PSPath -ErrorAction SilentlyContinue
-                    if ($props) {
-                        $allIBMSoftware += [PSCustomObject]@{
-                            DisplayName = $props.DisplayName
-                            Publisher = $props.Publisher
-                            Version = $props.DisplayVersion
-                            RegistryPath = $entry.PSPath
-                        }
-                    }
-                }
-            }
-        }
-
-        if ($allIBMSoftware.Count -gt 0) {
-            $text = "Found $($allIBMSoftware.Count) total IBM software entries"; Logline -logstring $text -step $step
-
-            # Analyze what would be included in ITM cleanup
-            $includedSoftware = @()
-            $excludedSoftware = @()
-
-            foreach ($software in $allIBMSoftware) {
-                $isITMRelated = ($software.DisplayName -like "*Tivoli*" -or
-                               $software.DisplayName -like "*ITM*" -or
-                               $software.DisplayName -like "*monitoring*") -or
-                               ($software.Publisher -like "*IBM*" -and
-                               ($software.DisplayName -like "*Tivoli*" -or
-                                $software.DisplayName -like "*ITM*" -or
-                                $software.DisplayName -like "*monitoring*"))
-
-                $shouldExclude = Test-ShouldExcludeFromITMUninstall -DisplayName $software.DisplayName -Publisher $software.Publisher
-
-                if ($isITMRelated -and -not $shouldExclude) {
-                    $includedSoftware += $software
-                }
-                elseif ($shouldExclude) {
-                    $excludedSoftware += $software
-                }
-            }
-
-            $text = "SOFTWARE THAT WOULD BE INCLUDED IN ITM CLEANUP ($($includedSoftware.Count) items):"; Logline -logstring $text -step $step
-            if ($includedSoftware.Count -gt 0) {
-                foreach ($software in $includedSoftware) {
-                    $text = "  INCLUDE: $($software.DisplayName) - Publisher: $($software.Publisher) - Version: $($software.Version)";
-                    Logline -logstring $text -step $step
-                }
-            }
-            else {
-                $text = "  No IBM/ITM software found that would be included in cleanup"; Logline -logstring $text -step $step
-            }
-
-            $text = "SOFTWARE THAT WOULD BE EXCLUDED FROM ITM CLEANUP ($($excludedSoftware.Count) items):"; Logline -logstring $text -step $step
-            if ($excludedSoftware.Count -gt 0) {
-                foreach ($software in $excludedSoftware) {
-                    $text = "  EXCLUDE: $($software.DisplayName) - Publisher: $($software.Publisher) - Version: $($software.Version)";
-                    Logline -logstring $text -step $step
-                }
-            }
-            else {
-                $text = "  No IBM software found that would be excluded"; Logline -logstring $text -step $step
-            }
-
-            # Show other IBM software that doesn't match ITM patterns
-            $otherIBMSoftware = $allIBMSoftware | Where-Object {
-                $software = $_
-                $isITMRelated = ($software.DisplayName -like "*Tivoli*" -or
-                               $software.DisplayName -like "*ITM*" -or
-                               $software.DisplayName -like "*monitoring*") -or
-                               ($software.Publisher -like "*IBM*" -and
-                               ($software.DisplayName -like "*Tivoli*" -or
-                                $software.DisplayName -like "*ITM*" -or
-                                $software.DisplayName -like "*monitoring*"))
-
-                $shouldExclude = Test-ShouldExcludeFromITMUninstall -DisplayName $software.DisplayName -Publisher $software.Publisher
-
-                return -not $isITMRelated -and -not $shouldExclude
-            }
-
-            $text = "OTHER IBM SOFTWARE NOT RELATED TO ITM ($($otherIBMSoftware.Count) items):"; Logline -logstring $text -step $step
-            if ($otherIBMSoftware.Count -gt 0) {
-                foreach ($software in $otherIBMSoftware) {
-                    $text = "  OTHER: $($software.DisplayName) - Publisher: $($software.Publisher) - Version: $($software.Version)";
-                    Logline -logstring $text -step $step
-                }
-            }
-            else {
-                $text = "  No other IBM software found"; Logline -logstring $text -step $step
-            }
-        }
-        else {
-            $text = "No IBM software found in Programs and Features"; Logline -logstring $text -step $step
-        }
-    }
-    catch {
-        $text = "Error during IBM software analysis: $_"; Logline -logstring $text -step $step
-    }
-
-    $text = "--- END OF IBM SOFTWARE ANALYSIS ---"; Logline -logstring $text -step $step
-}
