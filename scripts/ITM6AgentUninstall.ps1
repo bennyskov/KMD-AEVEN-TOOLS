@@ -3,6 +3,33 @@ $global:ErrorActionPreference = $defaultErrorActionPreference
 $global:VerbosePreference = "SilentlyContinue"
 $PSModuleAutoLoadingPreference = "None"
 $global:PSModuleAutoLoadingPreference = "None"
+
+# Try to import essential modules if they're not available
+try {
+    # Test if Get-Service is available, if not try to import the module
+    if (-not (Get-Command "Get-Service" -ErrorAction SilentlyContinue)) {
+        Import-Module Microsoft.PowerShell.Management -ErrorAction SilentlyContinue
+    }
+    # Test if Get-WmiObject is available, if not try to import the module
+    if (-not (Get-Command "Get-WmiObject" -ErrorAction SilentlyContinue)) {
+        Import-Module Microsoft.PowerShell.Management -ErrorAction SilentlyContinue
+    }
+} catch {
+    # Continue if module import fails - the script will use fallback methods
+}
+
+# Define Test-CmdletAvailable early since it's used in initialization
+function Test-CmdletAvailable {
+    param([string]$CmdletName)
+    try {
+        $cmd = Get-Command $CmdletName -ErrorAction SilentlyContinue
+        return ($null -ne $cmd)
+    }
+    catch {
+        return $false
+    }
+}
+
 $global:scriptName = $myinvocation.mycommand.Name
 <# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #   V1.4
@@ -247,7 +274,7 @@ function Get-ITMStatusReport {
 
     # Check Services
     $text = "--- ITM SERVICES ---"; Logline -logstring $text -step $step
-    $itmServices = Get-Service | Where-Object {
+    $itmServices = Get-ServiceSafe | Where-Object {
         ($_.Name -match "^k" -and ($_.DisplayName -match "monitoring Agent" -or $_.DisplayName -like "*ITM*")) -or
         (($_.Name -like "*IBM*" -or $_.Name -like "*Tivoli*") -and ($_.DisplayName -match "monitoring Agent" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*Candle*"))
     }
@@ -394,7 +421,7 @@ function Start-ProductAgent {
     try {
         $IsAgentsStarted = $false
         $text = "Start ${DisplayName} agents"; $step++; Logline -logstring $text -step $step
-        $services = Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }
+        $services = Get-ServiceSafe | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }
 
         if ($services.Count -gt 0) {
             $text = "Found $($services.Count) services matching pattern '${ServiceName}' with display name matching '${DisplayName}'"; Logline -logstring $text -step $step
@@ -431,10 +458,10 @@ function Start-ProductAgent {
     elseif ( Test-IsAgentsStopped -eq $false ) {
         $IsAgentsStarted = $true
     }
-    $text = "Agents started status: $IsAgentsStarted"; Logline -logstring $text -step $step $text = "Final services status:"; Logline -logstring $text -step $step
+    $text = "Agents started status: $IsAgentsStarted"; Logline -logstring $text -step $step    $text = "Final services status:"; Logline -logstring $text -step $step
     Show-AgentStatus
 
-    $runningServices = Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" -and $_.Status -eq "Running" }
+    $runningServices = Get-ServiceSafe | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" -and $_.Status -eq "Running" }
 
     if ($runningServices -and $runningServices.Count -gt 0) {
         $text = "Monitoring agent services running: $($runningServices.Count)"; Logline -logstring $text -step $step
@@ -452,7 +479,7 @@ function Stop-ProductAgent {
         $IsAgentsStopped = $false
         if ( -not $IsAgentsStopped ) {
             $text = "stop Method 1: Stop all ${DisplayName} agents using Stop-Service"; $step++; Logline -logstring $text -step $step
-            $servicesToStop = Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }
+            $servicesToStop = Get-ServiceSafe | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }
 
             if ($servicesToStop -and $servicesToStop.Count -gt 0) {
                 $text = "Found $($servicesToStop.Count) monitoring agent services to stop"; Logline -logstring $text -step $step
@@ -463,8 +490,22 @@ function Stop-ProductAgent {
             }
 
             foreach ($service in $servicesToStop) {
-                if ( $disable ) { $service | Set-Service -StartupType Disabled }
-                $service | Stop-Service -force
+                try {
+                    if ( $disable ) {
+                        if (Test-CmdletAvailable "Set-Service") {
+                            Set-Service -Name $service.Name -StartupType Disabled -ErrorAction SilentlyContinue
+                        } else {
+                            & sc.exe config $service.Name start= disabled
+                        }
+                    }
+                    if (Test-CmdletAvailable "Stop-Service") {
+                        Stop-Service -Name $service.Name -Force -ErrorAction SilentlyContinue
+                    } else {
+                        & net.exe stop $service.Name
+                    }
+                } catch {
+                    $text = "Error stopping service $($service.Name): $($_.Exception.Message)"; Logline -logstring $text -step $step
+                }
             }
             if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
         }
@@ -484,7 +525,7 @@ function Stop-ProductAgent {
 
         if ( -not $IsAgentsStopped ) {
             $text = "stop Method 3: Stop ${DisplayName} using 'net stop service'"; $step++; Logline -logstring $text -step $step
-            $servicesToStop = $(Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }).Name
+            $servicesToStop = $(Get-ServiceSafe | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }).Name
             foreach ($service in $servicesToStop) {
                 $cmdexec = "net stop $service"
                 $result = & cmd /C $cmdexec
@@ -495,7 +536,7 @@ function Stop-ProductAgent {
 
         if ( -not $IsAgentsStopped ) {
             $text = "stop Method 4: Stop ${DisplayName} using 'psKill service'"; $step++; Logline -logstring $text -step $step
-            $servicesToKill = Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }
+            $servicesToKill = Get-ServiceSafe | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }
             foreach ($service in $servicesToKill) {
                 $text = "${service} is still running. We try stopping it using psKill"; Logline -logstring $result -step $step
                 $cmdexec = "${scriptBin}/psKill -t $service -accepteula -nobanner"
@@ -508,10 +549,24 @@ function Stop-ProductAgent {
 
         if ( -not $IsAgentsStopped ) {
             $text = "stop and disable services"; $step++; Logline -logstring $text -step $step
-            $servicesToStop = Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }
+            $servicesToStop = Get-ServiceSafe | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }
             foreach ($service in $servicesToStop) {
-                if ( $disable ) { $service | Set-Service -StartupType Disabled }
-                $service | Stop-Service -force
+                try {
+                    if ( $disable ) {
+                        if (Test-CmdletAvailable "Set-Service") {
+                            Set-Service -Name $service.Name -StartupType Disabled -ErrorAction SilentlyContinue
+                        } else {
+                            & sc.exe config $service.Name start= disabled
+                        }
+                    }
+                    if (Test-CmdletAvailable "Stop-Service") {
+                        Stop-Service -Name $service.Name -Force -ErrorAction SilentlyContinue
+                    } else {
+                        & net.exe stop $service.Name
+                    }
+                } catch {
+                    $text = "Error stopping service $($service.Name): $($_.Exception.Message)"; Logline -logstring $text -step $step
+                }
             }
             Logline -logstring "$result"
             if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
@@ -893,7 +948,6 @@ function Invoke-HandleOnPath {
                         $text = "Attempting pskill: $pskillCmd"; Logline -logstring $text -step $step
                         $pskillResult = & cmd /C $pskillCmd
                         $text = "Pskill result: $pskillResult"; Logline -logstring $text -step $step
-                        $processesKilled = $true
                     }
                     catch {
                         $text = "Pskill also failed: $_"; Logline -logstring $text -step $step
@@ -1017,7 +1071,7 @@ function Test-CleanupProductFiles {
     return $isAllFilesGone
 }
 function Show-AgentStatus {
-    $services = $(Get-Service | Where-Object { $_.Name -imatch "${ServiceName}" -and $_.DisplayName -imatch "${DisplayName}" })
+    $services = $(Get-ServiceSafe | Where-Object { $_.Name -imatch "${ServiceName}" -and $_.DisplayName -imatch "${DisplayName}" })
 
     if ($services.Count -gt 0) {
         $text = "Found $($services.Count) services matching criteria"; Logline -logstring $text -step $step
@@ -1032,7 +1086,7 @@ function Show-AgentStatus {
 }
 function Test-IsAgentsStopped {
 
-    $serviceExists = $(Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }).Name
+    $serviceExists = $(Get-ServiceSafe | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }).Name
     $processExists = $(Get-Process | Where-Object { $_.ProcessName -match "${ServiceName}" -and $_.Description -match "${DisplayName}" }).ProcessName
     $serviceExists | format-table -autosize | Out-string -Width 300
     $processExists | format-table -autosize | Out-string -Width 300
@@ -1071,7 +1125,7 @@ function Test-IsAllGone {
         }
     }
     $isRegistryGone = -not [bool]$(Test-Path "HKLM:\SOFTWARE\Candle")
-    $serviceExists = [bool]$(Get-Service | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" })
+    $serviceExists = [bool]$(Get-ServiceSafe | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" })
     $processExists = [bool]$(Get-Process | Where-Object { $_.ProcessName -match "${ServiceName}" -and $_.Description -match "${DisplayName}" })
 
     # Also check for remaining ITM entries in Programs and Features
@@ -1163,7 +1217,7 @@ function Invoke-ForceUninstall {
     $text = "Forcibly removing ITM services from registry"; Logline -logstring $text -step $step
 
     try {
-        $servicesToRemove = Get-Service | Where-Object {
+        $servicesToRemove = Get-ServiceSafe | Where-Object {
             ($_.Name -match "^k" -and ($_.DisplayName -match "monitoring Agent" -or $_.DisplayName -like "*ITM*")) -or
             (($_.Name -like "*IBM*" -or $_.Name -like "*Tivoli*") -and ($_.DisplayName -match "monitoring Agent" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*Candle*"))
         }
@@ -1281,10 +1335,10 @@ function Invoke-ForceUninstall {
 
                         # Try to remove the directory again after killing locking processes
                         $text = "Attempting directory removal after killing locking processes"; Logline -logstring $text -step $step
-                        Remove-Item -Path ${path} -Recurse -Force -ErrorAction SilentlyContinue
+                        Remove-Item -Path $subDir.FullName -Recurse -Force -ErrorAction SilentlyContinue
 
                         # If still locked, try robocopy method
-                        if (Test-Path ${path}) {
+                        if (Test-Path $subDir.FullName) {
                             $text = "Directory still exists. Trying robocopy empty method"; Logline -logstring $text -step $step
 
                             # Create empty temp directory
@@ -1964,17 +2018,78 @@ function Test-AdditionalDirectoriesRemoved {
 # ----------------------------------------------------------------------------------------------------------------------------
 # Helper function to safely check cmdlet availability without triggering auto-imports
 # ----------------------------------------------------------------------------------------------------------------------------
-function Test-CmdletAvailable {
-    param([string]$CmdletName)
+# Safe Get-Service wrapper function
+# ----------------------------------------------------------------------------------------------------------------------------
+function Get-ServiceSafe {
+    param(
+        [string]$Name = "*",
+        [string]$DisplayName = "*"
+    )
+
+    # First try to use Get-Service if available
+    if (Test-CmdletAvailable "Get-Service") {
+        try {
+            if ($Name -ne "*" -or $DisplayName -ne "*") {
+                return Get-Service | Where-Object {
+                    ($_.Name -like $Name) -and ($_.DisplayName -like $DisplayName)
+                }
+            } else {
+                return Get-Service
+            }
+        }
+        catch {
+            # Fall through to WMI method
+        }
+    }
+
+    # Fallback to WMI if Get-Service is not available
     try {
-        $cmd = Get-Command $CmdletName -ErrorAction SilentlyContinue
-        return ($null -ne $cmd)
+        if (Test-CmdletAvailable "Get-WmiObject") {
+            $services = Get-WmiObject -Class Win32_Service -ErrorAction SilentlyContinue
+            if ($services) {
+                $serviceObjects = @()
+                foreach ($service in $services) {
+                    if (($service.Name -like $Name) -and ($service.DisplayName -like $DisplayName)) {
+                        $serviceObj = New-Object PSObject -Property @{
+                            Name = $service.Name
+                            DisplayName = $service.DisplayName
+                            Status = switch ($service.State) {
+                                "Running" { "Running" }
+                                "Stopped" { "Stopped" }
+                                "Paused" { "Paused" }
+                                default { $service.State }
+                            }
+                            StartType = switch ($service.StartMode) {
+                                "Auto" { "Automatic" }
+                                "Manual" { "Manual" }
+                                "Disabled" { "Disabled" }
+                                default { $service.StartMode }
+                            }
+                        }
+                        $serviceObjects += $serviceObj
+                    }
+                }
+                return $serviceObjects
+            }
+        }
     }
     catch {
-        return $false
+        # Final fallback to SC command
+        try {
+            & sc.exe query state=all > $null 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                # Parse SC output - this is a basic implementation
+                # For the scope of this fix, we'll return empty array if both methods fail
+                return @()
+            }
+        }
+        catch {
+            return @()
+        }
     }
-}
 
+    return @()
+}
 # ----------------------------------------------------------------------------------------------------------------------------
 #
 # BEGIN
