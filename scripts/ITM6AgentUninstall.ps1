@@ -1,23 +1,11 @@
-﻿# Enhanced error handling and output suppression
-# - Set ErrorActionPreference and VerbosePreference to SilentlyContinue
-# - Added error handling to Logline function to prevent file access issues
-# - Added ErrorAction SilentlyContinue to WMI calls and file operations
-# - Removed verbose flags from process operations
-
-$defaultErrorActionPreference = 'SilentlyContinue'
-# $defaultErrorActionPreference = 'Continue'
+﻿$defaultErrorActionPreference = 'SilentlyContinue'
 $global:ErrorActionPreference = $defaultErrorActionPreference
-$global:VerbosePreference = "SilentlyContinue"  # Disable verbose logging
-
-# Disable automatic module loading to prevent import issues in restricted environments (DMZ)
-# This prevents the 'mport-Module' error when cmdlets trigger auto-import
+$global:VerbosePreference = "SilentlyContinue"
 $PSModuleAutoLoadingPreference = "None"
 $global:PSModuleAutoLoadingPreference = "None"
-
 $global:scriptName = $myinvocation.mycommand.Name
-
 <# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-#   V1.3
+#   V1.4
 #                                                                             dddddddd
 #   kkkkkkkk                                                                  d::::::d                                        lllllll
 #   k::::::k                                                                  d::::::d                                        l:::::l
@@ -1725,8 +1713,8 @@ function Get-InstallationLogs {
 
                 if ($relevantEvents -and $relevantEvents.Count -gt 0) {
                     $text = "Found $($relevantEvents.Count) relevant MSI installer events related to ITM"; Logline -logstring $text -step $step
-                    foreach ($event in $relevantEvents) {
-                        $text = "Event ID $($event.Id) (Level: $($event.LevelDisplayName)) at $($event.TimeCreated): $($event.Message)"; Logline -logstring $text -step $step
+                    foreach ($relEvent in $relevantEvents) {
+                        $text = "Event ID $($relEvent.Id) (Level: $($relEvent.LevelDisplayName)) at $($relEvent.TimeCreated): $($relEvent.Message)"; Logline -logstring $text -step $step
                     }
                 }
                 else {
