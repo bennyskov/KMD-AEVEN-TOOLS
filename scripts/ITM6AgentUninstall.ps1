@@ -1,8 +1,36 @@
-ï»¿$defaultErrorActionPreference = 'SilentlyContinue'
+$defaultErrorActionPreference = 'SilentlyContinue'
 $global:ErrorActionPreference = $defaultErrorActionPreference
 $global:VerbosePreference = "SilentlyContinue"
 $PSModuleAutoLoadingPreference = "None"
 $global:PSModuleAutoLoadingPreference = "None"
+
+# Try to import essential modules if they're not available
+try {
+    # Test if Get-Service is available, if not try to import the module
+    if (-not (Get-Command "Get-Service" -ErrorAction SilentlyContinue)) {
+        Import-Module Microsoft.PowerShell.Management -ErrorAction SilentlyContinue
+    }
+    # Test if Get-WmiObject is available, if not try to import the module
+    if (-not (Get-Command "Get-WmiObject" -ErrorAction SilentlyContinue)) {
+        Import-Module Microsoft.PowerShell.Management -ErrorAction SilentlyContinue
+    }
+}
+catch {
+    # Continue if module import fails - the script will use fallback methods
+}
+
+# Define Test-CmdletAvailable early since it's used in initialization
+function Test-CmdletAvailable {
+    param([string]$CmdletName)
+    try {
+        $cmd = Get-Command $CmdletName -ErrorAction SilentlyContinue
+        return ($null -ne $cmd)
+    }
+    catch {
+        return $false
+    }
+}
+
 $global:scriptName = $myinvocation.mycommand.Name
 <# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #   V1.4
@@ -38,21 +66,21 @@ $global:scriptName = $myinvocation.mycommand.Name
 # Also check and uninstall if any legacy versions. But do not uninstall if an OpenText version exists on server.
 #
 # Steps performed:
-# â€¢ Get-ITMStatusReport - Collects comprehensive information about ITM installation before uninstallation
-# â€¢ Get-InstallationLogs - Gathers installation logs before and after uninstall, filtering irrelevant messages and only checking the most recent log file
-# â€¢ Start-ProductAgent - Starts any monitoring agents found, setting them to Automatic start
-# â€¢ Test-lastUninstall - Check for any hanging uninstall processes from previous runs
-# â€¢ Stop-ProductAgent - Stops all monitoring agent services using multiple methods if needed
-# â€¢ Find-LockedFiles - Identifies any locked files that might prevent removal
-# â€¢ Stop-AllITMProcesses - Forcefully terminates any remaining ITM-related processes
-# â€¢ Uninstall-ProductAgent - Runs the uninstallation process using various methods (uninstaller, MSI, WMIC)
-# â€¢ Reset-FileAttributes - Recursively resets read-only, hidden, and system attributes on files to facilitate removal
-# â€¢ Test-CleanupRegistry - Removes any leftover registry entries
-# â€¢ Test-CleanupProductFiles - Cleans up any remaining product files
-# â€¢ Test-IsAllGone - Final verification that all components are removed
-# â€¢ Invoke-ForceUninstall - Emergency cleanup for stubborn installations (if needed)
-# â€¢ Test-AdditionalDirectoriesRemoved - Removes related directories with aggressive permission resets (ansible, BigFix, ilmt)
-# â€¢ Show-RemainingRegistryEntries - Final scan for any leftover registry entries
+# • Get-ITMStatusReport - Collects comprehensive information about ITM installation before uninstallation
+# • Get-InstallationLogs - Gathers installation logs before and after uninstall, filtering irrelevant messages and only checking the most recent log file
+# • Start-ProductAgent - Starts any monitoring agents found, setting them to Automatic start
+# • Test-lastUninstall - Check for any hanging uninstall processes from previous runs
+# • Stop-ProductAgent - Stops all monitoring agent services using multiple methods if needed
+# • Find-LockedFiles - Identifies any locked files that might prevent removal
+# • Stop-AllITMProcesses - Forcefully terminates any remaining ITM-related processes
+# • Uninstall-ProductAgent - Runs the uninstallation process using various methods (uninstaller, MSI, WMIC)
+# • Reset-FileAttributes - Recursively resets read-only, hidden, and system attributes on files to facilitate removal
+# • Test-CleanupRegistry - Removes any leftover registry entries
+# • Test-CleanupProductFiles - Cleans up any remaining product files
+# • Test-IsAllGone - Final verification that all components are removed
+# • Invoke-ForceUninstall - Emergency cleanup for stubborn installations (if needed)
+# • Test-AdditionalDirectoriesRemoved - Removes related directories with aggressive permission resets (ansible, BigFix, ilmt)
+# • Show-RemainingRegistryEntries - Final scan for any leftover registry entries
 #
 # 2025-03-13  Initial release ( Benny.Skov@kyndryl.dk )
 #
@@ -166,7 +194,8 @@ $global:ServiceName = '^k.*'
 $global:CommandLine = '^C:\\IBM.ITM\\.*\\K*'
 $global:UninstPath = "${scriptBin}/${UninstName}"
 # $global:UninstCmdexec = @("start", "/WAIT", "/MIN", "`"${UninstPath}`"", "-batchrmvall", "-removegskit")
-$global:UninstCmdexec = "start /WAIT /MIN ${UninstPath} -batchrmvall -removegskit"
+# $global:UninstCmdexec = "start /WAIT /MIN ${UninstPath} -batchrmvall -removegskit"
+$global:UninstCmdexec = "`"${UninstPath}`" -batchrmvall -removegskit"
 $global:DisableService = $false
 $global:step = 0
 $global:RegistryKeys = @(
@@ -176,9 +205,6 @@ $global:RegistryKeys = @(
     "HKLM:\SYSTEM\CurrentControlSet\Services\IBM\ITM",
     "HKLM:\SOFTWARE\IBM\ITM",
     "HKLM:\SOFTWARE\Wow6432Node\IBM\ITM"
-    # Note: Removed HKLM:\SOFTWARE\IBM\Tivoli and HKLM:\SOFTWARE\Wow6432Node\IBM\Tivoli
-    # to avoid breaking other Tivoli products like TSM, Spectrum, etc.
-    # ITM-specific entries under Tivoli will be handled separately
 )
 $global:RemoveDirs = @(
     "C:/IBM/ITM",
@@ -270,9 +296,7 @@ function Get-ITMStatusReport {
         "HKLM:\SYSTEM\CurrentControlSet\Services\Candle",
         "HKLM:\SYSTEM\CurrentControlSet\Services\IBM\ITM",
         "HKLM:\SOFTWARE\IBM\ITM",
-        "HKLM:\SOFTWARE\Wow6432Node\IBM\ITM",
-        "HKLM:\SOFTWARE\IBM\Tivoli",
-        "HKLM:\SOFTWARE\Wow6432Node\IBM\Tivoli"
+        "HKLM:\SOFTWARE\Wow6432Node\IBM\ITM"
     )
 
     $foundRegistryEntries = $false
@@ -374,7 +398,7 @@ function Test-lastUninstall {
             $text = "${UninstName} is still running. We try stopping it using psKill"; Logline -logstring $text -step $step
             $cmdexec = "${scriptBin}/psKill -t $UninstName -accepteula -nobanner"
             Logline -logstring $cmdexec -step $step
-            $result = & cmd /C $cmdexec
+            $result = & cmd.exe /C $cmdexec
             Logline -logstring $result -step $step
 
             if ( [bool]$(Get-WmiObject Win32_Process -ErrorAction SilentlyContinue | Where-Object Name -imatch "${UninstName}")) {
@@ -432,7 +456,7 @@ function Start-ProductAgent {
     elseif ( Test-IsAgentsStopped -eq $false ) {
         $IsAgentsStarted = $true
     }
-    $text = "Agents started status: $IsAgentsStarted"; Logline -logstring $text -step $step    $text = "Final services status:"; Logline -logstring $text -step $step
+    $text = "Agents started status: $IsAgentsStarted"; Logline -logstring $text -step $step $text = "Final services status:"; Logline -logstring $text -step $step
     Show-AgentStatus
 
     $runningServices = Get-ServiceSafe | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" -and $_.Status -eq "Running" }
@@ -464,8 +488,25 @@ function Stop-ProductAgent {
             }
 
             foreach ($service in $servicesToStop) {
-                if ( $disable ) { $service | Set-Service -StartupType Disabled }
-                $service | Stop-Service -force
+                try {
+                    if ( $disable ) {
+                        if (Test-CmdletAvailable "Set-Service") {
+                            Set-Service -Name $service.Name -StartupType Disabled -ErrorAction SilentlyContinue
+                        }
+                        else {
+                            & sc.exe config $service.Name start= disabled
+                        }
+                    }
+                    if (Test-CmdletAvailable "Stop-Service") {
+                        Stop-Service -Name $service.Name -Force -ErrorAction SilentlyContinue
+                    }
+                    else {
+                        & net.exe stop $service.Name
+                    }
+                }
+                catch {
+                    $text = "Error stopping service $($service.Name): $($_.Exception.Message)"; Logline -logstring $text -step $step
+                }
             }
             if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
         }
@@ -488,7 +529,7 @@ function Stop-ProductAgent {
             $servicesToStop = $(Get-ServiceSafe | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }).Name
             foreach ($service in $servicesToStop) {
                 $cmdexec = "net stop $service"
-                $result = & cmd /C $cmdexec
+                $result = & cmd.exe /C $cmdexec
                 Logline -logstring "$result"
             }
             if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
@@ -501,7 +542,7 @@ function Stop-ProductAgent {
                 $text = "${service} is still running. We try stopping it using psKill"; Logline -logstring $result -step $step
                 $cmdexec = "${scriptBin}/psKill -t $service -accepteula -nobanner"
                 Logline -logstring $cmdexec -step $step
-                $result = & cmd /C $cmdexec
+                $result = & cmd.exe /C $cmdexec
                 Logline -logstring $result -step $step
             }
             if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
@@ -511,8 +552,25 @@ function Stop-ProductAgent {
             $text = "stop and disable services"; $step++; Logline -logstring $text -step $step
             $servicesToStop = Get-ServiceSafe | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }
             foreach ($service in $servicesToStop) {
-                if ( $disable ) { $service | Set-Service -StartupType Disabled }
-                $service | Stop-Service -force
+                try {
+                    if ( $disable ) {
+                        if (Test-CmdletAvailable "Set-Service") {
+                            Set-Service -Name $service.Name -StartupType Disabled -ErrorAction SilentlyContinue
+                        }
+                        else {
+                            & sc.exe config $service.Name start= disabled
+                        }
+                    }
+                    if (Test-CmdletAvailable "Stop-Service") {
+                        Stop-Service -Name $service.Name -Force -ErrorAction SilentlyContinue
+                    }
+                    else {
+                        & net.exe stop $service.Name
+                    }
+                }
+                catch {
+                    $text = "Error stopping service $($service.Name): $($_.Exception.Message)"; Logline -logstring $text -step $step
+                }
             }
             Logline -logstring "$result"
             if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
@@ -533,20 +591,18 @@ function Uninstall-ProductAgent {
             try {
                 $text = "Executing ${UninstName} with parameters: $UninstCmdexec"; Logline -logstring $text -step $step
 
-                # Convert array to a proper command string
-                # $cmdString = "cmd /C " + ($UninstCmdexec -join ' ')
-                $cmdString = "cmd /C ${UninstCmdexec}"
-                $text = "Command to execute: $cmdString"; Logline -logstring $text -step $step
+                # Use Start-Process instead of Invoke-Expression for better control
+                $text = "Command to execute: $UninstCmdexec"; Logline -logstring $text -step $step
 
-                # Execute the command
-                $result = Invoke-Expression $cmdString
-                $rc = $?
+                # Execute the command using Start-Process
+                $process = Start-Process -FilePath "$UninstPath" -ArgumentList "-batchrmvall", "-removegskit" -Wait -PassThru -NoNewWindow
+                $rc = ($process.ExitCode -eq 0)
 
                 if ( $rc ) {
-                    Logline -logstring "Success. rc=$rc result=$result" -step $step
+                    Logline -logstring "Success. ExitCode=$($process.ExitCode)" -step $step
                 }
                 else {
-                    Logline -logstring "Failed. rc=$rc result=$result" -step $step
+                    Logline -logstring "Failed. ExitCode=$($process.ExitCode)" -step $step
                 }
 
                 $text = "${UninstPath} execution completed"; Logline -logstring $text -step $step
@@ -655,8 +711,8 @@ function Test-CleanupRegistry {
                 Where-Object {
                     $props = Get-ItemProperty -Path $_.PSPath -ErrorAction SilentlyContinue
                     $props -and (
-                            ($props.DisplayName -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*")) -or
-                            ($props.Publisher -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*"))
+                        ($props.DisplayName -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*")) -or
+                        ($props.Publisher -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*"))
                     ) -and -not (Test-ShouldExcludeFromITMUninstall -DisplayName $props.DisplayName -Publisher $props.Publisher)
                 }
 
@@ -707,7 +763,7 @@ function Stop-AllITMProcesses {
                     # Try with pskill as fallback
                     $cmdexec = "${binDir}/pskill -t $processId -accepteula -nobanner"
                     $text = "Attempting fallback pskill: $cmdexec"; Logline -logstring $text -step $step
-                    $result = & cmd /C $cmdexec
+                    $result = & cmd.exe /C $cmdexec
                     Logline -logstring "$result" -step $step
                 }
                 catch {
@@ -743,7 +799,7 @@ function Remove-BlockedPath {
         try {
             # Get all subdirectories sorted by depth (deepest first)
             $subDirectories = Get-ChildItem -Path ${path} -Directory -Recurse -ErrorAction SilentlyContinue |
-                Sort-Object @{Expression={($_.FullName -split '\\').Count}; Descending=$true}
+            Sort-Object @{Expression = { ($_.FullName -split '\\').Count }; Descending = $true }
 
             # Delete subdirectories from deepest to shallowest
             foreach ($subDir in $subDirectories) {
@@ -851,7 +907,7 @@ function Invoke-HandleOnPath {
     try {
         $handleCmd = "${scriptBin}/handle.exe `"$targetPath`" -accepteula -nobanner"
         $text = "Executing: $handleCmd"; Logline -logstring $text -step $step
-        $handleResult = & cmd /C $handleCmd
+        $handleResult = & cmd.exe /C $handleCmd
         $text = "Handle result for $targetPath : $handleResult"; Logline -logstring $text -step $step
 
         # Parse handle output and kill locking processes
@@ -871,7 +927,7 @@ function Invoke-HandleOnPath {
                 try {
                     $closeHandleCmd = "${scriptBin}/handle.exe -c $handleId -y -p $processId -accepteula -nobanner"
                     $text = "Attempting to close handle: $closeHandleCmd"; Logline -logstring $text -step $step
-                    $closeResult = & cmd /C $closeHandleCmd
+                    $closeResult = & cmd.exe /C $closeHandleCmd
                     $text = "Close handle result: $closeResult"; Logline -logstring $text -step $step
                 }
                 catch {
@@ -892,7 +948,7 @@ function Invoke-HandleOnPath {
                     try {
                         $pskillCmd = "${scriptBin}/pskill.exe -t $processId -accepteula -nobanner"
                         $text = "Attempting pskill: $pskillCmd"; Logline -logstring $text -step $step
-                        $pskillResult = & cmd /C $pskillCmd
+                        $pskillResult = & cmd.exe /C $pskillCmd
                         $text = "Pskill result: $pskillResult"; Logline -logstring $text -step $step
                     }
                     catch {
@@ -927,11 +983,11 @@ function Reset-FileAttributes {
         # Reset attributes on the directory itself
         $folder = Get-Item -Path $path -Force -ErrorAction SilentlyContinue
         if ($folder -and ($folder.Attributes -band [System.IO.FileAttributes]::ReadOnly -or
-                           $folder.Attributes -band [System.IO.FileAttributes]::Hidden -or
-                           $folder.Attributes -band [System.IO.FileAttributes]::System)) {
+                $folder.Attributes -band [System.IO.FileAttributes]::Hidden -or
+                $folder.Attributes -band [System.IO.FileAttributes]::System)) {
             $folder.Attributes = $folder.Attributes -band -bnot ([System.IO.FileAttributes]::ReadOnly -bor
-                                                                 [System.IO.FileAttributes]::Hidden -bor
-                                                                 [System.IO.FileAttributes]::System)
+                [System.IO.FileAttributes]::Hidden -bor
+                [System.IO.FileAttributes]::System)
         }
 
         # Reset attributes on all child files
@@ -941,8 +997,8 @@ function Reset-FileAttributes {
                 $_.Attributes -band [System.IO.FileAttributes]::Hidden -or
                 $_.Attributes -band [System.IO.FileAttributes]::System) {
                 $_.Attributes = $_.Attributes -band -bnot ([System.IO.FileAttributes]::ReadOnly -bor
-                                                          [System.IO.FileAttributes]::Hidden -bor
-                                                          [System.IO.FileAttributes]::System)
+                    [System.IO.FileAttributes]::Hidden -bor
+                    [System.IO.FileAttributes]::System)
             }
         }
 
@@ -953,8 +1009,8 @@ function Reset-FileAttributes {
                 $_.Attributes -band [System.IO.FileAttributes]::Hidden -or
                 $_.Attributes -band [System.IO.FileAttributes]::System) {
                 $_.Attributes = $_.Attributes -band -bnot ([System.IO.FileAttributes]::ReadOnly -bor
-                                                          [System.IO.FileAttributes]::Hidden -bor
-                                                          [System.IO.FileAttributes]::System)
+                    [System.IO.FileAttributes]::Hidden -bor
+                    [System.IO.FileAttributes]::System)
             }
         }
 
@@ -1049,13 +1105,14 @@ function Find-LockedFiles {
             $text = "Checking for locked files in ${path}"; Logline -logstring $text -step $step
             $handleCmd = "${scriptBin}/handle.exe ${path} -accepteula -nobanner"
             try {
-                $result = & cmd /C $handleCmd
+                $result = & cmd.exe /C $handleCmd
                 Logline -logstring "$result" -step $step
             }
             catch {
                 $errorMsg = $_.ToString()
                 Logline -logstring "Error executing handle: $errorMsg" -step $step
             }
+scripts/ITM6AgentUninstall.ps1
         }
     }
 }
@@ -1078,12 +1135,12 @@ function Test-IsAllGone {
     $programsAndFeaturesEntries = @()
     $programsAndFeaturesEntries += Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
     Where-Object { (($_.DisplayName -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) -or
-                              ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
-                             -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
+            ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
+        -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
     $programsAndFeaturesEntries += Get-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
     Where-Object { (($_.DisplayName -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) -or
-                              ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
-                             -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
+            ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
+        -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
 
     $noProgramsAndFeaturesEntries = ($programsAndFeaturesEntries.Count -eq 0)
 
@@ -1100,12 +1157,12 @@ function Invoke-ForceUninstall {
         $products = @()
         $products += Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
         Where-Object { (($_.DisplayName -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) -or
-                                  ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
-                                 -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
+                ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
+            -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
         $products += Get-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
         Where-Object { (($_.DisplayName -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) -or
-                                  ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
-                                 -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
+                ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
+            -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
 
         if ($products -and $products.Count -gt 0) {
             $text = "Found $($products.Count) IBM/ITM related products"; Logline -logstring $text -step $step
@@ -1141,7 +1198,7 @@ function Invoke-ForceUninstall {
                             }
 
                             $text = "Executing uninstall string: $uninstallCmd"; Logline -logstring $text -step $step
-                            $result = & cmd /C $uninstallCmd
+                            $result = & cmd.exe /C $uninstallCmd
                             $text = "Uninstall completed: $result"; Logline -logstring $text -step $step
                         }
                         catch {
@@ -1180,7 +1237,7 @@ function Invoke-ForceUninstall {
                     # Use SC delete as a more forceful approach
                     $cmdString = "sc.exe delete $($svc.Name)"
                     $text = "Executing: $cmdString"; Logline -logstring $text -step $step
-                    $result = & cmd /C $cmdString
+                    $result = & cmd.exe /C $cmdString
                     $text = "SC delete result: $result"; Logline -logstring $text -step $step
                 }
                 catch {
@@ -1208,12 +1265,12 @@ function Invoke-ForceUninstall {
                 # Take ownership of the directory for admin
                 $takeown = "takeown.exe /F `"${path}`" /R /A /D Y"
                 $text = "Taking ownership: $takeown"; Logline -logstring $text -step $step
-                & cmd /C $takeown
+                & cmd.exe /C $takeown
 
                 # Grant admin full control
                 $icacls = "icacls.exe `"${path}`" /grant administrators:F /T /C"
                 $text = "Setting permissions: $icacls"; Logline -logstring $text -step $step
-                & cmd /C $icacls
+                & cmd.exe /C $icacls
 
                 # Force remove directory
                 $text = "Force removing path: ${path}"; Logline -logstring $text -step $step
@@ -1228,7 +1285,7 @@ function Invoke-ForceUninstall {
                     $text = "Executing: $handleCmd"; Logline -logstring $text -step $step
 
                     try {
-                        $handleResult = & cmd /C $handleCmd
+                        $handleResult = & cmd.exe /C $handleCmd
                         $text = "Handle output: $handleResult"; Logline -logstring $text -step $step
 
                         # Parse handle output to find processes and kill them
@@ -1246,7 +1303,7 @@ function Invoke-ForceUninstall {
                                 try {
                                     $closeHandleCmd = "${scriptBin}/handle.exe -c $handleId -y -p $processId -accepteula -nobanner"
                                     $text = "Attempting to close handle: $closeHandleCmd"; Logline -logstring $text -step $step
-                                    $closeResult = & cmd /C $closeHandleCmd
+                                    $closeResult = & cmd.exe /C $closeHandleCmd
                                     $text = "Close handle result: $closeResult"; Logline -logstring $text -step $step
                                 }
                                 catch {
@@ -1266,7 +1323,7 @@ function Invoke-ForceUninstall {
                                     try {
                                         $pskillCmd = "${scriptBin}/pskill.exe -t $processId -accepteula -nobanner"
                                         $text = "Attempting pskill: $pskillCmd"; Logline -logstring $text -step $step
-                                        $pskillResult = & cmd /C $pskillCmd
+                                        $pskillResult = & cmd.exe /C $pskillCmd
                                         $text = "Pskill result: $pskillResult"; Logline -logstring $text -step $step
                                     }
                                     catch {
@@ -1296,7 +1353,7 @@ function Invoke-ForceUninstall {
                             # Use robocopy to mirror empty directory over the ITM directory
                             $robocopy = "robocopy.exe `"$emptyDir`" `"${path}`" /MIR /R:1 /W:1"
                             $text = "Executing: $robocopy"; Logline -logstring $text -step $step
-                            & cmd /C $robocopy
+                            & cmd.exe /C $robocopy
 
                             # Try removal one last time
                             Remove-Item -Path ${path} -Recurse -Force -ErrorAction SilentlyContinue
@@ -1318,7 +1375,7 @@ function Invoke-ForceUninstall {
                         # Use robocopy to mirror empty directory over the ITM directory
                         $robocopy = "robocopy.exe `"$emptyDir`" `"${path}`" /MIR /R:1 /W:1"
                         $text = "Executing: $robocopy"; Logline -logstring $text -step $step
-                        & cmd /C $robocopy
+                        & cmd.exe /C $robocopy
 
                         # Try removal one last time
                         Remove-Item -Path ${path} -Recurse -Force -ErrorAction SilentlyContinue
@@ -1391,12 +1448,12 @@ function Invoke-ForceUninstall {
                     # Grant ownership to administrators
                     $takeownCmd = "reg.exe add `"$regPath`" /f"
                     $text = "Executing: $takeownCmd"; Logline -logstring $text -step $step
-                    & cmd /C $takeownCmd | Out-Null
+                    & cmd.exe /C $takeownCmd | Out-Null
 
                     # Delete the registry key recursively
                     $deleteCmd = "reg.exe delete `"$regPath`" /f"
                     $text = "Executing: $deleteCmd"; Logline -logstring $text -step $step
-                    $deleteResult = & cmd /C $deleteCmd 2>&1
+                    $deleteResult = & cmd.exe /C $deleteCmd 2>&1
 
                     if ($LASTEXITCODE -eq 0) {
                         $text = "Successfully removed registry key: $regKey"; Logline -logstring $text -step $step
@@ -1483,7 +1540,7 @@ function Invoke-ForceUninstall {
 
                             $handleCmd = "${scriptBin}/handle.exe `"$($subDir.FullName)`" -accepteula -nobanner"
                             try {
-                                $handleResult = & cmd /C $handleCmd
+                                $handleResult = & cmd.exe /C $handleCmd
                                 $text = "Handle output: $handleResult"; Logline -logstring $text -step $step
 
                                 # Parse and kill locking processes
@@ -1501,7 +1558,7 @@ function Invoke-ForceUninstall {
                                         catch {
                                             try {
                                                 $pskillCmd = "${scriptBin}/pskill.exe -t $processId -accepteula -nobanner"
-                                                & cmd /C $pskillCmd
+                                                & cmd.exe /C $pskillCmd
                                             }
                                             catch {
                                                 $text = "Failed to kill process $processId"; Logline -logstring $text -step $step
@@ -1548,7 +1605,7 @@ function Invoke-ForceUninstall {
                         # Use handle.exe to find what's locking the root directory
                         $handleCmd = "${scriptBin}/handle.exe `"$itmRootPath`" -accepteula -nobanner"
                         try {
-                            $handleResult = & cmd /C $handleCmd
+                            $handleResult = & cmd.exe /C $handleCmd
                             $text = "Handle output for root directory: $handleResult"; Logline -logstring $text -step $step
 
                             # Parse and kill locking processes
@@ -1567,7 +1624,7 @@ function Invoke-ForceUninstall {
                                     catch {
                                         try {
                                             $pskillCmd = "${scriptBin}/pskill.exe -t $processId -accepteula -nobanner"
-                                            $pskillResult = & cmd /C $pskillCmd
+                                            $pskillResult = & cmd.exe /C $pskillCmd
                                             $text = "Pskill result for PID $processId : $pskillResult"; Logline -logstring $text -step $step
                                         }
                                         catch {
@@ -1744,9 +1801,10 @@ function Show-RemainingRegistryEntries {
         "HKLM:\SYSTEM\CurrentControlSet\Services\Candle",
         "HKLM:\SYSTEM\CurrentControlSet\Services\IBM\ITM",
         "HKLM:\SOFTWARE\IBM\ITM",
-        "HKLM:\SOFTWARE\Wow6432Node\IBM\ITM",
-        "HKLM:\SOFTWARE\IBM\Tivoli",
-        "HKLM:\SOFTWARE\Wow6432Node\IBM\Tivoli"
+        "HKLM:\SOFTWARE\Wow6432Node\IBM\ITM"
+        # Note: Removed HKLM:\SOFTWARE\IBM\Tivoli and HKLM:\SOFTWARE\Wow6432Node\IBM\Tivoli
+        # to avoid breaking other Tivoli products like TSM, Spectrum, etc.
+        # ITM-specific entries under Tivoli will be handled separately
     )
 
     $foundRegistryEntries = $false
@@ -1792,8 +1850,8 @@ function Show-RemainingRegistryEntries {
                 Where-Object {
                     $props = Get-ItemProperty -Path $_.PSPath -ErrorAction SilentlyContinue
                     $props -and (
-                            ($props.DisplayName -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*")) -or
-                            ($props.Publisher -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*"))
+                        ($props.DisplayName -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*")) -or
+                        ($props.Publisher -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*"))
                     )
                 }
 
@@ -1918,13 +1976,13 @@ function Test-AdditionalDirectoriesRemoved {
                     $icaclsResetCmd = "icacls `"$normalizedPath\*`" /reset /T /Q"
 
                     $text = "Running: $takeownCmd"; Logline -logstring $text -step $step
-                    & cmd /C $takeownCmd 2>&1 | Out-Null
+                    & cmd.exe /C $takeownCmd 2>&1 | Out-Null
 
                     $text = "Running: $icaclsCmd"; Logline -logstring $text -step $step
-                    & cmd /C $icaclsCmd 2>&1 | Out-Null
+                    & cmd.exe /C $icaclsCmd 2>&1 | Out-Null
 
                     $text = "Running: $icaclsResetCmd"; Logline -logstring $text -step $step
-                    & cmd /C $icaclsResetCmd 2>&1 | Out-Null
+                    & cmd.exe /C $icaclsResetCmd 2>&1 | Out-Null
 
                     # Wait for permissions to take effect
                     Start-Sleep -Seconds 2
@@ -1964,18 +2022,6 @@ function Test-AdditionalDirectoriesRemoved {
 # ----------------------------------------------------------------------------------------------------------------------------
 # Helper function to safely check cmdlet availability without triggering auto-imports
 # ----------------------------------------------------------------------------------------------------------------------------
-function Test-CmdletAvailable {
-    param([string]$CmdletName)
-    try {
-        $cmd = Get-Command $CmdletName -ErrorAction SilentlyContinue
-        return ($null -ne $cmd)
-    }
-    catch {
-        return $false
-    }
-}
-
-# ----------------------------------------------------------------------------------------------------------------------------
 # Safe Get-Service wrapper function
 # ----------------------------------------------------------------------------------------------------------------------------
 function Get-ServiceSafe {
@@ -1991,7 +2037,8 @@ function Get-ServiceSafe {
                 return Get-Service | Where-Object {
                     ($_.Name -like $Name) -and ($_.DisplayName -like $DisplayName)
                 }
-            } else {
+            }
+            else {
                 return Get-Service
             }
         }
@@ -2009,15 +2056,15 @@ function Get-ServiceSafe {
                 foreach ($service in $services) {
                     if (($service.Name -like $Name) -and ($service.DisplayName -like $DisplayName)) {
                         $serviceObj = New-Object PSObject -Property @{
-                            Name = $service.Name
+                            Name        = $service.Name
                             DisplayName = $service.DisplayName
-                            Status = switch ($service.State) {
+                            Status      = switch ($service.State) {
                                 "Running" { "Running" }
                                 "Stopped" { "Stopped" }
                                 "Paused" { "Paused" }
                                 default { $service.State }
                             }
-                            StartType = switch ($service.StartMode) {
+                            StartType   = switch ($service.StartMode) {
                                 "Auto" { "Automatic" }
                                 "Manual" { "Manual" }
                                 "Disabled" { "Disabled" }
@@ -2034,7 +2081,7 @@ function Get-ServiceSafe {
     catch {
         # Final fallback to SC command
         try {
-            $null = & sc.exe query state=all 2>$null
+            & sc.exe query state=all > $null 2>&1
             if ($LASTEXITCODE -eq 0) {
                 # Parse SC output - this is a basic implementation
                 # For the scope of this fix, we'll return empty array if both methods fail
@@ -2048,7 +2095,6 @@ function Get-ServiceSafe {
 
     return @()
 }
-
 # ----------------------------------------------------------------------------------------------------------------------------
 #
 # BEGIN
@@ -2093,6 +2139,7 @@ if ( $continue ) {
 if ( $continue ) {
     $text = "run Find-LockedFiles"; $step++; Logline -logstring $text -step $step
     Find-LockedFiles
+    Test-SpecificFileLock
 }
 # ----------------------------------------------------------------------------------------------------------------------------
 # Stop all remaining IBM and ITM-related processes
@@ -2114,10 +2161,6 @@ if ( $continue ) {
 if ( $continue ) {
     $text = "run Test-CleanupRegistry"; $step++; Logline -logstring $text -step $step
     $continue = Test-CleanupRegistry
-
-    # Clean up ITM-specific entries under Tivoli registry keys
-    $text = "run Remove-ITMSpecificTivoliEntries"; $step++; Logline -logstring $text -step $step
-    Remove-ITMSpecificTivoliEntries
 }
 # ----------------------------------------------------------------------------------------------------------------------------
 # run Test-CleanupProductFiles.
@@ -2244,7 +2287,7 @@ function Test-ShouldExcludeFromITMUninstall {
 # ----------------------------------------------------------------------------------------------------------------------------
 function Get-MSIProductInfo {
     param (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$ProductCode
     )
 
@@ -2263,12 +2306,12 @@ function Get-MSIProductInfo {
 
             if ($msiProduct) {
                 return [PSCustomObject]@{
-                    DisplayName = $msiProduct.Name
-                    Publisher = $msiProduct.Vendor
-                    Version = $msiProduct.Version
-                    InstallDate = $msiProduct.InstallDate
+                    DisplayName     = $msiProduct.Name
+                    Publisher       = $msiProduct.Vendor
+                    Version         = $msiProduct.Version
+                    InstallDate     = $msiProduct.InstallDate
                     InstallLocation = $msiProduct.InstallLocation
-                    ProductCode = $ProductCode
+                    ProductCode     = $ProductCode
                     UninstallString = "msiexec.exe /x $ProductCode /qn"
                 }
             }
@@ -2285,12 +2328,12 @@ function Get-MSIProductInfo {
                 $regInfo = Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue
                 if ($regInfo) {
                     return [PSCustomObject]@{
-                        DisplayName = $regInfo.DisplayName
-                        Publisher = $regInfo.Publisher
-                        Version = $regInfo.DisplayVersion
-                        InstallDate = $regInfo.InstallDate
+                        DisplayName     = $regInfo.DisplayName
+                        Publisher       = $regInfo.Publisher
+                        Version         = $regInfo.DisplayVersion
+                        InstallDate     = $regInfo.InstallDate
                         InstallLocation = $regInfo.InstallLocation
-                        ProductCode = $ProductCode
+                        ProductCode     = $ProductCode
                         UninstallString = $regInfo.UninstallString
                     }
                 }
@@ -2336,9 +2379,9 @@ function Show-IBMSoftwareAnalysis {
                     $props = Get-ItemProperty -Path $entry.PSPath -ErrorAction SilentlyContinue
                     if ($props) {
                         $allIBMSoftware += [PSCustomObject]@{
-                            DisplayName = $props.DisplayName
-                            Publisher = $props.Publisher
-                            Version = $props.DisplayVersion
+                            DisplayName  = $props.DisplayName
+                            Publisher    = $props.Publisher
+                            Version      = $props.DisplayVersion
                             RegistryPath = $entry.PSPath
                         }
                     }
@@ -2355,12 +2398,12 @@ function Show-IBMSoftwareAnalysis {
 
             foreach ($software in $allIBMSoftware) {
                 $isITMRelated = ($software.DisplayName -like "*Tivoli*" -or
-                               $software.DisplayName -like "*ITM*" -or
-                               $software.DisplayName -like "*monitoring*") -or
-                               ($software.Publisher -like "*IBM*" -and
-                               ($software.DisplayName -like "*Tivoli*" -or
-                                $software.DisplayName -like "*ITM*" -or
-                                $software.DisplayName -like "*monitoring*"))
+                    $software.DisplayName -like "*ITM*" -or
+                    $software.DisplayName -like "*monitoring*") -or
+                ($software.Publisher -like "*IBM*" -and
+                ($software.DisplayName -like "*Tivoli*" -or
+                $software.DisplayName -like "*ITM*" -or
+                $software.DisplayName -like "*monitoring*"))
 
                 $shouldExclude = Test-ShouldExcludeFromITMUninstall -DisplayName $software.DisplayName -Publisher $software.Publisher
 
@@ -2398,12 +2441,12 @@ function Show-IBMSoftwareAnalysis {
             $otherIBMSoftware = $allIBMSoftware | Where-Object {
                 $software = $_
                 $isITMRelated = ($software.DisplayName -like "*Tivoli*" -or
-                               $software.DisplayName -like "*ITM*" -or
-                               $software.DisplayName -like "*monitoring*") -or
-                               ($software.Publisher -like "*IBM*" -and
-                               ($software.DisplayName -like "*Tivoli*" -or
-                                $software.DisplayName -like "*ITM*" -or
-                                $software.DisplayName -like "*monitoring*"))
+                    $software.DisplayName -like "*ITM*" -or
+                    $software.DisplayName -like "*monitoring*") -or
+                ($software.Publisher -like "*IBM*" -and
+                ($software.DisplayName -like "*Tivoli*" -or
+                $software.DisplayName -like "*ITM*" -or
+                $software.DisplayName -like "*monitoring*"))
 
                 $shouldExclude = Test-ShouldExcludeFromITMUninstall -DisplayName $software.DisplayName -Publisher $software.Publisher
 
@@ -2433,50 +2476,94 @@ function Show-IBMSoftwareAnalysis {
 }
 
 # ----------------------------------------------------------------------------------------------------------------------------
-# Clean up ITM-specific entries under Tivoli registry keys without affecting other Tivoli products
+# Alternative methods to check what's locking a specific file (for manual troubleshooting)
 # ----------------------------------------------------------------------------------------------------------------------------
-function Remove-ITMSpecificTivoliEntries {
-    $text = "Cleaning up ITM-specific entries under Tivoli registry keys"; $step++; Logline -logstring $text -step $step
-
-    $tivoliPaths = @(
-        "HKLM:\SOFTWARE\IBM\Tivoli",
-        "HKLM:\SOFTWARE\Wow6432Node\IBM\Tivoli"
+function Test-SpecificFileLock {
+    param(
+        [string]$FilePath = "C:\IBM\ITM\TMAITM6_x64\kntmsgs.dll"
     )
 
-    foreach ($tivoliPath in $tivoliPaths) {
-        if (Test-Path $tivoliPath) {
-            try {
-                $text = "Checking Tivoli registry path: $tivoliPath"; Logline -logstring $text -step $step
+    $text = "=== COMPREHENSIVE FILE LOCK ANALYSIS FOR: $FilePath ==="; Logline -logstring $text -step $step
 
-                # Get all subkeys under Tivoli
-                $subkeys = Get-ChildItem -Path $tivoliPath -ErrorAction SilentlyContinue
+    if (-not (Test-Path $FilePath)) {
+        $text = "File does not exist: $FilePath"; Logline -logstring $text -step $step
+        return
+    }
 
-                foreach ($subkey in $subkeys) {
-                    $subkeyName = $subkey.PSChildName
+    # Method 1: Process Monitor equivalent - check all processes for loaded modules
+    $text = "Method 1: Checking all processes for loaded modules"; Logline -logstring $text -step $step
+    $fileName = [System.IO.Path]::GetFileName($FilePath)
 
-                    # Only remove ITM-specific entries, preserve others like TSM, Spectrum, etc.
-                    if ($subkeyName -match "ITM|monitoring|Agent") {
-                        try {
-                            $text = "Removing ITM-specific Tivoli subkey: $($subkey.PSPath)"; Logline -logstring $text -step $step
-                            Remove-Item -Path $subkey.PSPath -Recurse -Force
-                        }
-                        catch {
-                            $text = "Error removing ITM Tivoli subkey $($subkey.PSPath): $_"; Logline -logstring $text -step $step
-                        }
-                    }
-                    else {
-                        $text = "Preserving non-ITM Tivoli subkey: $subkeyName"; Logline -logstring $text -step $step
+    Get-Process | ForEach-Object {
+        try {
+            if ($_.Modules) {
+                foreach ($module in $_.Modules) {
+                    if ($module.FileName -eq $FilePath) {
+                        $text = "FOUND: Process '$($_.Name)' (PID: $($_.Id)) has module loaded: $($module.FileName)"; Logline -logstring $text -step $step
                     }
                 }
             }
-            catch {
-                $text = "Error accessing Tivoli registry path $tivoliPath : $_"; Logline -logstring $text -step $step
-            }
         }
-        else {
-            $text = "Tivoli registry path not found: $tivoliPath"; Logline -logstring $text -step $step
+        catch {
+            # Access denied - continue
         }
     }
 
-    return $true
+    # Method 2: Resource Monitor equivalent - check handles
+    $text = "Method 2: Using handle.exe for comprehensive handle check"; Logline -logstring $text -step $step
+    try {
+        $handleCmd = "${scriptBin}/handle.exe `"$FilePath`" -accepteula -nobanner"
+        $text = "Executing: $handleCmd"; Logline -logstring $text -step $step
+        $result = & cmd.exe /C $handleCmd 2>&1
+        $text = "Handle.exe output: $result"; Logline -logstring $text -step $step
+    }
+    catch {
+        $text = "Error running handle.exe: $_"; Logline -logstring $text -step $step
+    }
+
+    # Method 3: Check if any service has the file in its image path
+    $text = "Method 3: Checking services for file usage"; Logline -logstring $text -step $step
+    try {
+        if (Test-CmdletAvailable "Get-WmiObject") {
+            $services = Get-WmiObject -Class Win32_Service -ErrorAction SilentlyContinue
+            foreach ($service in $services) {
+                if ($service.PathName -and $service.PathName.Contains($fileName)) {
+                    $text = "FOUND: Service '$($service.Name)' uses file: $($service.PathName)"; Logline -logstring $text -step $step
+                }
+            }
+        }
+    }
+    catch {
+        $text = "Error checking services: $_"; Logline -logstring $text -step $step
+    }
+
+    # Method 4: Check for DLL in memory using listdlls (if available)
+    $text = "Method 4: Checking for DLL in memory"; Logline -logstring $text -step $step
+    $listdllsPath = "${scriptBin}/listdlls.exe"
+    if (Test-Path $listdllsPath) {
+        try {
+            $listdllsCmd = "`"$listdllsPath`" -d `"$FilePath`" -accepteula"
+            $result = & cmd.exe /C $listdllsCmd 2>&1
+            $text = "ListDLLs output: $result"; Logline -logstring $text -step $step
+        }
+        catch {
+            $text = "Error running listdlls.exe: $_"; Logline -logstring $text -step $step
+        }
+    }
+    else {
+        $text = "listdlls.exe not available at: $listdllsPath"; Logline -logstring $text -step $step
+    }
+
+    # Method 5: Try to force unlock using Remove-LockedFile
+    $text = "Method 5: Attempting to remove locked file"; Logline -logstring $text -step $step
+    $removed = Remove-LockedFile -FilePath $FilePath
+
+    if ($removed) {
+        $text = "SUCCESS: File was successfully removed"; Logline -logstring $text -step $step
+    }
+    else {
+        $text = "FAILED: File could not be removed"; Logline -logstring $text -step $step
+    }
+
+    $text = "=== END FILE LOCK ANALYSIS ==="; Logline -logstring $text -step $step
 }
