@@ -3,6 +3,34 @@ $global:ErrorActionPreference = $defaultErrorActionPreference
 $global:VerbosePreference = "SilentlyContinue"
 $PSModuleAutoLoadingPreference = "None"
 $global:PSModuleAutoLoadingPreference = "None"
+
+# Try to import essential modules if they're not available
+try {
+    # Test if Get-Service is available, if not try to import the module
+    if (-not (Get-Command "Get-Service" -ErrorAction SilentlyContinue)) {
+        Import-Module Microsoft.PowerShell.Management -ErrorAction SilentlyContinue
+    }
+    # Test if Get-WmiObject is available, if not try to import the module
+    if (-not (Get-Command "Get-WmiObject" -ErrorAction SilentlyContinue)) {
+        Import-Module Microsoft.PowerShell.Management -ErrorAction SilentlyContinue
+    }
+}
+catch {
+    # Continue if module import fails - the script will use fallback methods
+}
+
+# Define Test-CmdletAvailable early since it's used in initialization
+function Test-CmdletAvailable {
+    param([string]$CmdletName)
+    try {
+        $cmd = Get-Command $CmdletName -ErrorAction SilentlyContinue
+        return ($null -ne $cmd)
+    }
+    catch {
+        return $false
+    }
+}
+
 $global:scriptName = $myinvocation.mycommand.Name
 <# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #   V1.4
@@ -175,10 +203,9 @@ $global:RegistryKeys = @(
     "HKLM:\SYSTEM\CurrentControlSet\Services\Candle",
     "HKLM:\SYSTEM\CurrentControlSet\Services\IBM\ITM",
     "HKLM:\SOFTWARE\IBM\ITM",
-    "HKLM:\SOFTWARE\Wow6432Node\IBM\ITM"
-    # Note: Removed HKLM:\SOFTWARE\IBM\Tivoli and HKLM:\SOFTWARE\Wow6432Node\IBM\Tivoli
-    # to avoid breaking other Tivoli products like TSM, Spectrum, etc.
-    # ITM-specific entries under Tivoli will be handled separately
+    "HKLM:\SOFTWARE\Wow6432Node\IBM\ITM",
+    "HKLM:\SOFTWARE\IBM\Tivoli",
+    "HKLM:\SOFTWARE\Wow6432Node\IBM\Tivoli"
 )
 $global:RemoveDirs = @(
     "C:/IBM/ITM",
@@ -432,7 +459,7 @@ function Start-ProductAgent {
     elseif ( Test-IsAgentsStopped -eq $false ) {
         $IsAgentsStarted = $true
     }
-    $text = "Agents started status: $IsAgentsStarted"; Logline -logstring $text -step $step    $text = "Final services status:"; Logline -logstring $text -step $step
+    $text = "Agents started status: $IsAgentsStarted"; Logline -logstring $text -step $step $text = "Final services status:"; Logline -logstring $text -step $step
     Show-AgentStatus
 
     $runningServices = Get-ServiceSafe | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" -and $_.Status -eq "Running" }
@@ -464,8 +491,25 @@ function Stop-ProductAgent {
             }
 
             foreach ($service in $servicesToStop) {
-                if ( $disable ) { $service | Set-Service -StartupType Disabled }
-                $service | Stop-Service -force
+                try {
+                    if ( $disable ) {
+                        if (Test-CmdletAvailable "Set-Service") {
+                            Set-Service -Name $service.Name -StartupType Disabled -ErrorAction SilentlyContinue
+                        }
+                        else {
+                            & sc.exe config $service.Name start= disabled
+                        }
+                    }
+                    if (Test-CmdletAvailable "Stop-Service") {
+                        Stop-Service -Name $service.Name -Force -ErrorAction SilentlyContinue
+                    }
+                    else {
+                        & net.exe stop $service.Name
+                    }
+                }
+                catch {
+                    $text = "Error stopping service $($service.Name): $($_.Exception.Message)"; Logline -logstring $text -step $step
+                }
             }
             if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
         }
@@ -511,8 +555,25 @@ function Stop-ProductAgent {
             $text = "stop and disable services"; $step++; Logline -logstring $text -step $step
             $servicesToStop = Get-ServiceSafe | Where-Object { $_.Name -match "${ServiceName}" -and $_.DisplayName -match "${DisplayName}" }
             foreach ($service in $servicesToStop) {
-                if ( $disable ) { $service | Set-Service -StartupType Disabled }
-                $service | Stop-Service -force
+                try {
+                    if ( $disable ) {
+                        if (Test-CmdletAvailable "Set-Service") {
+                            Set-Service -Name $service.Name -StartupType Disabled -ErrorAction SilentlyContinue
+                        }
+                        else {
+                            & sc.exe config $service.Name start= disabled
+                        }
+                    }
+                    if (Test-CmdletAvailable "Stop-Service") {
+                        Stop-Service -Name $service.Name -Force -ErrorAction SilentlyContinue
+                    }
+                    else {
+                        & net.exe stop $service.Name
+                    }
+                }
+                catch {
+                    $text = "Error stopping service $($service.Name): $($_.Exception.Message)"; Logline -logstring $text -step $step
+                }
             }
             Logline -logstring "$result"
             if ( Test-IsAgentsStopped -eq $true ) { $IsAgentsStopped = $true }
@@ -535,7 +596,8 @@ function Uninstall-ProductAgent {
 
                 # Convert array to a proper command string
                 # $cmdString = "cmd /C " + ($UninstCmdexec -join ' ')
-                $cmdString = "cmd /C ${UninstCmdexec}"
+                # $cmdString = "cmd /C ${UninstCmdexec}"
+                $cmdString = "${UninstCmdexec}"
                 $text = "Command to execute: $cmdString"; Logline -logstring $text -step $step
 
                 # Execute the command
@@ -655,8 +717,8 @@ function Test-CleanupRegistry {
                 Where-Object {
                     $props = Get-ItemProperty -Path $_.PSPath -ErrorAction SilentlyContinue
                     $props -and (
-                            ($props.DisplayName -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*")) -or
-                            ($props.Publisher -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*"))
+                        ($props.DisplayName -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*")) -or
+                        ($props.Publisher -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*"))
                     ) -and -not (Test-ShouldExcludeFromITMUninstall -DisplayName $props.DisplayName -Publisher $props.Publisher)
                 }
 
@@ -743,7 +805,7 @@ function Remove-BlockedPath {
         try {
             # Get all subdirectories sorted by depth (deepest first)
             $subDirectories = Get-ChildItem -Path ${path} -Directory -Recurse -ErrorAction SilentlyContinue |
-                Sort-Object @{Expression={($_.FullName -split '\\').Count}; Descending=$true}
+            Sort-Object @{Expression = { ($_.FullName -split '\\').Count }; Descending = $true }
 
             # Delete subdirectories from deepest to shallowest
             foreach ($subDir in $subDirectories) {
@@ -927,11 +989,11 @@ function Reset-FileAttributes {
         # Reset attributes on the directory itself
         $folder = Get-Item -Path $path -Force -ErrorAction SilentlyContinue
         if ($folder -and ($folder.Attributes -band [System.IO.FileAttributes]::ReadOnly -or
-                           $folder.Attributes -band [System.IO.FileAttributes]::Hidden -or
-                           $folder.Attributes -band [System.IO.FileAttributes]::System)) {
+                $folder.Attributes -band [System.IO.FileAttributes]::Hidden -or
+                $folder.Attributes -band [System.IO.FileAttributes]::System)) {
             $folder.Attributes = $folder.Attributes -band -bnot ([System.IO.FileAttributes]::ReadOnly -bor
-                                                                 [System.IO.FileAttributes]::Hidden -bor
-                                                                 [System.IO.FileAttributes]::System)
+                [System.IO.FileAttributes]::Hidden -bor
+                [System.IO.FileAttributes]::System)
         }
 
         # Reset attributes on all child files
@@ -941,8 +1003,8 @@ function Reset-FileAttributes {
                 $_.Attributes -band [System.IO.FileAttributes]::Hidden -or
                 $_.Attributes -band [System.IO.FileAttributes]::System) {
                 $_.Attributes = $_.Attributes -band -bnot ([System.IO.FileAttributes]::ReadOnly -bor
-                                                          [System.IO.FileAttributes]::Hidden -bor
-                                                          [System.IO.FileAttributes]::System)
+                    [System.IO.FileAttributes]::Hidden -bor
+                    [System.IO.FileAttributes]::System)
             }
         }
 
@@ -953,8 +1015,8 @@ function Reset-FileAttributes {
                 $_.Attributes -band [System.IO.FileAttributes]::Hidden -or
                 $_.Attributes -band [System.IO.FileAttributes]::System) {
                 $_.Attributes = $_.Attributes -band -bnot ([System.IO.FileAttributes]::ReadOnly -bor
-                                                          [System.IO.FileAttributes]::Hidden -bor
-                                                          [System.IO.FileAttributes]::System)
+                    [System.IO.FileAttributes]::Hidden -bor
+                    [System.IO.FileAttributes]::System)
             }
         }
 
@@ -1078,12 +1140,12 @@ function Test-IsAllGone {
     $programsAndFeaturesEntries = @()
     $programsAndFeaturesEntries += Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
     Where-Object { (($_.DisplayName -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) -or
-                              ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
-                             -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
+            ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
+        -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
     $programsAndFeaturesEntries += Get-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
     Where-Object { (($_.DisplayName -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) -or
-                              ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
-                             -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
+            ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
+        -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
 
     $noProgramsAndFeaturesEntries = ($programsAndFeaturesEntries.Count -eq 0)
 
@@ -1100,12 +1162,12 @@ function Invoke-ForceUninstall {
         $products = @()
         $products += Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
         Where-Object { (($_.DisplayName -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) -or
-                                  ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
-                                 -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
+                ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
+            -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
         $products += Get-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
         Where-Object { (($_.DisplayName -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*")) -or
-                                  ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
-                                 -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
+                ($_.Publisher -like "*IBM*" -and ($_.DisplayName -like "*Tivoli*" -or $_.DisplayName -like "*ITM*" -or $_.DisplayName -like "*monitoring*"))) -and
+            -not (Test-ShouldExcludeFromITMUninstall -DisplayName $_.DisplayName -Publisher $_.Publisher) }
 
         if ($products -and $products.Count -gt 0) {
             $text = "Found $($products.Count) IBM/ITM related products"; Logline -logstring $text -step $step
@@ -1744,9 +1806,10 @@ function Show-RemainingRegistryEntries {
         "HKLM:\SYSTEM\CurrentControlSet\Services\Candle",
         "HKLM:\SYSTEM\CurrentControlSet\Services\IBM\ITM",
         "HKLM:\SOFTWARE\IBM\ITM",
-        "HKLM:\SOFTWARE\Wow6432Node\IBM\ITM",
-        "HKLM:\SOFTWARE\IBM\Tivoli",
-        "HKLM:\SOFTWARE\Wow6432Node\IBM\Tivoli"
+        "HKLM:\SOFTWARE\Wow6432Node\IBM\ITM"
+        # Note: Removed HKLM:\SOFTWARE\IBM\Tivoli and HKLM:\SOFTWARE\Wow6432Node\IBM\Tivoli
+        # to avoid breaking other Tivoli products like TSM, Spectrum, etc.
+        # ITM-specific entries under Tivoli will be handled separately
     )
 
     $foundRegistryEntries = $false
@@ -1792,8 +1855,8 @@ function Show-RemainingRegistryEntries {
                 Where-Object {
                     $props = Get-ItemProperty -Path $_.PSPath -ErrorAction SilentlyContinue
                     $props -and (
-                            ($props.DisplayName -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*")) -or
-                            ($props.Publisher -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*"))
+                        ($props.DisplayName -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*")) -or
+                        ($props.Publisher -like "*IBM*" -and ($props.DisplayName -like "*Tivoli*" -or $props.DisplayName -like "*ITM*" -or $props.DisplayName -like "*monitoring*"))
                     )
                 }
 
@@ -1964,18 +2027,6 @@ function Test-AdditionalDirectoriesRemoved {
 # ----------------------------------------------------------------------------------------------------------------------------
 # Helper function to safely check cmdlet availability without triggering auto-imports
 # ----------------------------------------------------------------------------------------------------------------------------
-function Test-CmdletAvailable {
-    param([string]$CmdletName)
-    try {
-        $cmd = Get-Command $CmdletName -ErrorAction SilentlyContinue
-        return ($null -ne $cmd)
-    }
-    catch {
-        return $false
-    }
-}
-
-# ----------------------------------------------------------------------------------------------------------------------------
 # Safe Get-Service wrapper function
 # ----------------------------------------------------------------------------------------------------------------------------
 function Get-ServiceSafe {
@@ -1991,7 +2042,8 @@ function Get-ServiceSafe {
                 return Get-Service | Where-Object {
                     ($_.Name -like $Name) -and ($_.DisplayName -like $DisplayName)
                 }
-            } else {
+            }
+            else {
                 return Get-Service
             }
         }
@@ -2009,15 +2061,15 @@ function Get-ServiceSafe {
                 foreach ($service in $services) {
                     if (($service.Name -like $Name) -and ($service.DisplayName -like $DisplayName)) {
                         $serviceObj = New-Object PSObject -Property @{
-                            Name = $service.Name
+                            Name        = $service.Name
                             DisplayName = $service.DisplayName
-                            Status = switch ($service.State) {
+                            Status      = switch ($service.State) {
                                 "Running" { "Running" }
                                 "Stopped" { "Stopped" }
                                 "Paused" { "Paused" }
                                 default { $service.State }
                             }
-                            StartType = switch ($service.StartMode) {
+                            StartType   = switch ($service.StartMode) {
                                 "Auto" { "Automatic" }
                                 "Manual" { "Manual" }
                                 "Disabled" { "Disabled" }
@@ -2034,7 +2086,7 @@ function Get-ServiceSafe {
     catch {
         # Final fallback to SC command
         try {
-            $null = & sc.exe query state=all 2>$null
+            & sc.exe query state=all > $null 2>&1
             if ($LASTEXITCODE -eq 0) {
                 # Parse SC output - this is a basic implementation
                 # For the scope of this fix, we'll return empty array if both methods fail
@@ -2048,7 +2100,6 @@ function Get-ServiceSafe {
 
     return @()
 }
-
 # ----------------------------------------------------------------------------------------------------------------------------
 #
 # BEGIN
@@ -2114,10 +2165,6 @@ if ( $continue ) {
 if ( $continue ) {
     $text = "run Test-CleanupRegistry"; $step++; Logline -logstring $text -step $step
     $continue = Test-CleanupRegistry
-
-    # Clean up ITM-specific entries under Tivoli registry keys
-    $text = "run Remove-ITMSpecificTivoliEntries"; $step++; Logline -logstring $text -step $step
-    Remove-ITMSpecificTivoliEntries
 }
 # ----------------------------------------------------------------------------------------------------------------------------
 # run Test-CleanupProductFiles.
@@ -2244,7 +2291,7 @@ function Test-ShouldExcludeFromITMUninstall {
 # ----------------------------------------------------------------------------------------------------------------------------
 function Get-MSIProductInfo {
     param (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$ProductCode
     )
 
@@ -2263,12 +2310,12 @@ function Get-MSIProductInfo {
 
             if ($msiProduct) {
                 return [PSCustomObject]@{
-                    DisplayName = $msiProduct.Name
-                    Publisher = $msiProduct.Vendor
-                    Version = $msiProduct.Version
-                    InstallDate = $msiProduct.InstallDate
+                    DisplayName     = $msiProduct.Name
+                    Publisher       = $msiProduct.Vendor
+                    Version         = $msiProduct.Version
+                    InstallDate     = $msiProduct.InstallDate
                     InstallLocation = $msiProduct.InstallLocation
-                    ProductCode = $ProductCode
+                    ProductCode     = $ProductCode
                     UninstallString = "msiexec.exe /x $ProductCode /qn"
                 }
             }
@@ -2285,12 +2332,12 @@ function Get-MSIProductInfo {
                 $regInfo = Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue
                 if ($regInfo) {
                     return [PSCustomObject]@{
-                        DisplayName = $regInfo.DisplayName
-                        Publisher = $regInfo.Publisher
-                        Version = $regInfo.DisplayVersion
-                        InstallDate = $regInfo.InstallDate
+                        DisplayName     = $regInfo.DisplayName
+                        Publisher       = $regInfo.Publisher
+                        Version         = $regInfo.DisplayVersion
+                        InstallDate     = $regInfo.InstallDate
                         InstallLocation = $regInfo.InstallLocation
-                        ProductCode = $ProductCode
+                        ProductCode     = $ProductCode
                         UninstallString = $regInfo.UninstallString
                     }
                 }
@@ -2336,9 +2383,9 @@ function Show-IBMSoftwareAnalysis {
                     $props = Get-ItemProperty -Path $entry.PSPath -ErrorAction SilentlyContinue
                     if ($props) {
                         $allIBMSoftware += [PSCustomObject]@{
-                            DisplayName = $props.DisplayName
-                            Publisher = $props.Publisher
-                            Version = $props.DisplayVersion
+                            DisplayName  = $props.DisplayName
+                            Publisher    = $props.Publisher
+                            Version      = $props.DisplayVersion
                             RegistryPath = $entry.PSPath
                         }
                     }
@@ -2355,12 +2402,12 @@ function Show-IBMSoftwareAnalysis {
 
             foreach ($software in $allIBMSoftware) {
                 $isITMRelated = ($software.DisplayName -like "*Tivoli*" -or
-                               $software.DisplayName -like "*ITM*" -or
-                               $software.DisplayName -like "*monitoring*") -or
-                               ($software.Publisher -like "*IBM*" -and
-                               ($software.DisplayName -like "*Tivoli*" -or
-                                $software.DisplayName -like "*ITM*" -or
-                                $software.DisplayName -like "*monitoring*"))
+                    $software.DisplayName -like "*ITM*" -or
+                    $software.DisplayName -like "*monitoring*") -or
+                ($software.Publisher -like "*IBM*" -and
+                ($software.DisplayName -like "*Tivoli*" -or
+                $software.DisplayName -like "*ITM*" -or
+                $software.DisplayName -like "*monitoring*"))
 
                 $shouldExclude = Test-ShouldExcludeFromITMUninstall -DisplayName $software.DisplayName -Publisher $software.Publisher
 
@@ -2398,12 +2445,12 @@ function Show-IBMSoftwareAnalysis {
             $otherIBMSoftware = $allIBMSoftware | Where-Object {
                 $software = $_
                 $isITMRelated = ($software.DisplayName -like "*Tivoli*" -or
-                               $software.DisplayName -like "*ITM*" -or
-                               $software.DisplayName -like "*monitoring*") -or
-                               ($software.Publisher -like "*IBM*" -and
-                               ($software.DisplayName -like "*Tivoli*" -or
-                                $software.DisplayName -like "*ITM*" -or
-                                $software.DisplayName -like "*monitoring*"))
+                    $software.DisplayName -like "*ITM*" -or
+                    $software.DisplayName -like "*monitoring*") -or
+                ($software.Publisher -like "*IBM*" -and
+                ($software.DisplayName -like "*Tivoli*" -or
+                $software.DisplayName -like "*ITM*" -or
+                $software.DisplayName -like "*monitoring*"))
 
                 $shouldExclude = Test-ShouldExcludeFromITMUninstall -DisplayName $software.DisplayName -Publisher $software.Publisher
 
@@ -2430,53 +2477,4 @@ function Show-IBMSoftwareAnalysis {
     }
 
     $text = "--- END OF IBM SOFTWARE ANALYSIS ---"; Logline -logstring $text -step $step
-}
-
-# ----------------------------------------------------------------------------------------------------------------------------
-# Clean up ITM-specific entries under Tivoli registry keys without affecting other Tivoli products
-# ----------------------------------------------------------------------------------------------------------------------------
-function Remove-ITMSpecificTivoliEntries {
-    $text = "Cleaning up ITM-specific entries under Tivoli registry keys"; $step++; Logline -logstring $text -step $step
-
-    $tivoliPaths = @(
-        "HKLM:\SOFTWARE\IBM\Tivoli",
-        "HKLM:\SOFTWARE\Wow6432Node\IBM\Tivoli"
-    )
-
-    foreach ($tivoliPath in $tivoliPaths) {
-        if (Test-Path $tivoliPath) {
-            try {
-                $text = "Checking Tivoli registry path: $tivoliPath"; Logline -logstring $text -step $step
-
-                # Get all subkeys under Tivoli
-                $subkeys = Get-ChildItem -Path $tivoliPath -ErrorAction SilentlyContinue
-
-                foreach ($subkey in $subkeys) {
-                    $subkeyName = $subkey.PSChildName
-
-                    # Only remove ITM-specific entries, preserve others like TSM, Spectrum, etc.
-                    if ($subkeyName -match "ITM|monitoring|Agent") {
-                        try {
-                            $text = "Removing ITM-specific Tivoli subkey: $($subkey.PSPath)"; Logline -logstring $text -step $step
-                            Remove-Item -Path $subkey.PSPath -Recurse -Force
-                        }
-                        catch {
-                            $text = "Error removing ITM Tivoli subkey $($subkey.PSPath): $_"; Logline -logstring $text -step $step
-                        }
-                    }
-                    else {
-                        $text = "Preserving non-ITM Tivoli subkey: $subkeyName"; Logline -logstring $text -step $step
-                    }
-                }
-            }
-            catch {
-                $text = "Error accessing Tivoli registry path $tivoliPath : $_"; Logline -logstring $text -step $step
-            }
-        }
-        else {
-            $text = "Tivoli registry path not found: $tivoliPath"; Logline -logstring $text -step $step
-        }
-    }
-
-    return $true
 }
